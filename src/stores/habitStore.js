@@ -29,6 +29,10 @@ export const useHabitStore = create((set, get) => ({
       target,
     }
     if (metadata) row.metadata = metadata
+    row.completion_type =
+      Number(value) >= Number(target) ? 'full' :
+      Number(value) > 0               ? 'partial' :
+                                        'skip'
     const { data, error } = await supabase
       .from('habit_logs')
       .upsert(row, { onConflict: 'user_id,date,habit_type' })

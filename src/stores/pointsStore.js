@@ -34,46 +34,49 @@ export const usePointsStore = create((set, get) => ({
     set({ totalPoints: total, spentPoints: spent, redeemHistory: redeems || [], streak, loading: false })
   },
 
-  // Calculate consecutive days where at least 1 habit was completed
+  // Calculate consecutive days: valid = 1+ full OR 2+ partials ("never miss twice")
   calcStreak: async () => {
     const { data } = await supabase
       .from('habit_logs')
-      .select('date, value, target')
+      .select('date, value, target, completion_type')
       .eq('user_id', MATI_ID)
       .order('date', { ascending: false })
       .limit(100)
     if (!data || data.length === 0) return 0
 
-    // Group by date, check if all 4 habits met target
     const byDate = {}
     data.forEach(h => {
-      if (!byDate[h.date]) byDate[h.date] = { total: 0, completed: 0 }
-      byDate[h.date].total++
-      if (Number(h.value) >= Number(h.target)) byDate[h.date].completed++
+      if (!byDate[h.date]) byDate[h.date] = { full_count: 0, partial_count: 0 }
+      if (h.completion_type === 'full') byDate[h.date].full_count++
+      else if (h.completion_type === 'partial') byDate[h.date].partial_count++
     })
 
-    // Count consecutive days from today backwards
     let streak = 0
     const d = new Date()
     d.setHours(0, 0, 0, 0)
     for (let i = 0; i < 100; i++) {
       const key = d.toISOString().slice(0, 10)
       const day = byDate[key]
-      if (day && day.completed >= HABITS.length) {
+      const isValidDay = day && (
+        day.full_count >= HABITS.length ||
+        day.full_count >= 1 ||
+        day.partial_count >= 2
+      )
+      if (isValidDay) {
         streak++
       } else if (i > 0) {
-        break // Don't break on today if not complete yet
+        break
       }
       d.setDate(d.getDate() - 1)
     }
     return streak
   },
 
-  // Award points for completing a habit
-  awardPoints: async (source, basePoints) => {
+  // Award points for completing a habit (multiplier: 1 = full, 0.5 = partial)
+  awardPoints: async (source, basePoints, multiplier = 1) => {
     const today = new Date().toISOString().slice(0, 10)
     const streak = get().streak
-    let points = basePoints
+    let points = Math.round(basePoints * multiplier)
 
     // Streak multiplier
     if (streak >= 7) {

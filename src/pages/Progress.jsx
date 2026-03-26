@@ -14,6 +14,7 @@ function Heatmap({ data }) {
   }
 
   const getColor = (score) => {
+    if (score === -1) return 'bg-zinc-800'   // all skips
     if (score === 0) return 'bg-gray-100'
     if (score < 50) return 'bg-red-300'
     if (score < 80) return 'bg-amber-300'
@@ -69,19 +70,23 @@ export default function Progress() {
     // Fetch habits for heatmap
     const { data: habits } = await supabase
       .from('habit_logs')
-      .select('date, value, target, habit_type')
+      .select('date, value, target, habit_type, completion_type')
       .eq('user_id', MATI_ID)
       .gte('date', since)
       .order('date', { ascending: true })
 
-    // Calculate daily scores
+    // Calculate daily scores (skips don't count in denominator)
     const byDate = {}
     ;(habits || []).forEach(h => {
-      if (!byDate[h.date]) byDate[h.date] = { completed: 0, total: HABITS.length }
+      if (!byDate[h.date]) byDate[h.date] = { completed: 0, total: 0 }
+      if (h.completion_type !== 'skip') {
+        byDate[h.date].total++
+      }
       if (Number(h.value) >= Number(h.target)) byDate[h.date].completed++
     })
     const scores = {}
     Object.entries(byDate).forEach(([date, d]) => {
+      if (d.total === 0) { scores[date] = -1; return }  // all skips
       scores[date] = Math.round((d.completed / d.total) * 100)
     })
     setHeatmapData(scores)

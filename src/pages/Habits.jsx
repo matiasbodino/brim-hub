@@ -191,12 +191,14 @@ export default function Habits() {
     }
 
     await upsertHabit(type, val, habit.target)
-    // Award points if just completed
+    // Award points based on completion type
     const prev = Number(todayHabits[type]?.value || 0)
     if (prev < habit.target && val >= habit.target) {
-      await awardPoints(type, POINTS[type])
+      await awardPoints(type, POINTS[type], 1)
       await checkPerfectDay()
       showIdentity(type)
+    } else if (prev === 0 && val > 0 && val < habit.target) {
+      await awardPoints(type, POINTS[type], 0.5)
     }
   }
 
