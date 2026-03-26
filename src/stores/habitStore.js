@@ -19,11 +19,11 @@ export const useHabitStore = create((set, get) => ({
 
   upsertHabit: async (type, value, target) => {
     const today = new Date().toISOString().slice(0, 10)
-    const { data: { session } } = await supabase.auth.getSession()
+    const MATI_ID = 'c17e4105-4861-43c8-bf13-0d32f7818418'
     const { data, error } = await supabase
       .from('habit_logs')
       .upsert({
-        user_id: session.user.id,
+        user_id: MATI_ID,
         date: today,
         habit_type: type,
         value,
