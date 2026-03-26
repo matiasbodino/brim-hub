@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 
 const tabs = [
   { to: '/', label: 'Hoy', icon: '🏠' },
@@ -9,6 +9,8 @@ const tabs = [
 ]
 
 export default function BottomNav() {
+  const location = useLocation()
+  if (location.pathname === '/checkin') return null
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50">
       <div className="max-w-lg mx-auto flex">

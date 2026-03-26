@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useFoodStore } from '../stores/foodStore'
 import { useHabitStore } from '../stores/habitStore'
 import { usePointsStore } from '../stores/pointsStore'
@@ -55,6 +56,7 @@ export default function Dashboard() {
     return log && Number(log.value) >= h.target
   }).length
   const score = HABITS.length > 0 ? Math.round((completedHabits / HABITS.length) * 100) : 0
+  const isSunday = new Date().getDay() === 0
 
   return (
     <div className="px-4 py-5 pb-24 space-y-4">
@@ -71,6 +73,20 @@ export default function Dashboard() {
           <div className="text-xs text-gray-500">{level.name}</div>
         </div>
       </div>
+
+      {/* Sunday check-in banner */}
+      {isSunday && (
+        <Link to="/checkin">
+          <div className="bg-violet-950 border border-violet-700 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-violet-300 text-sm font-medium">Domingo 📋</p>
+              <p className="text-white font-semibold">Hacé tu check-in semanal</p>
+              <p className="text-zinc-400 text-xs mt-0.5">Peso · reflexión · cómo fue la semana</p>
+            </div>
+            <span className="text-violet-400 text-xl">→</span>
+          </div>
+        </Link>
+      )}
 
       {/* Score + Points + Streak */}
       <div className="grid grid-cols-3 gap-3">
