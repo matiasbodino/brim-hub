@@ -19,12 +19,18 @@ function MacroBar({ label, current, target, color }) {
   )
 }
 
-function HabitCheck({ label, done, emoji }) {
+function HabitCheck({ label, done, emoji, cue, identity }) {
   return (
     <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${done ? 'bg-violet-50 border-violet-200' : 'bg-gray-50 border-gray-200'}`}>
       <span className="text-lg">{emoji}</span>
-      <span className={`text-sm font-medium ${done ? 'text-violet-700' : 'text-gray-400'}`}>{label}</span>
-      {done && <span className="ml-auto text-violet-600 text-sm font-bold">✓</span>}
+      <div className="flex-1 min-w-0">
+        <span className={`text-sm font-medium ${done ? 'text-violet-700' : 'text-gray-400'}`}>{label}</span>
+        {done
+          ? <div className="text-xs text-violet-400 mt-0.5 truncate">{identity}</div>
+          : <div className="text-xs text-zinc-400 mt-0.5 truncate">{cue}</div>
+        }
+      </div>
+      {done && <span className="ml-auto text-violet-600 text-sm font-bold flex-shrink-0">✓</span>}
     </div>
   )
 }
@@ -114,6 +120,8 @@ export default function Dashboard() {
             key={h.type}
             label={h.label}
             emoji={h.emoji}
+            cue={h.cue}
+            identity={h.identity}
             done={todayHabits[h.type] && Number(todayHabits[h.type].value) >= h.target}
           />
         ))}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useHabitStore } from '../stores/habitStore'
 import { usePointsStore } from '../stores/pointsStore'
 import { useFoodStore } from '../stores/foodStore'
-import { HABITS, TARGETS, POINTS, MATI_ID } from '../lib/constants'
+import { HABITS, HABIT_GROUPS, POINTS, MATI_ID } from '../lib/constants'
 
 function HabitTracker({ type, label, emoji, value, target, unit, onUpdate }) {
   const pct = target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0
@@ -171,8 +171,15 @@ export default function Habits() {
   const { awardPoints, checkPerfectDay } = usePointsStore()
   const { addLog, fetchToday: fetchFood } = useFoodStore()
   const [showBJJ, setShowBJJ] = useState(false)
+  const [identityMsg, setIdentityMsg] = useState(null)
 
   useEffect(() => { fetchToday() }, [])
+
+  const showIdentity = (type) => {
+    const habit = HABITS.find(h => h.type === type)
+    setIdentityMsg(habit?.identity ?? null)
+    setTimeout(() => setIdentityMsg(null), 2000)
+  }
 
   const handleUpdate = async (type, val) => {
     const habit = HABITS.find(h => h.type === type)
@@ -189,6 +196,7 @@ export default function Habits() {
     if (prev < habit.target && val >= habit.target) {
       await awardPoints(type, POINTS[type])
       await checkPerfectDay()
+      showIdentity(type)
     }
   }
 
@@ -197,6 +205,7 @@ export default function Habits() {
     await upsertHabit('bjj', 1, habit.target, meta)
     await awardPoints('bjj', POINTS.bjj)
     await checkPerfectDay()
+    showIdentity('bjj')
     setShowBJJ(false)
   }
 
@@ -209,25 +218,45 @@ export default function Habits() {
     <div className="px-4 py-5 pb-24 space-y-4">
       <h1 className="text-xl font-bold text-gray-900">Hábitos</h1>
 
-      {HABITS.map(h => {
-        if (h.type === 'bjj' && showBJJ) {
-          return <BJJForm key="bjj-form" onSubmit={handleBJJ} onCancel={() => setShowBJJ(false)} />
-        }
+      {Object.entries(HABIT_GROUPS).map(([key, group]) => {
+        if (group.habits.length === 0) return null
         return (
-          <HabitTracker
-            key={h.type}
-            type={h.type}
-            label={h.label}
-            emoji={h.emoji}
-            value={Number(todayHabits[h.type]?.value || 0)}
-            target={h.target}
-            unit={h.unit}
-            onUpdate={(val) => handleUpdate(h.type, val)}
-          />
+          <div key={key}>
+            <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2 mt-4">
+              {group.emoji} {group.label}
+            </p>
+            <div className="space-y-3">
+              {group.habits.map(h => {
+                if (h.type === 'bjj' && showBJJ) {
+                  return <BJJForm key="bjj-form" onSubmit={handleBJJ} onCancel={() => setShowBJJ(false)} />
+                }
+                return (
+                  <HabitTracker
+                    key={h.type}
+                    type={h.type}
+                    label={h.label}
+                    emoji={h.emoji}
+                    value={Number(todayHabits[h.type]?.value || 0)}
+                    target={h.target}
+                    unit={h.unit}
+                    onUpdate={(val) => handleUpdate(h.type, val)}
+                  />
+                )
+              })}
+            </div>
+          </div>
         )
       })}
 
       <FoodForm onSubmit={handleFood} />
+
+      {identityMsg && (
+        <div className="fixed bottom-20 left-0 right-0 flex justify-center z-50 px-4">
+          <div className="bg-violet-600 text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg animate-pulse max-w-xs text-center">
+            {identityMsg}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

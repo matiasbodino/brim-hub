@@ -15,11 +15,30 @@ export const TARGETS = {
 
 // Habit definitions
 export const HABITS = [
-  { type: 'water', label: 'Agua', emoji: '💧', target: TARGETS.water, unit: 'L' },
-  { type: 'steps', label: 'Pasos', emoji: '🚶', target: TARGETS.steps, unit: '' },
-  { type: 'bjj', label: 'BJJ', emoji: '🥋', target: 1, unit: '' },
-  { type: 'gym', label: 'Gym', emoji: '🏋️', target: 1, unit: '' },
+  { type: 'water', label: 'Agua', emoji: '💧', target: TARGETS.water, unit: 'L', cue: 'Tomá el primer vaso apenas te levantás', identity: 'Eso es lo que hace alguien que cuida su cuerpo.', timeOfDay: 'morning' },
+  { type: 'steps', label: 'Pasos', emoji: '🚶', target: TARGETS.steps, unit: '', cue: 'Salí a caminar después del almuerzo', identity: 'Eso es lo que hace alguien que se mueve todos los días.', timeOfDay: 'afternoon' },
+  { type: 'bjj', label: 'BJJ', emoji: '🥋', target: 1, unit: '', cue: 'Preparate la bolsa antes de las 17h', identity: 'Eso es lo que hace un luchador.', timeOfDay: 'afternoon' },
+  { type: 'gym', label: 'Gym', emoji: '🏋️', target: 1, unit: '', cue: 'Ponete la ropa de gym apenas te levantás', identity: 'Eso es lo que hace alguien que se entrena.', timeOfDay: 'morning' },
 ]
+
+// Habits grouped by time of day (derived from HABITS)
+export const HABIT_GROUPS = {
+  morning: {
+    label: 'Mañana',
+    emoji: '☀️',
+    habits: HABITS.filter(h => h.timeOfDay === 'morning'),
+  },
+  afternoon: {
+    label: 'Tarde',
+    emoji: '🌤️',
+    habits: HABITS.filter(h => h.timeOfDay === 'afternoon'),
+  },
+  evening: {
+    label: 'Noche',
+    emoji: '🌙',
+    habits: HABITS.filter(h => h.timeOfDay === 'evening'),
+  },
+}
 
 // Points per habit completed
 export const POINTS = {
