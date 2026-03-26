@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
 
 const tabs = [
-  { to: '/', label: 'Hoy', icon: '◉' },
-  { to: '/chat', label: 'Chat', icon: '💬' },
-  { to: '/habits', label: 'Hábitos', icon: '⚡' },
+  { to: '/', label: 'Hoy', icon: '🏠' },
+  { to: '/habits', label: 'Hábitos', icon: '💪' },
+  { to: '/permitidos', label: 'Permitidos', icon: '🎁' },
+  { to: '/progress', label: 'Progreso', icon: '📈' },
   { to: '/profile', label: 'Perfil', icon: '👤' },
 ]
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { MATI_ID } from '../lib/constants'
 
 export const useFoodStore = create((set, get) => ({
   todayLogs: [],
@@ -8,19 +9,23 @@ export const useFoodStore = create((set, get) => ({
   fetchToday: async () => {
     set({ loading: true })
     const today = new Date().toISOString().slice(0, 10)
-    const { data } = await supabase
+    // Use date range in local timezone (Argentina UTC-3)
+    const start = new Date(today + 'T00:00:00-03:00').toISOString()
+    const end = new Date(today + 'T23:59:59-03:00').toISOString()
+    const { data, error } = await supabase
       .from('food_logs')
       .select('*')
-      .gte('logged_at', today + 'T00:00:00')
-      .lte('logged_at', today + 'T23:59:59')
+      .gte('logged_at', start)
+      .lte('logged_at', end)
       .order('logged_at', { ascending: true })
+    if (error) { set({ loading: false }); return }
     set({ todayLogs: data || [], loading: false })
   },
 
   addLog: async (log) => {
     const { data, error } = await supabase
       .from('food_logs')
-      .insert(log)
+      .insert({ ...log, user_id: MATI_ID })
       .select()
       .single()
     if (error) throw error
@@ -29,7 +34,8 @@ export const useFoodStore = create((set, get) => ({
   },
 
   confirmLog: async (id) => {
-    await supabase.from('food_logs').update({ confirmed: true }).eq('id', id)
+    const { error } = await supabase.from('food_logs').update({ confirmed: true }).eq('id', id)
+    if (error) throw error
     set({
       todayLogs: get().todayLogs.map(l => l.id === id ? { ...l, confirmed: true } : l)
     })
