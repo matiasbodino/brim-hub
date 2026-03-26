@@ -6,16 +6,22 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
-  const signIn = useAuthStore(s => s.signIn)
+  const { signIn, signUp } = useAuthStore()
 
-  const handleSubmit = async (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
     try {
       await signIn(email, password)
     } catch (err) {
-      setError(err.message)
+      // Si no existe, crear cuenta automáticamente
+      try {
+        await signUp(email, password)
+        await signIn(email, password)
+      } catch (err2) {
+        setError(err2.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -32,7 +38,7 @@ export default function Login() {
           <p className="text-sm text-gray-500 mt-1">Tu wellness tracker personal</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSignIn} className="space-y-4">
           <input
             type="email"
             value={email}
