@@ -58,7 +58,7 @@ function getWeekTrafficLight(full, target) {
   return { color: 'bg-red-400', text: '🔴' }
 }
 
-function CycleCard({ cycle, targets, weeklyStats }) {
+function CycleCard({ cycle, targets, weeklyStats, onComplete }) {
   const today = new Date().toISOString().slice(0, 10)
   const totalDays = Math.round((new Date(cycle.ends_at) - new Date(cycle.started_at)) / 86400000) + 1
   const elapsed = Math.max(0, Math.round((new Date(today) - new Date(cycle.started_at)) / 86400000))
@@ -122,6 +122,12 @@ function CycleCard({ cycle, targets, weeklyStats }) {
           </tbody>
         </table>
       </div>
+      <button
+        onClick={onComplete}
+        className="w-full mt-4 py-2 text-xs text-gray-400 border border-gray-200 rounded-xl active:bg-gray-50 transition"
+      >
+        Cerrar ciclo
+      </button>
     </div>
   )
 }
@@ -262,7 +268,7 @@ export default function Progress() {
 
       {/* Active Cycle */}
       {activeCycle ? (
-        <CycleCard cycle={activeCycle} targets={cycleTargets} weeklyStats={weeklyStats} />
+        <CycleCard cycle={activeCycle} targets={cycleTargets} weeklyStats={weeklyStats} onComplete={() => completeCycle('')} />
       ) : showNewCycle ? (
         <NewCycleForm onSubmit={handleCreateCycle} />
       ) : (
