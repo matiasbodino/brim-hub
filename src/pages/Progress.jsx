@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { MATI_ID, HABITS } from '../lib/constants'
+import { useCycleStore } from '../stores/cycleStore'
 
 function Heatmap({ data }) {
-  // Show last 28 days (4 weeks)
   const days = []
   const d = new Date()
   for (let i = 27; i >= 0; i--) {
@@ -14,7 +14,7 @@ function Heatmap({ data }) {
   }
 
   const getColor = (score) => {
-    if (score === -1) return 'bg-zinc-800'   // all skips
+    if (score === -1) return 'bg-zinc-800'
     if (score === 0) return 'bg-gray-100'
     if (score < 50) return 'bg-red-300'
     if (score < 80) return 'bg-amber-300'
@@ -27,7 +27,6 @@ function Heatmap({ data }) {
         {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(d => (
           <div key={d} className="text-center text-xs text-gray-400 font-medium">{d}</div>
         ))}
-        {/* Pad first week */}
         {Array.from({ length: (days[0]?.day + 6) % 7 }).map((_, i) => (
           <div key={'pad-' + i} />
         ))}
@@ -51,14 +50,149 @@ function Heatmap({ data }) {
   )
 }
 
+function getWeekTrafficLight(full, target) {
+  if (target === 0) return { color: 'bg-gray-200', text: '—' }
+  const pct = (full / target) * 100
+  if (pct >= 80) return { color: 'bg-emerald-400', text: '🟢' }
+  if (pct >= 50) return { color: 'bg-amber-400', text: '🟡' }
+  return { color: 'bg-red-400', text: '🔴' }
+}
+
+function CycleCard({ cycle, targets, weeklyStats }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const totalDays = Math.round((new Date(cycle.ends_at) - new Date(cycle.started_at)) / 86400000) + 1
+  const elapsed = Math.max(0, Math.round((new Date(today) - new Date(cycle.started_at)) / 86400000))
+  const pct = Math.min(100, Math.round((elapsed / totalDays) * 100))
+  const currentWeek = Math.min(4, Math.floor(elapsed / 7) + 1)
+
+  return (
+    <div className="bg-white rounded-2xl p-4 border border-violet-200">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="font-bold text-gray-900">{cycle.name}</h2>
+        <span className="text-xs text-violet-600 font-semibold">Semana {currentWeek}/4</span>
+      </div>
+      <div className="flex justify-between text-xs text-gray-400 mb-1">
+        <span>{new Date(cycle.started_at + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+        <span>{new Date(cycle.ends_at + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+      </div>
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-4">
+        <div className="h-full rounded-full bg-violet-500" style={{ width: pct + '%' }} />
+      </div>
+
+      {/* Weekly traffic light grid: 4 columns (weeks) x N rows (habits) */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr>
+              <th className="text-left text-gray-400 font-medium pb-2 pr-2">Hábito</th>
+              {[1, 2, 3, 4].map(w => (
+                <th key={w} className={'text-center font-medium pb-2 ' + (w === currentWeek ? 'text-violet-600' : 'text-gray-400')}>
+                  S{w}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {HABITS.map(h => {
+              const t = targets.find(t => t.habit_type === h.type)
+              const wt = t ? t.weekly_target : 0
+              return (
+                <tr key={h.type}>
+                  <td className="py-1.5 pr-2 text-gray-600">{h.emoji} {h.label}</td>
+                  {weeklyStats.map((week, wi) => {
+                    const s = week.habits[h.type]
+                    const tl = getWeekTrafficLight(s ? s.full : 0, wt)
+                    const isFuture = wi + 1 > currentWeek
+                    return (
+                      <td key={wi} className="text-center py-1.5">
+                        {isFuture ? (
+                          <span className="text-gray-200">·</span>
+                        ) : (
+                          <div className="flex flex-col items-center">
+                            <span>{tl.text}</span>
+                            <span className="text-gray-400 mt-0.5">{s ? s.full : 0}/{wt}</span>
+                          </div>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function NewCycleForm({ onSubmit }) {
+  const [name, setName] = useState('')
+  const [targets, setTargets] = useState({
+    water: 5, steps: 5, bjj: 2, gym: 2,
+  })
+
+  const handleSubmit = () => {
+    if (!name.trim()) return
+    onSubmit(name.trim(), targets)
+  }
+
+  return (
+    <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-4">
+      <h2 className="font-bold text-gray-900">Nuevo ciclo</h2>
+      <div>
+        <label className="text-xs text-gray-500">Nombre del ciclo</label>
+        <input
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Ciclo Abril 2026"
+          className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-base mt-1"
+        />
+      </div>
+      <div>
+        <label className="text-xs text-gray-500 block mb-2">Targets semanales (veces por semana)</label>
+        <div className="grid grid-cols-2 gap-2">
+          {HABITS.map(h => (
+            <div key={h.type} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+              <span>{h.emoji}</span>
+              <span className="text-sm text-gray-600 flex-1">{h.label}</span>
+              <input
+                type="number"
+                min="0"
+                max="7"
+                value={targets[h.type]}
+                onChange={e => setTargets({ ...targets, [h.type]: Number(e.target.value) })}
+                className="w-12 text-center px-1 py-1 rounded-lg border border-gray-200 text-sm font-bold"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="text-xs text-gray-400">Duración: 4 semanas desde hoy</p>
+      <button
+        onClick={handleSubmit}
+        disabled={!name.trim()}
+        className="w-full py-2.5 bg-violet-600 text-white font-semibold rounded-xl disabled:opacity-40 active:scale-95 transition"
+      >
+        Arrancar ciclo
+      </button>
+    </div>
+  )
+}
+
 export default function Progress() {
   const [heatmapData, setHeatmapData] = useState({})
   const [weightHistory, setWeightHistory] = useState([])
   const [bjjSessions, setBjjSessions] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showNewCycle, setShowNewCycle] = useState(false)
+
+  const { activeCycle, cycleTargets, weeklyStats, loading: cycleLoading, fetchActive, createCycle, completeCycle } = useCycleStore()
 
   useEffect(() => {
     loadData()
+    fetchActive()
   }, [])
 
   const loadData = async () => {
@@ -67,7 +201,6 @@ export default function Progress() {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const since = thirtyDaysAgo.toISOString().slice(0, 10)
 
-    // Fetch habits for heatmap
     const { data: habits } = await supabase
       .from('habit_logs')
       .select('date, value, target, habit_type, completion_type')
@@ -75,7 +208,6 @@ export default function Progress() {
       .gte('date', since)
       .order('date', { ascending: true })
 
-    // Calculate daily scores (skips don't count in denominator)
     const byDate = {}
     ;(habits || []).forEach(h => {
       if (!byDate[h.date]) byDate[h.date] = { completed: 0, total: 0 }
@@ -86,12 +218,11 @@ export default function Progress() {
     })
     const scores = {}
     Object.entries(byDate).forEach(([date, d]) => {
-      if (d.total === 0) { scores[date] = -1; return }  // all skips
+      if (d.total === 0) { scores[date] = -1; return }
       scores[date] = Math.round((d.completed / d.total) * 100)
     })
     setHeatmapData(scores)
 
-    // Fetch weight history
     const { data: weights } = await supabase
       .from('weight_logs')
       .select('date, weight')
@@ -100,7 +231,6 @@ export default function Progress() {
       .limit(20)
     setWeightHistory(weights || [])
 
-    // Fetch BJJ sessions (last 30 days)
     const { data: bjj } = await supabase
       .from('habit_logs')
       .select('date, value, metadata')
@@ -111,6 +241,11 @@ export default function Progress() {
     setBjjSessions((bjj || []).filter(b => Number(b.value) >= 1))
 
     setLoading(false)
+  }
+
+  const handleCreateCycle = async (name, targets) => {
+    await createCycle(name, targets)
+    setShowNewCycle(false)
   }
 
   if (loading) {
@@ -124,6 +259,20 @@ export default function Progress() {
   return (
     <div className="px-4 py-5 pb-24 space-y-4">
       <h1 className="text-xl font-bold text-gray-900">Progreso</h1>
+
+      {/* Active Cycle */}
+      {activeCycle ? (
+        <CycleCard cycle={activeCycle} targets={cycleTargets} weeklyStats={weeklyStats} />
+      ) : showNewCycle ? (
+        <NewCycleForm onSubmit={handleCreateCycle} />
+      ) : (
+        <button
+          onClick={() => setShowNewCycle(true)}
+          className="w-full py-3 border-2 border-dashed border-violet-300 rounded-2xl text-violet-600 font-semibold text-sm active:bg-violet-50 transition"
+        >
+          + Arrancar un ciclo de 4 semanas
+        </button>
+      )}
 
       {/* Heatmap */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100">
