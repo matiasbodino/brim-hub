@@ -5,6 +5,7 @@ import { useHabitStore } from '../stores/habitStore'
 import { usePointsStore } from '../stores/pointsStore'
 import { useCycleStore } from '../stores/cycleStore'
 import { HABITS, TARGETS } from '../lib/constants'
+import ShareButton from '../components/ShareButton'
 
 function MacroBar({ label, current, target, color }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
@@ -87,9 +88,25 @@ export default function Dashboard() {
             {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
-        <div className="text-right">
-          <div className="text-2xl">{level.badge}</div>
-          <div className="text-xs text-gray-500">{level.name}</div>
+        <div className="flex items-center gap-3">
+          <ShareButton cardProps={{
+            score,
+            streak,
+            level,
+            credits: balance,
+            cycleName: activeCycle?.name ?? null,
+            cycleWeek: currentWeekIndex !== null ? currentWeekIndex + 1 : null,
+            habits: HABITS.map(h => ({
+              label: h.label,
+              emoji: h.emoji,
+              done: todayHabits[h.type] && Number(todayHabits[h.type].value) >= h.target,
+            })),
+            date: new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }),
+          }} />
+          <div className="text-right">
+            <div className="text-2xl">{level.badge}</div>
+            <div className="text-xs text-gray-500">{level.name}</div>
+          </div>
         </div>
       </div>
 
