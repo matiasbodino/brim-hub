@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useFoodStore } from '../stores/foodStore'
 import { useHabitStore } from '../stores/habitStore'
 import { usePointsStore } from '../stores/pointsStore'
+import { useCycleStore } from '../stores/cycleStore'
 import { HABITS, TARGETS } from '../lib/constants'
 
 function MacroBar({ label, current, target, color }) {
@@ -40,11 +41,13 @@ export default function Dashboard() {
   const { todayLogs, fetchToday: fetchFood, getTodayMacros } = useFoodStore()
   const { todayHabits, fetchToday: fetchHabits } = useHabitStore()
   const { totalPoints, spentPoints, streak, loading: pointsLoading, fetchAll, getLevel } = usePointsStore()
+  const { activeCycle, weeklyStats, fetchActive } = useCycleStore()
 
   useEffect(() => {
     fetchFood()
     fetchHabits()
     fetchAll()
+    fetchActive()
   }, [])
 
   const macros = getTodayMacros()
@@ -57,6 +60,22 @@ export default function Dashboard() {
   }).length
   const score = HABITS.length > 0 ? Math.round((completedHabits / HABITS.length) * 100) : 0
   const isSunday = new Date().getDay() === 0
+
+  const currentWeekIndex = activeCycle ? (() => {
+    const today = new Date()
+    const started = new Date(activeCycle.started_at + 'T12:00:00')
+    const diffDays = Math.floor((today - started) / (1000 * 60 * 60 * 24))
+    return Math.min(Math.floor(diffDays / 7), 3)
+  })() : null
+  const currentWeekStats = weeklyStats?.[currentWeekIndex] ?? null
+
+  const getLight = (full, target) => {
+    if (!target) return '·'
+    const pct = (full / target) * 100
+    if (pct >= 80) return '🟢'
+    if (pct >= 50) return '🟡'
+    return '🔴'
+  }
 
   return (
     <div className="px-4 py-5 pb-24 space-y-4">
@@ -84,6 +103,40 @@ export default function Dashboard() {
               <p className="text-zinc-400 text-xs mt-0.5">Peso · reflexión · cómo fue la semana</p>
             </div>
             <span className="text-violet-400 text-xl">→</span>
+          </div>
+        </Link>
+      )}
+
+      {/* Active cycle card */}
+      {activeCycle && currentWeekStats && (
+        <Link to="/progress">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-widest">
+                  Ciclo activo · Semana {currentWeekIndex + 1}/4
+                </p>
+                <p className="text-white font-semibold">{activeCycle.name}</p>
+              </div>
+              <span className="text-zinc-400 text-sm">→</span>
+            </div>
+            <div className="flex gap-4">
+              {HABITS.map(h => {
+                const stat = currentWeekStats.habits[h.type]
+                const light = stat ? getLight(stat.full, stat.weeklyTarget) : '·'
+                return (
+                  <div key={h.type} className="flex flex-col items-center gap-0.5">
+                    <span className="text-lg">{light}</span>
+                    <span className="text-xs text-zinc-500">{h.emoji}</span>
+                    {stat && (
+                      <span className="text-xs text-zinc-600">
+                        {stat.full}/{stat.weeklyTarget}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </Link>
       )}
