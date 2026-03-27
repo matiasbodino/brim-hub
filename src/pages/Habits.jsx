@@ -3,6 +3,46 @@ import { useHabitStore } from '../stores/habitStore'
 import { usePointsStore } from '../stores/pointsStore'
 import { useFoodStore } from '../stores/foodStore'
 import { HABITS, HABIT_GROUPS, POINTS, MATI_ID } from '../lib/constants'
+import { useEnergyStore } from '../stores/energyStore'
+
+const ENERGY_LABELS = {
+  1: { emoji: '😴', label: 'Sin energía' },
+  2: { emoji: '😕', label: 'Flojo' },
+  3: { emoji: '😐', label: 'Normal' },
+  4: { emoji: '😊', label: 'Bien' },
+  5: { emoji: '🔥', label: 'En llamas' },
+}
+
+function EnergyPicker({ current, onSelect }) {
+  return (
+    <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+      <p className="text-xs text-zinc-500 uppercase tracking-widest mb-3">
+        Energía de hoy
+      </p>
+      <div className="flex justify-between">
+        {[1, 2, 3, 4, 5].map(level => (
+          <button
+            key={level}
+            onClick={() => onSelect(level)}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${
+              current === level
+                ? 'bg-violet-600 text-white'
+                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+            }`}
+          >
+            <span className="text-xl">{ENERGY_LABELS[level].emoji}</span>
+            <span className="text-xs">{level}</span>
+          </button>
+        ))}
+      </div>
+      {current && (
+        <p className="text-center text-zinc-400 text-sm mt-3">
+          {ENERGY_LABELS[current].label}
+        </p>
+      )}
+    </div>
+  )
+}
 
 function HabitTracker({ type, label, emoji, value, target, unit, onUpdate }) {
   const pct = target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0
@@ -170,10 +210,11 @@ export default function Habits() {
   const { todayHabits, fetchToday, upsertHabit } = useHabitStore()
   const { awardPoints, checkPerfectDay } = usePointsStore()
   const { addLog, fetchToday: fetchFood } = useFoodStore()
+  const { todayEnergy, fetchToday: fetchEnergy, saveEnergy } = useEnergyStore()
   const [showBJJ, setShowBJJ] = useState(false)
   const [identityMsg, setIdentityMsg] = useState(null)
 
-  useEffect(() => { fetchToday() }, [])
+  useEffect(() => { fetchToday(); fetchEnergy() }, [])
 
   const showIdentity = (type) => {
     const habit = HABITS.find(h => h.type === type)
@@ -219,6 +260,8 @@ export default function Habits() {
   return (
     <div className="px-4 py-5 pb-24 space-y-4">
       <h1 className="text-xl font-bold text-gray-900">Hábitos</h1>
+
+      <EnergyPicker current={todayEnergy} onSelect={saveEnergy} />
 
       {Object.entries(HABIT_GROUPS).map(([key, group]) => {
         if (group.habits.length === 0) return null
