@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { MATI_ID, HABITS } from '../lib/constants'
+import { MATI_ID, HABITS, GYM_EXERCISES } from '../lib/constants'
 import { useCycleStore } from '../stores/cycleStore'
+import { useGymPrStore } from '../stores/gymPrStore'
 
 function Heatmap({ data }) {
   const days = []
@@ -193,12 +194,21 @@ export default function Progress() {
   const [bjjSessions, setBjjSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [showNewCycle, setShowNewCycle] = useState(false)
+  const [selectedExercise, setSelectedExercise] = useState(null)
+  const [prWeight, setPrWeight] = useState('')
+  const [prReps, setPrReps] = useState('')
+  const [prNotes, setPrNotes] = useState('')
+  const [expandedExercise, setExpandedExercise] = useState(null)
+  const [customExercise, setCustomExercise] = useState('')
+  const [showCustomInput, setShowCustomInput] = useState(false)
 
   const { activeCycle, cycleTargets, weeklyStats, loading: cycleLoading, fetchActive, createCycle, completeCycle } = useCycleStore()
+  const { prs, fetchPRs, addPR, deletePR, getMaxPR, getExercises } = useGymPrStore()
 
   useEffect(() => {
     loadData()
     fetchActive()
+    fetchPRs()
   }, [])
 
   const loadData = async () => {
@@ -315,6 +325,114 @@ export default function Progress() {
                   })()}
                 </div>
               </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Gym PRs */}
+      <div className="bg-white rounded-2xl p-4 border border-gray-100">
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">🏋️ PRs de Gym</h2>
+
+        {selectedExercise ? (
+          <div className="space-y-3">
+            <h3 className="font-semibold text-gray-800">Nuevo PR — {selectedExercise}</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-gray-500">Peso (kg)</label>
+                <input type="number" step="0.5" value={prWeight} onChange={e => setPrWeight(e.target.value)}
+                  placeholder="kg" className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">Reps</label>
+                <input type="number" value={prReps} onChange={e => setPrReps(e.target.value)}
+                  placeholder="reps" className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">Notas (opcional)</label>
+              <input type="text" value={prNotes} onChange={e => setPrNotes(e.target.value)}
+                placeholder="Notas..." className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setSelectedExercise(null)}
+                className="flex-1 py-2 text-sm font-semibold rounded-xl border border-gray-200 text-gray-600">Cancelar</button>
+              <button
+                onClick={async () => {
+                  await addPR(selectedExercise, prWeight, prReps, prNotes)
+                  setPrWeight(''); setPrReps(''); setPrNotes(''); setSelectedExercise(null)
+                }}
+                disabled={!prWeight || !prReps}
+                className="flex-1 py-2 text-sm font-semibold rounded-xl bg-violet-600 text-white disabled:opacity-40">
+                Guardar PR
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {getExercises(GYM_EXERCISES).map(ex => {
+              const maxPr = getMaxPR(ex)
+              const isExpanded = expandedExercise === ex
+              const history = prs.filter(p => p.exercise === ex).slice(0, 5)
+              return (
+                <div key={ex}>
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <button onClick={() => setExpandedExercise(isExpanded ? null : ex)}
+                      className="flex items-center gap-2 text-left flex-1">
+                      <span className="text-xs text-gray-400">{isExpanded ? '▲' : '▼'}</span>
+                      <span className="text-sm text-gray-700">{ex}</span>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-800">
+                        {maxPr ? (Number(maxPr.weight) + 'kg × ' + maxPr.reps) : '—'}
+                      </span>
+                      <button onClick={() => setSelectedExercise(ex)}
+                        className="text-xs text-violet-600 font-semibold px-2 py-1 rounded-lg bg-violet-50 active:bg-violet-100">
+                        + PR
+                      </button>
+                    </div>
+                  </div>
+                  {isExpanded && history.length > 0 && (
+                    <div className="bg-gray-50 rounded-xl p-2 my-1 space-y-1">
+                      {history.map(p => (
+                        <div key={p.id} className="flex items-center justify-between text-xs px-2 py-1">
+                          <span className="text-gray-500">
+                            {new Date(p.date + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+                          </span>
+                          <span className="text-gray-700 font-semibold">{Number(p.weight)}kg × {p.reps}</span>
+                          {p.notes && <span className="text-gray-400 italic truncate max-w-[80px]">{p.notes}</span>}
+                          <button onClick={() => deletePR(p.id)} className="text-gray-300 hover:text-red-400 ml-1">🗑️</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {isExpanded && history.length === 0 && (
+                    <p className="text-xs text-gray-400 py-2 pl-6">Sin registros</p>
+                  )}
+                </div>
+              )
+            })}
+
+            {showCustomInput ? (
+              <div className="flex gap-2 mt-2">
+                <input type="text" value={customExercise} onChange={e => setCustomExercise(e.target.value)}
+                  placeholder="Nombre del ejercicio"
+                  className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm" />
+                <button
+                  onClick={async () => {
+                    if (!customExercise.trim()) return
+                    await addPR(customExercise.trim(), 0, 0, 'ejercicio agregado')
+                    setCustomExercise(''); setShowCustomInput(false)
+                  }}
+                  className="px-3 py-2 text-sm font-semibold rounded-xl bg-violet-600 text-white">
+                  Agregar
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setShowCustomInput(true)}
+                className="w-full mt-2 py-2 text-xs text-violet-600 font-semibold border border-dashed border-violet-300 rounded-xl active:bg-violet-50">
+                + Ejercicio custom
+              </button>
             )}
           </div>
         )}

@@ -73,6 +73,20 @@ export const DEFAULT_PERMITIDOS = [
   { id: 'dia_libre', name: 'Día libre total', emoji: '😴', cost: 50 },
 ]
 
+// Default gym exercises for PR tracking
+export const GYM_EXERCISES = [
+  'Sentadilla',
+  'Peso muerto',
+  'Press banca',
+  'Press militar',
+  'Dominadas',
+  'Remo con barra',
+  'Hip thrust',
+  'Curl bíceps',
+  'Press inclinado',
+  'Farmer carry',
+]
+
 // Get current level from total points
 export function getLevel(totalPoints) {
   let current = LEVELS[0]
