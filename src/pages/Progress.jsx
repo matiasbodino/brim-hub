@@ -201,6 +201,7 @@ export default function Progress() {
   const [expandedExercise, setExpandedExercise] = useState(null)
   const [customExercise, setCustomExercise] = useState('')
   const [showCustomInput, setShowCustomInput] = useState(false)
+  const [expandedCheckin, setExpandedCheckin] = useState(null)
 
   const { activeCycle, cycleTargets, weeklyStats, loading: cycleLoading, fetchActive, createCycle, completeCycle } = useCycleStore()
   const { prs, fetchPRs, addPR, deletePR, getMaxPR, getExercises } = useGymPrStore()
@@ -241,7 +242,7 @@ export default function Progress() {
 
     const { data: weights } = await supabase
       .from('weight_logs')
-      .select('date, weight')
+      .select('date, weight, notes')
       .eq('user_id', MATI_ID)
       .order('date', { ascending: true })
       .limit(20)
@@ -329,6 +330,38 @@ export default function Progress() {
           </div>
         )}
       </div>
+
+      {/* Check-ins */}
+      {(() => {
+        const checkins = weightHistory.filter(w => w.notes !== null).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10)
+        if (checkins.length === 0) return null
+        return (
+          <div className="bg-white rounded-2xl p-4 border border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">📋 Check-ins semanales</h2>
+            <div className="space-y-0">
+              {checkins.map(w => (
+                <div key={w.date}>
+                  <div
+                    className="flex items-center justify-between py-3 border-b border-gray-100 cursor-pointer"
+                    onClick={() => setExpandedCheckin(expandedCheckin === w.date ? null : w.date)}
+                  >
+                    <span className="text-sm text-gray-600">
+                      {new Date(w.date + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-gray-800">{w.weight} kg</span>
+                      <span className="text-xs text-gray-400">{expandedCheckin === w.date ? '▲' : '▼'}</span>
+                    </div>
+                  </div>
+                  {expandedCheckin === w.date && (
+                    <p className="text-gray-500 text-sm py-2 leading-relaxed">{w.notes}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Gym PRs */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100">
