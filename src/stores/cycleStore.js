@@ -74,14 +74,63 @@ export const useCycleStore = create((set, get) => ({
   },
 
   fetchPast: async () => {
-    const { data } = await supabase
+    const { data: cycles } = await supabase
       .from('cycles')
       .select('*')
       .eq('user_id', MATI_ID)
       .neq('status', 'active')
-      .order('ended_at', { ascending: false })
+      .order('ends_at', { ascending: false })
       .limit(10)
-    set({ pastCycles: data || [] })
+
+    if (!cycles || cycles.length === 0) {
+      set({ pastCycles: [] })
+      return
+    }
+
+    var cycleIds = cycles.map(function(c) { return c.id })
+    var { data: allTargets } = await supabase
+      .from('cycle_targets')
+      .select('*')
+      .in('cycle_id', cycleIds)
+
+    var minDate = cycles[cycles.length - 1].started_at
+    var maxDate = cycles[0].ends_at
+    var { data: allLogs } = await supabase
+      .from('habit_logs')
+      .select('date, habit_type, completion_type, value, target')
+      .eq('user_id', MATI_ID)
+      .gte('date', minDate)
+      .lte('date', maxDate)
+
+    var pastWithStats = cycles.map(function(cycle) {
+      var targets = (allTargets || []).filter(function(t) { return t.cycle_id === cycle.id })
+      var weeklyStats = [0, 1, 2, 3].map(function(weekIdx) {
+        var weekStart = new Date(cycle.started_at + 'T12:00:00')
+        weekStart.setDate(weekStart.getDate() + weekIdx * 7)
+        var weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekEnd.getDate() + 6)
+        var startStr = weekStart.toISOString().slice(0, 10)
+        var endStr = weekEnd.toISOString().slice(0, 10)
+
+        var weekLogs = (allLogs || []).filter(function(l) {
+          return l.date >= startStr && l.date <= endStr
+        })
+
+        var habits = {}
+        targets.forEach(function(t) {
+          var fullCount = weekLogs.filter(function(l) {
+            return l.habit_type === t.habit_type && l.completion_type === 'full'
+          }).length
+          habits[t.habit_type] = { full: fullCount, weeklyTarget: t.weekly_target }
+        })
+
+        return { weekNum: weekIdx + 1, start: startStr, end: endStr, habits: habits }
+      })
+
+      return Object.assign({}, cycle, { targets: targets, weeklyStats: weeklyStats })
+    })
+
+    set({ pastCycles: pastWithStats })
   },
 
   createCycle: async (name, targets) => {

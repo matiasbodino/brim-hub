@@ -202,13 +202,15 @@ export default function Progress() {
   const [customExercise, setCustomExercise] = useState('')
   const [showCustomInput, setShowCustomInput] = useState(false)
   const [expandedCheckin, setExpandedCheckin] = useState(null)
+  const [expandedCycle, setExpandedCycle] = useState(null)
 
-  const { activeCycle, cycleTargets, weeklyStats, loading: cycleLoading, fetchActive, createCycle, completeCycle } = useCycleStore()
+  const { activeCycle, cycleTargets, weeklyStats, pastCycles, loading: cycleLoading, fetchActive, fetchPast, createCycle, completeCycle } = useCycleStore()
   const { prs, fetchPRs, addPR, deletePR, getMaxPR, getExercises } = useGymPrStore()
 
   useEffect(() => {
     loadData()
     fetchActive()
+    fetchPast()
     fetchPRs()
   }, [])
 
@@ -504,6 +506,86 @@ export default function Progress() {
           </div>
         )}
       </div>
+
+      {/* Past Cycles */}
+      {pastCycles.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">Ciclos anteriores</h2>
+          {pastCycles.map(cycle => {
+            const isExpanded = expandedCycle === cycle.id
+            const statusBadge = cycle.status === 'completed'
+              ? <span className="text-xs bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">✓ Completado</span>
+              : <span className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">Abandonado</span>
+            return (
+              <div key={cycle.id} className="bg-white rounded-2xl p-4 border border-gray-100 mb-3">
+                <div
+                  className="flex items-center justify-between cursor-pointer"
+                  onClick={() => setExpandedCycle(isExpanded ? null : cycle.id)}
+                >
+                  <div>
+                    <div className="font-semibold text-gray-900 text-sm">{cycle.name}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {new Date(cycle.started_at + 'T12:00:00').toLocaleDateString('es-AR', {day:'numeric',month:'short'})}
+                      {' → '}
+                      {new Date(cycle.ends_at + 'T12:00:00').toLocaleDateString('es-AR', {day:'numeric',month:'short'})}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {statusBadge}
+                    <span className="text-xs text-gray-400">{isExpanded ? '▲' : '▼'}</span>
+                  </div>
+                </div>
+                {isExpanded && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    {cycle.weeklyStats && cycle.weeklyStats.length > 0 ? (
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr>
+                            <th className="text-left text-gray-400 font-medium pb-2 pr-2"></th>
+                            {HABITS.map(h => (
+                              <th key={h.type} className="text-center font-medium pb-2 text-gray-400">{h.emoji}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cycle.weeklyStats.map((week, wi) => (
+                            <tr key={wi}>
+                              <td className="py-1.5 pr-2 text-gray-500 font-medium">S{week.weekNum}</td>
+                              {HABITS.map(h => {
+                                const stat = week.habits[h.type]
+                                const light = stat ? (
+                                  !stat.weeklyTarget ? '·' :
+                                  (stat.full / stat.weeklyTarget * 100) >= 80 ? '🟢' :
+                                  (stat.full / stat.weeklyTarget * 100) >= 50 ? '🟡' : '🔴'
+                                ) : '·'
+                                return (
+                                  <td key={h.type} className="text-center py-1.5">
+                                    <div>{light}</div>
+                                    {stat && stat.weeklyTarget ? (
+                                      <div className="text-gray-400 mt-0.5">{stat.full}/{stat.weeklyTarget}</div>
+                                    ) : null}
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p className="text-sm text-gray-400">Sin datos</p>
+                    )}
+                    {cycle.reflection && (
+                      <p className="text-sm text-gray-400 italic mt-3 pt-2 border-t border-gray-100">
+                        {cycle.reflection}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
