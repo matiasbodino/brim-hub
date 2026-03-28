@@ -4,7 +4,8 @@ import { useFoodStore } from '../stores/foodStore'
 import { useHabitStore } from '../stores/habitStore'
 import { usePointsStore } from '../stores/pointsStore'
 import { useCycleStore } from '../stores/cycleStore'
-import { HABITS, TARGETS } from '../lib/constants'
+import { HABITS } from '../lib/constants'
+import { useTargetsStore } from '../stores/targetsStore'
 import ShareButton from '../components/ShareButton'
 
 function MacroBar({ label, current, target, color }) {
@@ -43,12 +44,14 @@ export default function Dashboard() {
   const { todayHabits, fetchToday: fetchHabits } = useHabitStore()
   const { totalPoints, spentPoints, streak, loading: pointsLoading, fetchAll, getLevel } = usePointsStore()
   const { activeCycle, weeklyStats, fetchActive } = useCycleStore()
+  const { targets, fetchTargets } = useTargetsStore()
 
   useEffect(() => {
     fetchFood()
     fetchHabits()
     fetchAll()
     fetchActive()
+    fetchTargets()
   }, [])
 
   const macros = getTodayMacros()
@@ -192,10 +195,10 @@ export default function Dashboard() {
       {/* Macros */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-3">
         <h2 className="text-sm font-semibold text-gray-700">Macros del día</h2>
-        <MacroBar label="Calorías" current={macros.calories} target={TARGETS.calories} color="bg-violet-500" />
-        <MacroBar label="Proteína" current={Math.round(macros.protein)} target={TARGETS.protein} color="bg-blue-500" />
-        <MacroBar label="Carbs" current={Math.round(macros.carbs)} target={TARGETS.carbs} color="bg-amber-500" />
-        <MacroBar label="Grasa" current={Math.round(macros.fat)} target={TARGETS.fat} color="bg-red-400" />
+        <MacroBar label="Calorías" current={macros.calories} target={targets.calories} color="bg-violet-500" />
+        <MacroBar label="Proteína" current={Math.round(macros.protein)} target={targets.protein} color="bg-blue-500" />
+        <MacroBar label="Carbs" current={Math.round(macros.carbs)} target={targets.carbs} color="bg-amber-500" />
+        <MacroBar label="Grasa" current={Math.round(macros.fat)} target={targets.fat} color="bg-red-400" />
       </div>
 
       {/* Habits */}

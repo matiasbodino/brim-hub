@@ -1,13 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { TARGETS, MATI_ID } from '../lib/constants'
+import { MATI_ID } from '../lib/constants'
 import { usePointsStore } from '../stores/pointsStore'
+import { useTargetsStore } from '../stores/targetsStore'
 
 export default function Profile() {
   const { getLevel, totalPoints } = usePointsStore()
   const { current: level, next: nextLevel } = getLevel()
+  const { targets, fetchTargets, saveTargets } = useTargetsStore()
   const [weight, setWeight] = useState('')
   const [weightSaved, setWeightSaved] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => { fetchTargets() }, [])
 
   const handleSaveWeight = async () => {
     if (!weight) return
@@ -23,6 +31,28 @@ export default function Profile() {
     setWeightSaved(true)
     setTimeout(() => setWeightSaved(false), 2000)
   }
+
+  const handleSaveTargets = async () => {
+    setSaving(true)
+    const ok = await saveTargets(form)
+    setSaving(false)
+    if (ok) {
+      setSaved(true)
+      setEditing(false)
+      setTimeout(() => setSaved(false), 2000)
+    }
+  }
+
+  const FIELDS = [
+    { key: 'calories', label: 'Calorías', unit: 'kcal', step: 50 },
+    { key: 'protein', label: 'Proteína', unit: 'g', step: 5 },
+    { key: 'carbs', label: 'Carbos', unit: 'g', step: 5 },
+    { key: 'fat', label: 'Grasa', unit: 'g', step: 5 },
+    { key: 'water', label: 'Agua', unit: 'L', step: 0.5 },
+    { key: 'steps', label: 'Pasos', unit: '', step: 500 },
+    { key: 'bjj_weekly', label: 'BJJ / semana', unit: 'días', step: 1, min: 0, max: 7 },
+    { key: 'gym_weekly', label: 'Gym / semana', unit: 'días', step: 1, min: 0, max: 7 },
+  ]
 
   return (
     <div className="px-4 py-5 pb-24 space-y-5">
@@ -80,33 +110,65 @@ export default function Profile() {
 
       {/* Targets */}
       <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-3">
-        <h2 className="text-sm font-semibold text-gray-700">Objetivos diarios</h2>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="bg-gray-50 rounded-xl p-3">
-            <div className="text-gray-500">Calorías</div>
-            <div className="font-bold text-gray-900">{TARGETS.calories} kcal</div>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-3">
-            <div className="text-gray-500">Proteína</div>
-            <div className="font-bold text-gray-900">{TARGETS.protein}g</div>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-3">
-            <div className="text-gray-500">Carbs</div>
-            <div className="font-bold text-gray-900">{TARGETS.carbs}g</div>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-3">
-            <div className="text-gray-500">Grasa</div>
-            <div className="font-bold text-gray-900">{TARGETS.fat}g</div>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-3">
-            <div className="text-gray-500">Agua</div>
-            <div className="font-bold text-gray-900">{TARGETS.water}L</div>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-3">
-            <div className="text-gray-500">Pasos</div>
-            <div className="font-bold text-gray-900">{TARGETS.steps.toLocaleString()}</div>
-          </div>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-700">Objetivos</h2>
+          {saved && <span className="text-xs text-emerald-600 font-semibold">✓ Guardado</span>}
         </div>
+
+        {editing && form ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              {FIELDS.map(f => (
+                <div key={f.key}>
+                  <label className="text-xs text-gray-500 block mb-1">{f.label} {f.unit && <span className="text-gray-300">({f.unit})</span>}</label>
+                  <input
+                    type="number"
+                    step={f.step}
+                    min={f.min ?? 0}
+                    max={f.max}
+                    value={form[f.key] ?? ''}
+                    onChange={e => setForm({ ...form, [f.key]: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setEditing(false)}
+                className="flex-1 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 text-gray-500"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveTargets}
+                disabled={saving}
+                className="flex-2 py-2.5 px-6 text-sm font-semibold rounded-xl bg-violet-600 text-white disabled:opacity-40"
+              >
+                {saving ? 'Guardando...' : 'Guardar targets'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {FIELDS.map(f => (
+                <div key={f.key} className="bg-gray-50 rounded-xl p-3">
+                  <div className="text-gray-500">{f.label}</div>
+                  <div className="font-bold text-gray-900">
+                    {f.key === 'steps' ? (targets[f.key] ?? 0).toLocaleString() : targets[f.key] ?? 0}{f.unit ? ' ' + f.unit : ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => { setForm({ ...targets }); setEditing(true) }}
+              className="w-full py-2.5 text-sm font-semibold rounded-xl border border-violet-200 text-violet-600 active:bg-violet-50 transition"
+            >
+              Editar targets
+            </button>
+          </>
+        )}
       </div>
     </div>
   )

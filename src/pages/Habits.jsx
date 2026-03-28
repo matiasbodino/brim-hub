@@ -4,6 +4,7 @@ import { usePointsStore } from '../stores/pointsStore'
 import { useFoodStore } from '../stores/foodStore'
 import { HABITS, HABIT_GROUPS, POINTS, MATI_ID } from '../lib/constants'
 import { useEnergyStore } from '../stores/energyStore'
+import { useTargetsStore } from '../stores/targetsStore'
 
 const ENERGY_LABELS = {
   1: { emoji: '😴', label: 'Sin energía' },
@@ -211,6 +212,7 @@ export default function Habits() {
   const { awardPoints, checkPerfectDay } = usePointsStore()
   const { addLog, fetchToday: fetchFood } = useFoodStore()
   const { todayEnergy, fetchToday: fetchEnergy, saveEnergy } = useEnergyStore()
+  const { targets } = useTargetsStore()
   const [showBJJ, setShowBJJ] = useState(false)
   const [identityMsg, setIdentityMsg] = useState(null)
 
@@ -231,14 +233,17 @@ export default function Habits() {
       return
     }
 
-    await upsertHabit(type, val, habit.target)
+    const runtimeTarget = type === 'water' ? targets.water
+      : type === 'steps' ? targets.steps
+      : habit.target
+    await upsertHabit(type, val, runtimeTarget)
     // Award points based on completion type
     const prev = Number(todayHabits[type]?.value || 0)
-    if (prev < habit.target && val >= habit.target) {
+    if (prev < runtimeTarget && val >= runtimeTarget) {
       await awardPoints(type, POINTS[type], 1)
       await checkPerfectDay()
       showIdentity(type)
-    } else if (prev === 0 && val > 0 && val < habit.target) {
+    } else if (prev === 0 && val > 0 && val < runtimeTarget) {
       await awardPoints(type, POINTS[type], 0.5)
     }
   }
