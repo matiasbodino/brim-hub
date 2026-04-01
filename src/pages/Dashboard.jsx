@@ -43,7 +43,7 @@ function HabitCheck({ label, done, emoji, cue, identity }) {
 }
 
 export default function Dashboard() {
-  const { todayLogs, fetchToday: fetchFood, getTodayMacros } = useFoodStore()
+  const { todayLogs, fetchToday: fetchFood, getTodayMacros, deleteLog } = useFoodStore()
   const { todayHabits, fetchToday: fetchHabits } = useHabitStore()
   const { totalPoints, spentPoints, streak, loading: pointsLoading, fetchAll, getLevel } = usePointsStore()
   const { activeCycle, weeklyStats, fetchActive } = useCycleStore()
@@ -225,14 +225,26 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Last meal */}
+      {/* Food logs */}
       {todayLogs.length > 0 && (
         <div className="bg-white rounded-2xl p-4 border border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-700 mb-2">Última comida</h2>
-          <p className="text-sm text-gray-600">{todayLogs[todayLogs.length - 1].description}</p>
-          <p className="text-xs text-gray-400 mt-1">
-            {todayLogs[todayLogs.length - 1].calories} kcal · {todayLogs[todayLogs.length - 1].protein}g prot
-          </p>
+          <h2 className="text-sm font-semibold text-gray-700 mb-2">Comidas de hoy</h2>
+          <div className="space-y-2">
+            {todayLogs.map(log => (
+              <div key={log.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-700 truncate">{log.description}</p>
+                  <p className="text-xs text-gray-400">{log.meal_type} · {log.calories} kcal · {log.protein}g prot</p>
+                </div>
+                <button
+                  onClick={() => { if (confirm('¿Borrar "' + log.description + '"?')) deleteLog(log.id) }}
+                  className="ml-2 text-gray-300 hover:text-red-400 text-sm flex-shrink-0 p-1"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

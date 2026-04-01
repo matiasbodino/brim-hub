@@ -48,6 +48,17 @@ export const useFoodStore = create((set, get) => ({
     })
   },
 
+  deleteLog: async (id) => {
+    await supabase.from('food_logs').delete().eq('id', id)
+    set({ todayLogs: get().todayLogs.filter(l => l.id !== id) })
+  },
+
+  updateLog: async (id, updates) => {
+    const { error } = await supabase.from('food_logs').update(updates).eq('id', id)
+    if (error) return
+    set({ todayLogs: get().todayLogs.map(l => l.id === id ? { ...l, ...updates } : l) })
+  },
+
   getTodayMacros: () => {
     const logs = get().todayLogs.filter(l => l.confirmed)
     return {
