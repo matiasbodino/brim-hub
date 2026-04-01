@@ -75,35 +75,25 @@ export const useChatStore = create((set, get) => ({
         return
       }
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          const chunk = decoder.decode(value, { stream: true })
-          const lines = chunk.split('\n')
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue
-            try {
-              const data = JSON.parse(line.slice(6))
-              if (data.text) {
-                set(s => ({
-                  messages: s.messages.map(m =>
-                    m.id === assistantMsg.id ? { ...m, content: m.content + data.text } : m
-                  ),
-                }))
-              }
-            } catch { /* skip */ }
-          }
-        }
-      } finally {
-        reader.releaseLock()
+      // Read the full response as text instead of streaming reader
+      // (fixes issue where stream never closes properly)
+      const fullText = await res.text()
+      const lines = fullText.split('\n')
+      let assembled = ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        try {
+          const data = JSON.parse(line.slice(6))
+          if (data.text) assembled += data.text
+        } catch { /* skip */ }
       }
 
-      set({ isStreaming: false })
+      set(s => ({
+        messages: s.messages.map(m =>
+          m.id === assistantMsg.id ? { ...m, content: assembled || 'Sin respuesta' } : m
+        ),
+        isStreaming: false,
+      }))
     } catch (err) {
       set(s => ({
         messages: s.messages.map(m =>
