@@ -30,8 +30,27 @@ export default function Chat() {
     sendMessage(text)
   }
 
+  const handleNewChat = () => {
+    if (messages.length === 0) return
+    if (window.confirm('¿Iniciar chat nuevo? Se borra el historial.')) {
+      useChatStore.getState().clearHistory()
+    }
+  }
+
   return (
     <div className="flex flex-col h-[calc(100dvh-64px)]">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+        <h2 className="text-sm font-semibold text-gray-800">💬 Brim</h2>
+        {messages.length > 0 && (
+          <button
+            onClick={handleNewChat}
+            className="text-xs font-medium text-violet-600 active:text-violet-800 px-2 py-1 rounded-lg bg-violet-50"
+          >
+            + Nuevo chat
+          </button>
+        )}
+      </div>
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {messages.length === 0 && !isStreaming ? (
