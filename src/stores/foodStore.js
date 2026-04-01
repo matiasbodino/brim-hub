@@ -95,7 +95,7 @@ export const useFoodStore = create((set, get) => ({
 
     // Save to ai_food_estimates
     if (log) {
-      await supabase.from('ai_food_estimates').insert({
+      supabase.from('ai_food_estimates').insert({
         user_id: MATI_ID,
         food_log_id: log.id,
         raw_input: estimate.rawInput || estimate.description,
@@ -112,6 +112,7 @@ export const useFoodStore = create((set, get) => ({
     }
 
     set({ aiEstimate: null })
+    await get().fetchToday()
     return log
   },
 
@@ -145,6 +146,7 @@ export const useFoodStore = create((set, get) => ({
     }
 
     set({ aiEstimate: null })
+    await get().fetchToday()
     return log
   },
 
