@@ -71,12 +71,14 @@ function HabitTracker({ type, label, emoji, value, target, unit, onUpdate }) {
       <div className="flex gap-2">
         {type === 'water' && (
           <>
+            {value > 0 && <button onClick={() => onUpdate(Math.max(0, value - 0.25))} className="py-2 px-3 text-sm font-semibold rounded-xl border border-red-200 text-red-400 active:bg-red-50">−</button>}
             <button onClick={() => onUpdate(value + 0.25)} className="flex-1 py-2 text-sm font-semibold rounded-xl border border-gray-200 active:bg-gray-50">+250ml</button>
             <button onClick={() => onUpdate(value + 0.5)} className="flex-1 py-2 text-sm font-semibold rounded-xl border border-gray-200 active:bg-gray-50">+500ml</button>
           </>
         )}
         {type === 'steps' && (
           <>
+            {value > 0 && <button onClick={() => onUpdate(Math.max(0, value - 1000))} className="py-2 px-3 text-sm font-semibold rounded-xl border border-red-200 text-red-400 active:bg-red-50">−</button>}
             <button onClick={() => onUpdate(value + 1000)} className="flex-1 py-2 text-sm font-semibold rounded-xl border border-gray-200 active:bg-gray-50">+1000</button>
             <button onClick={() => onUpdate(value + 5000)} className="flex-1 py-2 text-sm font-semibold rounded-xl border border-gray-200 active:bg-gray-50">+5000</button>
           </>
