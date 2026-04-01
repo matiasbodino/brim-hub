@@ -7,6 +7,7 @@ export const usePointsStore = create((set, get) => ({
   spentPoints: 0,
   redeemHistory: [],
   streak: 0,
+  habitStreaks: {},
   loading: false,
 
   get balance() { return get().totalPoints - get().spentPoints },
@@ -32,6 +33,7 @@ export const usePointsStore = create((set, get) => ({
     const streak = await get().calcStreak()
 
     set({ totalPoints: total, spentPoints: spent, redeemHistory: redeems || [], streak, loading: false })
+    get().calcHabitStreaks()
   },
 
   // Calculate consecutive days: valid = 1+ full OR 2+ partials ("never miss twice")
@@ -70,6 +72,83 @@ export const usePointsStore = create((set, get) => ({
       d.setDate(d.getDate() - 1)
     }
     return streak
+  },
+
+  calcHabitStreaks: async () => {
+    var { data } = await supabase
+      .from('habit_logs')
+      .select('date, habit_type, completion_type')
+      .eq('user_id', MATI_ID)
+      .order('date', { ascending: false })
+      .limit(365)
+
+    if (!data || data.length === 0) {
+      set({ habitStreaks: {} })
+      return
+    }
+
+    var habitTypes = ['water', 'steps', 'bjj', 'gym']
+    var result = {}
+
+    habitTypes.forEach(function(type) {
+      var logs = data
+        .filter(function(l) { return l.habit_type === type && l.completion_type === 'full' })
+        .map(function(l) { return l.date })
+      logs.sort(function(a, b) { return b.localeCompare(a) })
+
+      if (logs.length === 0) {
+        result[type] = { current: 0, best: 0 }
+        return
+      }
+
+      var current = 0
+      var today = new Date()
+      today.setHours(0, 0, 0, 0)
+      var d = new Date(today)
+      for (var i = 0; i < 365; i++) {
+        var key = d.toISOString().slice(0, 10)
+        if (logs.indexOf(key) >= 0) {
+          current++
+        } else if (i > 0) {
+          break
+        }
+        d.setDate(d.getDate() - 1)
+      }
+
+      var best = 0
+      var tempStreak = 1
+      for (var j = 1; j < logs.length; j++) {
+        var prev = new Date(logs[j - 1] + 'T12:00:00')
+        var curr = new Date(logs[j] + 'T12:00:00')
+        var diffDays = Math.round((prev - curr) / (1000 * 60 * 60 * 24))
+        if (diffDays === 1) {
+          tempStreak++
+        } else {
+          best = Math.max(best, tempStreak)
+          tempStreak = 1
+        }
+      }
+      best = Math.max(best, tempStreak, current)
+
+      result[type] = { current: current, best: best }
+    })
+
+    set({ habitStreaks: result })
+
+    // Sync to streaks table (fire-and-forget)
+    var upserts = habitTypes.map(function(type) {
+      return {
+        user_id: MATI_ID,
+        habit_type: type,
+        current_streak: result[type].current,
+        best_streak: result[type].best,
+        last_completed: data.find(function(l) {
+          return l.habit_type === type && l.completion_type === 'full'
+        })?.date || null,
+        updated_at: new Date().toISOString(),
+      }
+    })
+    supabase.from('streaks').upsert(upserts, { onConflict: 'user_id,habit_type' })
   },
 
   // Award points for completing a habit (multiplier: 1 = full, 0.5 = partial)
