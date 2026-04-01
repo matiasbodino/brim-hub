@@ -7,6 +7,7 @@ import { useCycleStore } from '../stores/cycleStore'
 import { HABITS } from '../lib/constants'
 import { useTargetsStore } from '../stores/targetsStore'
 import ShareButton from '../components/ShareButton'
+import WeeklyDigest from '../components/digest/WeeklyDigest'
 
 function MacroBar({ label, current, target, color }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
@@ -191,6 +192,9 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Weekly Digest */}
+      <WeeklyDigest />
 
       {/* Macros */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-3">
