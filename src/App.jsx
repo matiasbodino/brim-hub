@@ -6,6 +6,7 @@ import Permitidos from './pages/Permitidos'
 import Progress from './pages/Progress'
 import Profile from './pages/Profile'
 import Checkin from './pages/Checkin'
+import Chat from './pages/Chat'
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/progress" element={<Progress />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/checkin" element={<Checkin />} />
+          <Route path="/chat" element={<Chat />} />
         </Routes>
         <BottomNav />
       </div>
