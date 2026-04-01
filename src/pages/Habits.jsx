@@ -6,6 +6,8 @@ import { HABITS, HABIT_GROUPS, POINTS, MATI_ID } from '../lib/constants'
 import { useEnergyStore } from '../stores/energyStore'
 import { useTargetsStore } from '../stores/targetsStore'
 import { track } from '../lib/analytics'
+import { haptic } from '../lib/haptics'
+import { useToast } from '../components/Toast'
 
 const ENERGY_LABELS = {
   1: { emoji: '😴', label: 'Sin energía' },
@@ -383,6 +385,7 @@ export default function Habits() {
   const { targets } = useTargetsStore()
   const [showBJJ, setShowBJJ] = useState(false)
   const [identityMsg, setIdentityMsg] = useState(null)
+  const showToast = useToast()
 
   useEffect(() => { fetchToday(); fetchEnergy() }, [])
 
@@ -411,9 +414,12 @@ export default function Habits() {
       await awardPoints(type, POINTS[type], 1)
       await checkPerfectDay()
       showIdentity(type)
+      haptic(10)
+      showToast('\u2713 +' + POINTS[type] + ' pts')
       track('habit_completed', { habit_type: type, completion_type: 'full' })
     } else if (prev === 0 && val > 0 && val < runtimeTarget) {
       await awardPoints(type, POINTS[type], 0.5)
+      haptic(5)
       track('habit_completed', { habit_type: type, completion_type: 'partial' })
     }
   }
@@ -424,6 +430,8 @@ export default function Habits() {
     await awardPoints('bjj', POINTS.bjj)
     await checkPerfectDay()
     showIdentity('bjj')
+    haptic(10)
+    showToast('\uD83E\uDD4B +' + POINTS.bjj + ' pts')
     track('habit_completed', { habit_type: 'bjj', completion_type: 'full' })
     setShowBJJ(false)
   }

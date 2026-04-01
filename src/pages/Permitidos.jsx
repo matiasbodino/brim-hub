@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { usePointsStore } from '../stores/pointsStore'
 import { DEFAULT_PERMITIDOS } from '../lib/constants'
+import { hapticLight } from '../lib/haptics'
 
 function PermitidoCard({ item, balance, onRedeem }) {
   const canAfford = balance >= item.cost
@@ -38,6 +39,7 @@ export default function Permitidos() {
   const handleRedeem = async (item) => {
     try {
       await redeem(item)
+      hapticLight()
       setJustRedeemed(item)
       setTimeout(() => setJustRedeemed(null), 2000)
     } catch (e) {

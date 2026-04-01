@@ -4,6 +4,7 @@ import { MATI_ID, HABITS, GYM_EXERCISES } from '../lib/constants'
 import { useCycleStore } from '../stores/cycleStore'
 import { useGymPrStore } from '../stores/gymPrStore'
 import { useJournalStore } from '../stores/journalStore'
+import { WeightChart, HabitWeeklyChart, MacroChart, useTrendData } from '../components/charts/TrendCharts'
 
 function Heatmap({ data }) {
   const days = []
@@ -204,6 +205,10 @@ export default function Progress() {
   const [showCustomInput, setShowCustomInput] = useState(false)
   const [expandedCheckin, setExpandedCheckin] = useState(null)
   const [expandedCycle, setExpandedCycle] = useState(null)
+  const { weightData: trendWeights, habitWeeklyData, macroData, loading: trendsLoading } = useTrendData()
+  const [showWeightChart, setShowWeightChart] = useState(false)
+  const [showHabitChart, setShowHabitChart] = useState(false)
+  const [showMacroChart, setShowMacroChart] = useState(false)
 
   const { activeCycle, cycleTargets, weeklyStats, pastCycles, loading: cycleLoading, fetchActive, fetchPast, createCycle, completeCycle } = useCycleStore()
   const { prs, fetchPRs, addPR, deletePR, getMaxPR, getExercises } = useGymPrStore()
@@ -302,6 +307,35 @@ export default function Progress() {
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Últimos 28 días</h2>
         <Heatmap data={heatmapData} />
       </div>
+
+      {/* Trends */}
+      {!trendsLoading && (
+        <>
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setShowWeightChart(!showWeightChart)}>
+              <h2 className="text-sm font-semibold text-gray-700">{'\u2696\uFE0F'} Tendencia de peso</h2>
+              <span className="text-xs text-gray-400">{showWeightChart ? '\u25B2' : '\u25BC'}</span>
+            </div>
+            {showWeightChart && <div className="px-2 pb-4"><WeightChart data={trendWeights} /></div>}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setShowHabitChart(!showHabitChart)}>
+              <h2 className="text-sm font-semibold text-gray-700">{'\uD83D\uDCCA'} Habitos por semana</h2>
+              <span className="text-xs text-gray-400">{showHabitChart ? '\u25B2' : '\u25BC'}</span>
+            </div>
+            {showHabitChart && <div className="px-2 pb-4"><HabitWeeklyChart data={habitWeeklyData} /></div>}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setShowMacroChart(!showMacroChart)}>
+              <h2 className="text-sm font-semibold text-gray-700">{'\uD83C\uDF7D'} Macros diarios</h2>
+              <span className="text-xs text-gray-400">{showMacroChart ? '\u25B2' : '\u25BC'}</span>
+            </div>
+            {showMacroChart && <div className="px-2 pb-4"><MacroChart data={macroData} /></div>}
+          </div>
+        </>
+      )}
 
       {/* Weight trend */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100">
