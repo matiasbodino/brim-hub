@@ -1,4 +1,4 @@
-import { streamClaude } from "../_shared/anthropic.ts";
+import { callClaude } from "../_shared/anthropic.ts";
 import { buildUserContext } from "../_shared/context.ts";
 
 const MATI_ID = "c17e4105-4861-43c8-bf13-0d32f7818418";
@@ -47,43 +47,23 @@ Deno.serve(async (req) => {
     const ctx = await buildUserContext(MATI_ID);
     const systemPrompt = buildSystemPrompt(ctx as unknown as Record<string, unknown>);
 
-    // Build messages array with history
-    const messages: { role: string; content: string }[] = [];
-    if (history && Array.isArray(history)) {
-      for (const msg of history.slice(-10)) {
-        messages.push({ role: msg.role, content: msg.content });
-      }
+    // Build user message with history context
+    let fullMessage = "";
+    if (history && Array.isArray(history) && history.length > 0) {
+      fullMessage = history.slice(-6).map((m: {role:string;content:string}) =>
+        (m.role === "user" ? "Mati: " : "Brim: ") + m.content
+      ).join("\n") + "\nMati: " + message;
+    } else {
+      fullMessage = message;
     }
-    messages.push({ role: "user", content: message });
 
-    // Call Claude with streaming via REST API
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 512,
-        temperature: 0.7,
-        system: systemPrompt,
-        messages,
-        stream: true,
-      }),
+    // Non-streaming call
+    const reply = await callClaude(systemPrompt, fullMessage, {
+      maxTokens: 512,
+      temperature: 0.7,
     });
 
-    if (!res.ok || !res.body) {
-      const err = await res.text();
-      return new Response(
-        JSON.stringify({ error: "Claude error: " + err }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Save user message to DB (fire and forget)
+    // Save messages to DB (fire and forget)
     fetch(`${SB_URL}/rest/v1/chat_messages`, {
       method: "POST",
       headers: {
@@ -99,60 +79,25 @@ Deno.serve(async (req) => {
       }),
     });
 
-    // Stream response and collect full text for saving
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    const encoder = new TextEncoder();
-    let fullResponse = "";
-
-    const stream = new ReadableStream({
-      async pull(controller) {
-        const { done, value } = await reader.read();
-        if (done) {
-          // Save assistant message to DB
-          fetch(`${SB_URL}/rest/v1/chat_messages`, {
-            method: "POST",
-            headers: {
-              "apikey": SB_KEY,
-              "Authorization": `Bearer ${SB_KEY}`,
-              "Content-Type": "application/json",
-              "Prefer": "return=minimal",
-            },
-            body: JSON.stringify({
-              user_id: MATI_ID,
-              role: "assistant",
-              content: fullResponse,
-            }),
-          });
-          controller.close();
-          return;
-        }
-
-        const text = decoder.decode(value);
-        const lines = text.split("\n");
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const json = line.slice(6);
-          if (json === "[DONE]") continue;
-          try {
-            const event = JSON.parse(json);
-            if (event.type === "content_block_delta" && event.delta?.text) {
-              fullResponse += event.delta.text;
-              controller.enqueue(encoder.encode("data: " + JSON.stringify({ text: event.delta.text }) + "\n\n"));
-            }
-          } catch { /* skip */ }
-        }
-      },
-    });
-
-    return new Response(stream, {
+    fetch(`${SB_URL}/rest/v1/chat_messages`, {
+      method: "POST",
       headers: {
-        ...corsHeaders,
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
+        "apikey": SB_KEY,
+        "Authorization": `Bearer ${SB_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
       },
+      body: JSON.stringify({
+        user_id: MATI_ID,
+        role: "assistant",
+        content: reply,
+      }),
     });
+
+    return new Response(
+      JSON.stringify({ reply }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (err) {
     return new Response(
       JSON.stringify({ error: String(err) }),

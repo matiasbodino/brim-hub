@@ -50,7 +50,7 @@ export const useChatStore = create((set, get) => ({
 
     try {
       const history = get().messages
-        .filter(m => m.id !== assistantMsg.id)
+        .filter(m => m.id !== assistantMsg.id && m.id !== userMsg.id)
         .slice(-10)
         .map(m => ({ role: m.role, content: m.content }))
 
@@ -63,34 +63,22 @@ export const useChatStore = create((set, get) => ({
         body: JSON.stringify({ message: text, history }),
       })
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Error de conexión' }))
+      const data = await res.json()
+
+      if (!res.ok || data.error) {
         set(s => ({
           messages: s.messages.map(m =>
-            m.id === assistantMsg.id ? { ...m, content: 'Error: ' + (err.error || 'Algo salió mal') } : m
+            m.id === assistantMsg.id ? { ...m, content: 'Error: ' + (data.error || 'Algo salió mal') } : m
           ),
           isStreaming: false,
-          error: err.error,
+          error: data.error,
         }))
         return
       }
 
-      // Read the full response as text instead of streaming reader
-      // (fixes issue where stream never closes properly)
-      const fullText = await res.text()
-      const lines = fullText.split('\n')
-      let assembled = ''
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue
-        try {
-          const data = JSON.parse(line.slice(6))
-          if (data.text) assembled += data.text
-        } catch { /* skip */ }
-      }
-
       set(s => ({
         messages: s.messages.map(m =>
-          m.id === assistantMsg.id ? { ...m, content: assembled || 'Sin respuesta' } : m
+          m.id === assistantMsg.id ? { ...m, content: data.reply || 'Sin respuesta' } : m
         ),
         isStreaming: false,
       }))
