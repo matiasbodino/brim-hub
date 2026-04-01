@@ -1,9 +1,37 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const SB_URL = "https://birpqzahbtfbxxtaqeth.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcnBxemFoYnRmYnh4dGFxZXRoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDQ5MTE4MywiZXhwIjoyMDkwMDY3MTgzfQ.k8tjbC_fcUv34cPwo2Vcewu3eUe7GDjyOy3B9f9Jtnk";
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
+// Direct REST API calls instead of Supabase JS SDK (avoids auth resolution bug in Deno)
+async function query(table: string, params: string): Promise<unknown[]> {
+  const res = await fetch(
+    `${SB_URL}/rest/v1/${table}?${params}`,
+    {
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": `Bearer ${SB_KEY}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  if (!res.ok) return [];
+  return await res.json();
+}
+
+async function querySingle(table: string, params: string): Promise<Record<string, unknown> | null> {
+  const res = await fetch(
+    `${SB_URL}/rest/v1/${table}?${params}`,
+    {
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": `Bearer ${SB_KEY}`,
+        "Content-Type": "application/json",
+        "Accept": "application/vnd.pgrst.object+json",
+      },
+    }
+  );
+  if (!res.ok) return null;
+  try { return await res.json(); } catch { return null; }
+}
 
 interface UserContext {
   today: string;
@@ -51,59 +79,27 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const since = sevenDaysAgo.toISOString().slice(0, 10);
 
-  // Parallel queries
-  const [habitsRes, foodRes, weightRes, energyRes, pointsRes, cycleRes, profileRes] =
+  // Parallel REST queries
+  const enc = encodeURIComponent;
+  const [habitLogs, foodLogs, weightData, energyLogs, pointsData, cyclesData, profile] =
     await Promise.all([
-      supabase
-        .from("habit_logs")
-        .select("date, habit_type, value, target, completion_type")
-        .eq("user_id", userId)
-        .gte("date", since)
-        .order("date", { ascending: false }),
-
-      supabase
-        .from("food_logs")
-        .select("logged_at, calories, protein, carbs, fat")
-        .eq("user_id", userId)
-        .gte("logged_at", since + "T00:00:00-03:00")
-        .order("logged_at", { ascending: false }),
-
-      supabase
-        .from("weight_logs")
-        .select("date, weight")
-        .eq("user_id", userId)
-        .order("date", { ascending: false })
-        .limit(5),
-
-      supabase
-        .from("daily_logs")
-        .select("date, energy_level")
-        .eq("user_id", userId)
-        .gte("date", since)
-        .order("date", { ascending: false }),
-
-      supabase
-        .from("points_log")
-        .select("points")
-        .eq("user_id", userId),
-
-      supabase
-        .from("cycles")
-        .select("*, cycle_targets:cycle_targets(*)")
-        .eq("user_id", userId)
-        .eq("status", "active")
-        .limit(1)
-        .single(),
-
-      supabase
-        .from("user_profile")
-        .select("daily_calorie_target, daily_protein_target, daily_carbs_target, daily_fat_target, daily_water_target, daily_steps_target")
-        .eq("id", userId)
-        .single(),
+      query("habit_logs", `select=date,habit_type,value,target,completion_type&user_id=eq.${enc(userId)}&date=gte.${enc(since)}&order=date.desc`) as Promise<{date:string;habit_type:string;value:number;target:number;completion_type:string}[]>,
+      query("food_logs", `select=logged_at,calories,protein,carbs,fat&user_id=eq.${enc(userId)}&logged_at=gte.${enc(since + "T00:00:00-03:00")}&order=logged_at.desc`) as Promise<{logged_at:string;calories:number;protein:number;carbs:number;fat:number}[]>,
+      query("weight_logs", `select=date,weight&user_id=eq.${enc(userId)}&order=date.desc&limit=5`) as Promise<{date:string;weight:number}[]>,
+      query("daily_logs", `select=date,energy_level&user_id=eq.${enc(userId)}&date=gte.${enc(since)}&order=date.desc`) as Promise<{date:string;energy_level:number}[]>,
+      query("points_log", `select=points&user_id=eq.${enc(userId)}`) as Promise<{points:number}[]>,
+      query("cycles", `select=*&user_id=eq.${enc(userId)}&status=eq.active&order=created_at.desc&limit=1`) as Promise<Record<string,unknown>[]>,
+      querySingle("user_profile", `select=daily_calorie_target,daily_protein_target,daily_carbs_target,daily_fat_target,daily_water_target,daily_steps_target&id=eq.${enc(userId)}`),
     ]);
 
+  // Load cycle_targets if active cycle exists
+  const cycle = cyclesData.length > 0 ? cyclesData[0] : null;
+  let cycleTargetsData: {habit_type:string;weekly_target:number}[] = [];
+  if (cycle) {
+    cycleTargetsData = await query("cycle_targets", `select=habit_type,weekly_target&cycle_id=eq.${enc(cycle.id as string)}`) as {habit_type:string;weekly_target:number}[];
+  }
+
   // Process habits
-  const habitLogs = habitsRes.data ?? [];
   const habitsByDate: Record<string, typeof habitLogs> = {};
   const habitCounts: Record<string, { done: number; total: number }> = {};
 
@@ -135,7 +131,6 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
   }
 
   // Process food by day
-  const foodLogs = foodRes.data ?? [];
   const foodByDay: Record<string, { calories: number; protein: number; carbs: number; fat: number }> = {};
   for (const f of foodLogs) {
     const day = f.logged_at.slice(0, 10);
@@ -151,13 +146,12 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
   const avgProtein = foodDays.length > 0 ? Math.round(foodDays.reduce((a, d) => a + d.protein, 0) / foodDays.length) : 0;
 
   // Weight
-  const weights = (weightRes.data ?? []).reverse();
+  const weights = (weightData ?? []).reverse();
   const weightDelta = weights.length >= 2
     ? Number((weights[weights.length - 1].weight - weights[0].weight).toFixed(1))
     : null;
 
   // Energy
-  const energyLogs = energyRes.data ?? [];
   const energyByDay: Record<string, number> = {};
   for (const e of energyLogs) {
     energyByDay[e.date] = e.energy_level;
@@ -166,23 +160,21 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
   const energyAvg = energyValues.length > 0 ? Math.round((energyValues.reduce((a, v) => a + v, 0) / energyValues.length) * 10) / 10 : null;
 
   // Points
-  const totalPoints = (pointsRes.data ?? []).reduce((a: number, r: { points: number }) => a + r.points, 0);
+  const totalPoints = (pointsData ?? []).reduce((a: number, r: { points: number }) => a + r.points, 0);
 
   // Cycle
-  const cycle = cycleRes.data;
   let cycleWeek: number | null = null;
   const cycleTargets: Record<string, number> = {};
   if (cycle) {
-    const started = new Date(cycle.started_at + "T12:00:00");
+    const started = new Date((cycle.started_at as string) + "T12:00:00");
     const diffDays = Math.floor((Date.now() - started.getTime()) / (1000 * 60 * 60 * 24));
     cycleWeek = Math.min(Math.floor(diffDays / 7) + 1, 4);
-    for (const t of (cycle.cycle_targets ?? [])) {
+    for (const t of cycleTargetsData) {
       cycleTargets[t.habit_type] = t.weekly_target;
     }
   }
 
   // Profile targets
-  const profile = profileRes.data;
   const targets = {
     calories: profile?.daily_calorie_target ?? 2100,
     protein: profile?.daily_protein_target ?? 150,
@@ -203,7 +195,7 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
     },
     energy: { last7days: energyByDay, avg: energyAvg },
     points: { total: totalPoints, streak },
-    cycle: { name: cycle?.name ?? null, week: cycleWeek, targets: cycleTargets },
+    cycle: { name: (cycle?.name as string) ?? null, week: cycleWeek, targets: cycleTargets },
     targets,
   };
 }

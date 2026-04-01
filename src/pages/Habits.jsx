@@ -148,32 +148,87 @@ function BJJForm({ onSubmit, onCancel }) {
   )
 }
 
-function FoodForm({ onSubmit }) {
+function FoodSection({ onManualSubmit, store }) {
+  const [mode, setMode] = useState('ai') // 'ai' | 'manual'
+  const [aiText, setAiText] = useState('')
   const [tipo, setTipo] = useState('almuerzo')
   const [desc, setDesc] = useState('')
   const [kcal, setKcal] = useState('')
   const [prot, setProt] = useState('')
+  const [editing, setEditing] = useState(false) // editing AI estimate
 
-  const handleSubmit = () => {
+  const { aiEstimate, aiLoading, aiError, parseWithAI, confirmAIEstimate, clearAIEstimate } = store
+
+  const handleAISend = async () => {
+    if (!aiText.trim()) return
+    await parseWithAI(aiText.trim(), tipo)
+  }
+
+  const handleConfirm = async () => {
+    if (!aiEstimate) return
+    await confirmAIEstimate(aiEstimate)
+    setAiText('')
+  }
+
+  const handleEdit = () => {
+    if (!aiEstimate) return
+    setDesc(aiEstimate.description)
+    setKcal(String(aiEstimate.calories))
+    setProt(String(aiEstimate.protein))
+    setTipo(aiEstimate.meal_type || 'almuerzo')
+    setEditing(true)
+    setMode('manual')
+  }
+
+  const handleRetry = () => {
+    clearAIEstimate()
+    parseWithAI(aiText.trim(), tipo)
+  }
+
+  const handleManualSubmit = () => {
     if (!desc.trim() || !kcal) return
-    onSubmit({
-      meal_type: tipo,
-      description: desc.trim(),
-      calories: Number(kcal),
-      protein: Number(prot) || 0,
-      carbs: 0,
-      fat: 0,
-      confirmed: true,
-      user_id: MATI_ID,
-    })
+    if (editing && aiEstimate) {
+      store.confirmWithOverride(aiEstimate, {
+        calories: Number(kcal),
+        protein: Number(prot) || 0,
+        carbs: 0,
+        fat: 0,
+      })
+    } else {
+      onManualSubmit({
+        meal_type: tipo,
+        description: desc.trim(),
+        calories: Number(kcal),
+        protein: Number(prot) || 0,
+        carbs: 0,
+        fat: 0,
+        confirmed: true,
+        user_id: MATI_ID,
+      })
+    }
     setDesc('')
     setKcal('')
     setProt('')
+    setEditing(false)
   }
 
   return (
     <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-3">
-      <h3 className="font-semibold text-gray-800">🍽 Registrar comida</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-gray-800">🍽 Registrar comida</h3>
+        <div className="flex gap-1">
+          <button onClick={() => { setMode('ai'); setEditing(false) }}
+            className={`px-3 py-1 text-xs font-semibold rounded-lg ${mode === 'ai' ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+            🤖 AI
+          </button>
+          <button onClick={() => setMode('manual')}
+            className={`px-3 py-1 text-xs font-semibold rounded-lg ${mode === 'manual' ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+            ✏️ Manual
+          </button>
+        </div>
+      </div>
+
+      {/* Meal type pills */}
       <div className="flex gap-1 flex-wrap">
         {['desayuno', 'almuerzo', 'merienda', 'cena', 'snack'].map(t => (
           <button key={t} onClick={() => setTipo(t)}
@@ -182,27 +237,136 @@ function FoodForm({ onSubmit }) {
             }`}>{t}</button>
         ))}
       </div>
-      <input type="text" value={desc} onChange={e => setDesc(e.target.value)}
-        placeholder="Qué comiste..."
-        className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base" />
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-xs text-gray-500">Calorías (est.)</label>
-          <input type="number" value={kcal} onChange={e => setKcal(e.target.value)}
-            placeholder="500"
-            className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
+
+      {mode === 'ai' ? (
+        <>
+          {/* AI input */}
+          <div className="flex gap-2">
+            <input type="text" value={aiText} onChange={e => setAiText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAISend()}
+              placeholder="¿Qué comiste? Ej: milanesa con ensalada"
+              className="flex-1 px-3 py-3 rounded-xl border border-gray-200 text-base" />
+            <button onClick={handleAISend} disabled={!aiText.trim() || aiLoading}
+              className="px-4 py-3 bg-violet-600 text-white rounded-xl font-semibold text-sm disabled:opacity-40 active:scale-95 transition">
+              {aiLoading ? '...' : '→'}
+            </button>
+          </div>
+
+          {/* Loading */}
+          {aiLoading && (
+            <div className="text-center py-4">
+              <div className="w-6 h-6 bg-violet-600 rounded-lg animate-pulse mx-auto mb-2" />
+              <p className="text-xs text-gray-400">Estimando macros...</p>
+            </div>
+          )}
+
+          {/* Error */}
+          {aiError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">
+              {aiError}
+            </div>
+          )}
+
+          {/* Estimate card */}
+          {aiEstimate && !aiLoading && (
+            <FoodEstimateCardInline
+              estimate={aiEstimate}
+              onConfirm={handleConfirm}
+              onEdit={handleEdit}
+              onRetry={handleRetry}
+              onCancel={clearAIEstimate}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          {/* Manual form */}
+          <input type="text" value={desc} onChange={e => setDesc(e.target.value)}
+            placeholder="Qué comiste..."
+            className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base" />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-gray-500">Calorías (est.)</label>
+              <input type="number" value={kcal} onChange={e => setKcal(e.target.value)}
+                placeholder="500"
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">Proteína (g)</label>
+              <input type="number" value={prot} onChange={e => setProt(e.target.value)}
+                placeholder="30"
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
+            </div>
+          </div>
+          <button onClick={handleManualSubmit} disabled={!desc.trim() || !kcal}
+            className="w-full py-2.5 text-sm font-semibold rounded-xl bg-violet-600 text-white disabled:opacity-40">
+            Guardar comida
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+function FoodEstimateCardInline({ estimate, onConfirm, onEdit, onRetry, onCancel }) {
+  const [showBreakdown, setShowBreakdown] = useState(false)
+  const conf = { high: '🟢', medium: '🟡', low: '🔴' }
+
+  return (
+    <div className="border border-violet-200 rounded-xl overflow-hidden">
+      <div className="bg-violet-50 px-3 py-2 flex items-center justify-between">
+        <span className="text-xs font-semibold text-violet-700">🤖 Estimación</span>
+        <span className="text-xs">{conf[estimate.confidence] || '🟡'} {estimate.confidence}</span>
+      </div>
+      <div className="px-3 py-2">
+        <p className="text-sm font-semibold text-gray-800">{estimate.description}</p>
+      </div>
+      <div className="grid grid-cols-4 gap-1 px-3 py-2">
+        <div className="text-center">
+          <div className="text-base font-bold text-violet-600">{estimate.calories}</div>
+          <div className="text-xs text-gray-400">kcal</div>
         </div>
-        <div>
-          <label className="text-xs text-gray-500">Proteína (g)</label>
-          <input type="number" value={prot} onChange={e => setProt(e.target.value)}
-            placeholder="30"
-            className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
+        <div className="text-center">
+          <div className="text-base font-bold text-blue-600">{estimate.protein}g</div>
+          <div className="text-xs text-gray-400">prot</div>
+        </div>
+        <div className="text-center">
+          <div className="text-base font-bold text-amber-600">{estimate.carbs}g</div>
+          <div className="text-xs text-gray-400">carbs</div>
+        </div>
+        <div className="text-center">
+          <div className="text-base font-bold text-red-500">{estimate.fat}g</div>
+          <div className="text-xs text-gray-400">grasa</div>
         </div>
       </div>
-      <button onClick={handleSubmit} disabled={!desc.trim() || !kcal}
-        className="w-full py-2.5 text-sm font-semibold rounded-xl bg-violet-600 text-white disabled:opacity-40">
-        Guardar comida
-      </button>
+      {estimate.breakdown && estimate.breakdown.length > 0 && (
+        <div className="px-3 pb-2">
+          <button onClick={() => setShowBreakdown(!showBreakdown)}
+            className="text-xs text-violet-500 font-semibold">
+            {showBreakdown ? '▲ Ocultar' : '▼ Detalle'}
+          </button>
+          {showBreakdown && (
+            <div className="mt-1 space-y-1">
+              {estimate.breakdown.map((item, i) => (
+                <div key={i} className="flex justify-between text-xs bg-gray-50 rounded-lg px-2 py-1.5">
+                  <span className="text-gray-600">{item.item}</span>
+                  <span className="font-semibold">{item.calories} kcal</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <div className="flex gap-2 px-3 py-2 border-t border-gray-100">
+        <button onClick={onConfirm}
+          className="flex-1 py-2 text-sm font-semibold rounded-xl bg-violet-600 text-white active:scale-95">✅ Confirmar</button>
+        <button onClick={onEdit}
+          className="py-2 px-3 text-sm rounded-xl border border-gray-200 active:scale-95">✏️</button>
+        <button onClick={onRetry}
+          className="py-2 px-3 text-sm rounded-xl border border-gray-200 active:scale-95">🔄</button>
+        <button onClick={onCancel}
+          className="py-2 px-3 text-sm rounded-xl border border-gray-200 text-gray-400 active:scale-95">✕</button>
+      </div>
     </div>
   )
 }
@@ -210,7 +374,8 @@ function FoodForm({ onSubmit }) {
 export default function Habits() {
   const { todayHabits, fetchToday, upsertHabit } = useHabitStore()
   const { awardPoints, checkPerfectDay } = usePointsStore()
-  const { addLog, fetchToday: fetchFood } = useFoodStore()
+  const foodStore = useFoodStore()
+  const { addLog, fetchToday: fetchFood } = foodStore
   const { todayEnergy, fetchToday: fetchEnergy, saveEnergy } = useEnergyStore()
   const { targets } = useTargetsStore()
   const [showBJJ, setShowBJJ] = useState(false)
@@ -298,7 +463,7 @@ export default function Habits() {
         )
       })}
 
-      <FoodForm onSubmit={handleFood} />
+      <FoodSection onManualSubmit={handleFood} store={foodStore} />
 
       {identityMsg && (
         <div className="fixed bottom-20 left-0 right-0 flex justify-center z-50 px-4">
