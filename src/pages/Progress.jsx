@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { MATI_ID, HABITS, GYM_EXERCISES } from '../lib/constants'
 import { useCycleStore } from '../stores/cycleStore'
 import { useGymPrStore } from '../stores/gymPrStore'
+import { useJournalStore } from '../stores/journalStore'
 
 function Heatmap({ data }) {
   const days = []
@@ -206,12 +207,15 @@ export default function Progress() {
 
   const { activeCycle, cycleTargets, weeklyStats, pastCycles, loading: cycleLoading, fetchActive, fetchPast, createCycle, completeCycle } = useCycleStore()
   const { prs, fetchPRs, addPR, deletePR, getMaxPR, getExercises } = useGymPrStore()
+  var { monthEntries, fetchMonth } = useJournalStore()
 
   useEffect(() => {
     loadData()
     fetchActive()
     fetchPast()
     fetchPRs()
+    var ym = new Date().toISOString().slice(0, 7)
+    fetchMonth(ym)
   }, [])
 
   const loadData = async () => {
@@ -472,6 +476,27 @@ export default function Progress() {
           </div>
         )}
       </div>
+
+      {/* Journal */}
+      {monthEntries.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 border border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">{'\u{1F4DD}'} Journal</h2>
+          <div className="space-y-2">
+            {monthEntries.slice(0, 10).map(function(e) {
+              var moodEmoji = e.mood ? ['', '\u{1F62B}', '\u{1F615}', '\u{1F610}', '\u{1F60A}', '\u{1F525}'][e.mood] : ''
+              return (
+                <div key={e.id} className="flex items-start gap-2 py-2 border-b border-gray-50">
+                  <span className="text-xs text-gray-400 min-w-[60px]">
+                    {new Date(e.date + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+                  </span>
+                  <span className="text-sm text-gray-600 flex-1">{e.content}</span>
+                  {moodEmoji && <span className="text-sm">{moodEmoji}</span>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* BJJ Journal */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100">

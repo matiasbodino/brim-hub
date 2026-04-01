@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { MATI_ID, HABITS } from '../lib/constants'
+import { track } from '../lib/analytics'
 
 const getTrafficLight = (full, partial) => {
   if (full >= 4) return { color: 'text-emerald-400', label: '🟢 Excelente' }
@@ -58,6 +59,7 @@ export default function Checkin() {
         notes: reflection || null,
       }, { onConflict: 'user_id,date' })
     if (error) return
+    track('checkin_completed')
     setSaved(true)
     setTimeout(() => navigate('/'), 1500)
   }

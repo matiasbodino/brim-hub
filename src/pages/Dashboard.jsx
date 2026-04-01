@@ -8,6 +8,8 @@ import { HABITS } from '../lib/constants'
 import { useTargetsStore } from '../stores/targetsStore'
 import ShareButton from '../components/ShareButton'
 import WeeklyDigest from '../components/digest/WeeklyDigest'
+import MicroJournal from '../components/journal/MicroJournal'
+import { track } from '../lib/analytics'
 
 function MacroBar({ label, current, target, color }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
@@ -53,6 +55,7 @@ export default function Dashboard() {
     fetchAll()
     fetchActive()
     fetchTargets()
+    track('app_open')
   }, [])
 
   const macros = getTodayMacros()
@@ -204,6 +207,8 @@ export default function Dashboard() {
         <MacroBar label="Carbs" current={Math.round(macros.carbs)} target={targets.carbs} color="bg-amber-500" />
         <MacroBar label="Grasa" current={Math.round(macros.fat)} target={targets.fat} color="bg-red-400" />
       </div>
+
+      <MicroJournal />
 
       {/* Habits */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-2">

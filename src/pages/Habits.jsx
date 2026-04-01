@@ -5,6 +5,7 @@ import { useFoodStore } from '../stores/foodStore'
 import { HABITS, HABIT_GROUPS, POINTS, MATI_ID } from '../lib/constants'
 import { useEnergyStore } from '../stores/energyStore'
 import { useTargetsStore } from '../stores/targetsStore'
+import { track } from '../lib/analytics'
 
 const ENERGY_LABELS = {
   1: { emoji: '😴', label: 'Sin energía' },
@@ -408,8 +409,10 @@ export default function Habits() {
       await awardPoints(type, POINTS[type], 1)
       await checkPerfectDay()
       showIdentity(type)
+      track('habit_completed', { habit_type: type, completion_type: 'full' })
     } else if (prev === 0 && val > 0 && val < runtimeTarget) {
       await awardPoints(type, POINTS[type], 0.5)
+      track('habit_completed', { habit_type: type, completion_type: 'partial' })
     }
   }
 
@@ -419,6 +422,7 @@ export default function Habits() {
     await awardPoints('bjj', POINTS.bjj)
     await checkPerfectDay()
     showIdentity('bjj')
+    track('habit_completed', { habit_type: 'bjj', completion_type: 'full' })
     setShowBJJ(false)
   }
 

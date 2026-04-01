@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { MATI_ID, POINTS, HABITS, DEFAULT_PERMITIDOS, getLevel } from '../lib/constants'
+import { track } from '../lib/analytics'
 
 export const usePointsStore = create((set, get) => ({
   totalPoints: 0,
@@ -230,6 +231,7 @@ export const usePointsStore = create((set, get) => ({
       .select()
       .single()
     if (error) throw error
+    track('permitido_redeemed', { item: item.name, cost: item.cost })
     set({
       spentPoints: get().spentPoints + item.cost,
       redeemHistory: [data, ...get().redeemHistory],

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { MATI_ID, HABITS } from '../lib/constants'
+import { track } from '../lib/analytics'
 
 export const useCycleStore = create((set, get) => ({
   activeCycle: null,
@@ -161,6 +162,7 @@ export const useCycleStore = create((set, get) => ({
       await supabase.from('cycle_targets').insert(rows)
     }
 
+    track('cycle_created', { name: name })
     await get().fetchActive()
     return cycle
   },
@@ -168,6 +170,7 @@ export const useCycleStore = create((set, get) => ({
   completeCycle: async (reflection) => {
     const cycle = get().activeCycle
     if (!cycle) return
+    track('cycle_completed', { name: get().activeCycle?.name })
     await supabase
       .from('cycles')
       .update({ status: 'completed', reflection: reflection || null })
