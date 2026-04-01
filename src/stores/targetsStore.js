@@ -13,7 +13,7 @@ export const useTargetsStore = create((set, get) => ({
       .from('user_profile')
       .select('daily_calorie_target, daily_protein_target, daily_carbs_target, daily_fat_target, daily_water_target, daily_steps_target, weekly_bjj_target, weekly_gym_target, target_weight')
       .eq('id', MATI_ID)
-      .single()
+      .maybeSingle()
 
     if (data) {
       set({

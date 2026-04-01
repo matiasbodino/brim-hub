@@ -18,7 +18,7 @@ export const useCycleStore = create((set, get) => ({
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (!cycle) {
       set({ activeCycle: null, cycleTargets: [], weeklyStats: [], loading: false })

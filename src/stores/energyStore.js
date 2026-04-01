@@ -13,7 +13,7 @@ export const useEnergyStore = create((set) => ({
       .select('energy_level')
       .eq('user_id', MATI_ID)
       .eq('date', today)
-      .single()
+      .maybeSingle()
     set({ todayEnergy: data?.energy_level ?? null })
   },
 
