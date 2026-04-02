@@ -11,269 +11,69 @@ import WeeklyDigest from '../components/digest/WeeklyDigest'
 import { useJournalStore } from '../stores/journalStore'
 import { useRoutineStore } from '../stores/routineStore'
 import BottomSheet from '../components/ui/BottomSheet'
-import { hapticLight, hapticMedium } from '../lib/haptics'
-import { WATER_UNITS } from '../lib/constants'
 import { track } from '../lib/analytics'
-import { useBJJTheme } from '../hooks/useBJJTheme'
 import { useInsightsStore } from '../stores/insightsStore'
 import { usePlanStore } from '../stores/planStore'
 import { useEnergyStore } from '../stores/energyStore'
 import { useSync } from '../hooks/useSync'
-import VitalityRing from '../components/plan/VitalityRing'
-// DailyPlan and PredictiveGhost moved to /habits — Home is read-only
-import StatusRings from '../components/dashboard/StatusRings'
-import MacroArcs from '../components/dashboard/MacroArcs'
 import { getTodayBurn } from '../lib/activeBurn'
-// DamageControl interaction moved to /habits — Home shows read-only progress
 import { useDamageStore } from '../stores/damageStore'
-
-function MacroRing({ label, current, target, color, textColor, showRemaining }) {
-  const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
-  const remaining = Math.max(0, target - current)
-  return (
-    <div className="flex-1 text-center">
-      <div className="relative w-14 h-14 mx-auto mb-1">
-        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-          <circle cx="18" cy="18" r="15.5" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-          <circle cx="18" cy="18" r="15.5" fill="none" stroke={color} strokeWidth="3"
-            strokeDasharray={`${pct} 100`} strokeLinecap="round" className="transition-all duration-1000" />
-        </svg>
-        <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-black ${textColor}`}>
-          {showRemaining ? remaining : pct + '%'}
-        </span>
-      </div>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{label}</p>
-      <p className="text-[10px] text-slate-500">{showRemaining ? `faltan` : `${current}/${target}`}</p>
-    </div>
-  )
-}
-
-function HabitRow({ label, done, emoji, cue, identity }) {
-  return (
-    <div className={`flex items-center p-4 rounded-3xl border transition-all duration-300 parallax-card ${
-      done
-        ? 'bg-white/40 backdrop-blur-sm border-white/20 opacity-50 scale-[0.98]'
-        : 'bg-white/80 backdrop-blur-md border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]'
-    }`}>
-      <span className="text-3xl mr-4">{emoji}</span>
-      <div className="flex-1 min-w-0">
-        <h4 className="font-bold text-slate-800 leading-tight">{label}</h4>
-        <p className="text-[10px] text-slate-400 font-medium truncate">
-          {done ? identity : cue}
-        </p>
-      </div>
-      {done && (
-        <span className="ml-auto w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold flex-shrink-0">✓</span>
-      )}
-    </div>
-  )
-}
+import { getSuggestedActions } from '../lib/suggestions'
+import ActivityFeed from '../components/dashboard/ActivityFeed'
+import MicroJournal from '../components/journal/MicroJournal'
 
 export default function Dashboard() {
-  const { todayLogs, fetchToday: fetchFood, getTodayMacros, deleteLog } = useFoodStore()
+  const { todayLogs, fetchToday: fetchFood, getTodayMacros } = useFoodStore()
   const { todayHabits, fetchToday: fetchHabits } = useHabitStore()
-  const { totalPoints, spentPoints, streak, shieldsCount, loading: pointsLoading, fetchAll, getLevel } = usePointsStore()
+  const { totalPoints, spentPoints, streak, shieldsCount, fetchAll, getLevel } = usePointsStore()
   const { activeCycle, weeklyStats, fetchActive } = useCycleStore()
   const { targets, fetchTargets } = useTargetsStore()
-
   const { userModel, lastGenerated, fetchUserModel } = useInsightsStore()
-  const { todayPlan, fetchTodayPlan, generatePlan } = usePlanStore()
+  const { todayPlan, fetchTodayPlan } = usePlanStore()
   const { todayEnergy, fetchToday: fetchEnergy } = useEnergyStore()
   const { activePlan: damagePlan, fetchActive: fetchDamage } = useDamageStore()
   const { todayEntry: journalEntry, fetchToday: fetchJournal } = useJournalStore()
   const { routine } = useRoutineStore()
 
-  // Bottom sheet states
-  const [waterSheet, setWaterSheet] = useState(false)
-  const [stepsSheet, setStepsSheet] = useState(false)
-  const [insightSheet, setInsightSheet] = useState(false)
-  const [showJournal, setShowJournal] = useState(false)
   const [showMore, setShowMore] = useState(false)
+  const [insightSheet, setInsightSheet] = useState(false)
 
-  // Background sync: rehydrate from Supabase, flush pending writes
   useSync()
 
   const refreshAll = useCallback(() => {
-    fetchFood()
-    fetchHabits()
-    fetchAll()
-    fetchActive()
-    fetchTargets()
-    fetchUserModel()
-    fetchTodayPlan()
-    fetchEnergy()
-    fetchDamage()
-    fetchJournal()
+    fetchFood(); fetchHabits(); fetchAll(); fetchActive(); fetchTargets()
+    fetchUserModel(); fetchTodayPlan(); fetchEnergy(); fetchDamage(); fetchJournal()
+    track('app_open')
   }, [])
 
-  // Fetch on mount + re-fetch when user navigates back (visibilitychange)
+  useEffect(() => { refreshAll() }, [])
+
   useEffect(() => {
-    refreshAll()
-    track('app_open')
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') refreshAll()
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
+    const handler = () => { if (document.visibilityState === 'visible') refreshAll() }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
   }, [refreshAll])
 
   const macros = getTodayMacros()
   const balance = totalPoints - spentPoints
-  const { colors: themeColors } = useBJJTheme()
   const { current: level, next: nextLevel } = getLevel()
+  const burn = getTodayBurn(todayHabits)
 
-  const completedHabits = HABITS.filter(h => {
-    const log = todayHabits[h.type]
-    return log && Number(log.value) >= h.target
-  }).length
-  const score = HABITS.length > 0 ? Math.round((completedHabits / HABITS.length) * 100) : 0
-  const isSunday = new Date().getDay() === 0
+  const calTarget = targets.calories || 2100
+  const calEaten = macros.calories || 0
+  const calBurned = burn.total
+  const calAvailable = Math.max(0, calTarget - calEaten + calBurned)
+  const calOver = calEaten > calTarget + calBurned
+  const calPct = calTarget > 0 ? Math.min(100, Math.round((calEaten / calTarget) * 100)) : 0
+  const calBarColor = calPct > 100 ? 'bg-red-500' : calPct > 80 ? 'bg-amber-500' : 'bg-emerald-500'
 
-  const currentWeekIndex = activeCycle ? (() => {
-    const today = new Date()
-    const started = new Date(activeCycle.started_at + 'T12:00:00')
-    const diffDays = Math.floor((today - started) / (1000 * 60 * 60 * 24))
-    return Math.min(Math.floor(diffDays / 7), 3)
-  })() : null
-  const currentWeekStats = weeklyStats?.[currentWeekIndex] ?? null
-
-  const getLight = (full, target) => {
-    if (!target) return '·'
-    const pct = (full / target) * 100
-    if (pct >= 80) return '🟢'
-    if (pct >= 50) return '🟡'
-    return '🔴'
-  }
-
-  // Computed values for calorie wallet
-  const calRemaining = Math.max(0, (targets.calories || 2100) - macros.calories)
-  const protRemaining = Math.max(0, (targets.protein || 150) - Math.round(macros.protein))
-  const carbsRemaining = Math.max(0, (targets.carbs || 210) - Math.round(macros.carbs))
-  const fatRemaining = Math.max(0, (targets.fat || 70) - Math.round(macros.fat))
-  const calOver = macros.calories > (targets.calories || 2100)
-  const protOver = macros.protein > (targets.protein || 150)
-
-  // ── Intake Windows (time-aware) ──
-  const getMealWindow = () => {
-    const h = new Date().getHours()
-    if (h >= 6 && h < 10) return { slot: 'desayuno', label: 'Desayuno', maxKcal: 600, maxProt: 40, emoji: '☕' }
-    if (h >= 10 && h < 12) return { slot: 'snack_am', label: 'Snack mañana', maxKcal: 250, maxProt: 20, emoji: '🥜', nearMeal: h >= 11 }
-    if (h >= 12 && h < 15) return { slot: 'almuerzo', label: 'Almuerzo', maxKcal: 800, maxProt: 50, emoji: '🍽' }
-    if (h >= 15 && h < 19) return { slot: 'snack_pm', label: 'Snack tarde', maxKcal: 250, maxProt: 20, emoji: '🧉', nearMeal: h >= 18 }
-    if (h >= 19) return { slot: 'cena', label: 'Cena', maxKcal: 700, maxProt: 50, emoji: '🌙' }
-    return { slot: 'desayuno', label: 'Desayuno', maxKcal: 600, maxProt: 40, emoji: '☕' }
-  }
-  const mealWindow = getMealWindow()
-
-  // ── Target Ahora (unified, time + macro aware) ──
-  const getCommandLine = () => {
-    const waterVal = Number(todayHabits.water?.value || 0)
-    const waterTarget = targets.water || 2.5
-    const stepsVal = Number(todayHabits.steps?.value || 0)
-    const gymDone = todayHabits.gym && Number(todayHabits.gym.value) >= 1
-    const bjjDone = todayHabits.bjj && Number(todayHabits.bjj.value) >= 1
-    const h = new Date().getHours()
-    const isSnack = mealWindow.slot.startsWith('snack')
-    const protForThisMeal = Math.min(protRemaining, mealWindow.maxProt)
-    const calForThisMeal = Math.min(calRemaining, mealWindow.maxKcal)
-
-    // Priority 0: Post high-strain recovery
-    const bjjRpe = todayHabits.bjj?.metadata?.rpe || 0
-    const gymRpe = todayHabits.gym?.metadata?.rpe || 0
-    const highStrain = bjjRpe >= 8 || gymRpe >= 8
-    if (highStrain && h > 18) {
-      return `🧘 Esfuerzo alto detectado (RPE ${Math.max(bjjRpe, gymRpe)}). Priorizá recuperación profunda: Respiración 4-7-8 sedante + 20g proteína extra en la cena.`
-    }
-
-    // Priority 1: Hydration if very low
-    if (waterVal === 0 && h < 12) return `Arrancá con un vaso de agua. El cuerpo te lo pide.`
-
-    // Priority 2: Near-meal transition
-    if (mealWindow.nearMeal && isSnack) {
-      const nextMeal = mealWindow.slot === 'snack_am' ? 'almorzar' : 'cenar'
-      const minLeft = mealWindow.slot === 'snack_am' ? (12 - h) * 60 - new Date().getMinutes() : (19 - h) * 60 - new Date().getMinutes()
-      return `🍱 ${nextMeal === 'almorzar' ? 'Almuerzo' : 'Cena'} en el horizonte (~${minLeft} min). Objetivo: ${Math.min(calForThisMeal + 300, mealWindow.slot === 'snack_am' ? 800 : 700)} kcal con foco en proteína para llegar a tu meta.`
-    }
-
-    // Priority 3: Food suggestion based on window
-    if (macros.calories === 0 && h < 11) return `${mealWindow.emoji} Hora de desayuno. Mandate algo con ~${Math.min(calForThisMeal, 500)} kcal. Opción A: tostadas con huevo. Opción B: yogurt con granola.`
-
-    if (isSnack && protRemaining > 20) {
-      return `${mealWindow.emoji} Momento de snack: sumá ${protForThisMeal}g de prota ahora (ej: yogurt griego o 3 fetas de lomo) y reservá el resto para ${mealWindow.slot === 'snack_am' ? 'el almuerzo' : 'la cena'}.`
-    }
-
-    if (isSnack && protRemaining <= 20 && calRemaining > 200) {
-      return `${mealWindow.emoji} Snack liviano: fruta o un puñado de frutos secos (~${Math.min(calForThisMeal, 200)} kcal).`
-    }
-
-    if (mealWindow.slot === 'almuerzo') {
-      return `${mealWindow.emoji} Hora de almorzar. Target: ${calForThisMeal} kcal, ${protForThisMeal}g prota. Opción A: pollo con arroz. Opción B: milanesa con ensalada.`
-    }
-
-    if (mealWindow.slot === 'cena') {
-      if (calRemaining < 400) return `🌙 Cena liviana y cerrás perfecto. Te quedan ${calRemaining} kcal.`
-      return `🌙 Cena: ${calForThisMeal} kcal, ${protForThisMeal}g prota. Opción A: omelette con verduras. Opción B: ensalada con atún.`
-    }
-
-    // Priority 4: Habits
-    const parts = []
-    if (waterVal < waterTarget * 0.5) parts.push(`${Math.ceil((waterTarget - waterVal) / 0.25)} vasos de agua`)
-    if (stepsVal < 5000 && h > 13) parts.push('caminata de 15 min')
-    if (!gymDone && !bjjDone && h > 16) parts.push('mover el cuerpo')
-
-    if (parts.length > 0) return parts.join(' + ') + ' para quedar en verde.'
-    if (completedHabits === HABITS.length && calRemaining < 300) return 'Día casi perfecto. Cerralo y a dormir. Oss!'
-    return 'Seguí así. Cada hábito suma.'
-  }
-
-  // Build timeline items
-  const timelineItems = []
-
-  // Completed food logs
-  todayLogs.forEach(log => {
-    timelineItems.push({
-      type: 'done',
-      emoji: '✓',
-      title: log.description,
-      subtitle: `${log.meal_type} · ${log.calories} kcal · ${log.protein}g prot`,
-      key: 'food-' + log.id,
-    })
-  })
-
-  // Completed habits
-  HABITS.forEach(h => {
-    const val = Number(todayHabits[h.type]?.value || 0)
-    if (val >= h.target) {
-      timelineItems.push({
-        type: 'done',
-        emoji: '✓',
-        title: `${h.label} completado`,
-        subtitle: h.type === 'water' ? `${val}L` : h.type === 'steps' ? `${val.toLocaleString()} pasos` : 'Hecho',
-        key: 'habit-' + h.type,
-      })
-    }
-  })
-
-  // Current action (the "now" item)
-  const commandLine = getCommandLine()
-
-  // Pending habits
-  const pendingHabits = HABITS.filter(h => {
-    const val = Number(todayHabits[h.type]?.value || 0)
-    return val < h.target
-  })
-
-  // Vitality score — nutrition dominant (50%)
-  const nutritionPct = macros.calories > 0 ? Math.min(100, Math.round((macros.calories / (targets.calories || 2100)) * 100)) : 0
-  const movementPct = Math.min(100, Math.round(((Number(todayHabits.steps?.value || 0) / (targets.steps || 10000)) * 60 + ((Number(todayHabits.gym?.value || 0) >= 1 || Number(todayHabits.bjj?.value || 0) >= 1) ? 40 : 0))))
-  const hydrationPct = Math.min(100, Math.round(((Number(todayHabits.water?.value || 0)) / (targets.water || 2.5)) * 100))
-  const vitalityPct = Math.min(100, Math.round(nutritionPct * 0.50 + movementPct * 0.20 + hydrationPct * 0.15 + ((todayEnergy || 3) / 5 * 100 * 0.15)))
+  const suggestedActions = getSuggestedActions(todayHabits, todayLogs, todayPlan, targets, routine)
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] pb-28 px-4 pt-6 max-w-lg mx-auto">
 
-      {/* ═══ HEADER ═══ */}
-      <header className="flex justify-between items-start mb-6 px-1">
+      {/* ═══ 2.1 HEADER ═══ */}
+      <header className="flex justify-between items-start mb-5 px-1">
         <div>
           <h1 className="text-xl font-black text-white tracking-tight">Hola, Mati</h1>
           <p className="text-[10px] text-gray-500 tracking-wide">
@@ -282,9 +82,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           <ShareButton cardProps={{
-            score, streak, level, credits: balance,
-            cycleName: activeCycle?.name ?? null,
-            cycleWeek: currentWeekIndex !== null ? currentWeekIndex + 1 : null,
+            score: calPct, streak, level, credits: balance,
             habits: HABITS.map(h => ({ label: h.label, emoji: h.emoji, done: todayHabits[h.type] && Number(todayHabits[h.type].value) >= h.target })),
             date: new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }),
           }} />
@@ -292,144 +90,89 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* ═══ WELLNESS RING ═══ */}
-      <div className="flex flex-col items-center mb-6">
-        <div className="relative w-44 h-44 flex items-center justify-center rounded-full"
-          style={{ background: `conic-gradient(#22c55e ${vitalityPct}%, #1f2937 0)` }}>
-          <div className="absolute inset-2 bg-[#0a0a0a] rounded-full flex flex-col items-center justify-center">
-            <span className="text-4xl font-black text-white">{vitalityPct}%</span>
-            <span className="text-[9px] text-gray-500 uppercase tracking-[0.2em]">Wellness Score</span>
-          </div>
+      {/* ═══ 2.2 CALORIE WALLET ═══ */}
+      <div className="bg-gradient-to-br from-violet-600/20 to-blue-600/20 border border-white/10 rounded-2xl p-5 mb-3">
+        <div className="flex items-baseline gap-2 mb-1">
+          <p className={`text-4xl font-black ${calOver ? 'text-red-500' : 'text-white'}`}>{calOver ? '-' + (calEaten - calTarget - calBurned) : calAvailable}</p>
+          <p className="text-[10px] text-gray-400 font-bold tracking-wider">{calOver ? 'KCAL EXCESO' : 'KCAL DISPONIBLES'}</p>
         </div>
-        <div className="flex gap-3 mt-4 w-full">
-          <div className="flex-1 bg-white/5 backdrop-blur-sm border border-white/10 p-3 rounded-2xl text-center">
-            <span className="block text-[9px] text-gray-500 uppercase tracking-wider">Nutrición</span>
-            <span className={`font-black text-sm ${calOver ? 'text-red-500' : 'text-green-500'}`}>{Math.min(100, Math.round((macros.calories / (targets.calories || 2100)) * 100))}%</span>
-          </div>
-          <div className="flex-1 bg-white/5 backdrop-blur-sm border border-white/10 p-3 rounded-2xl text-center">
-            <span className="block text-[9px] text-gray-500 uppercase tracking-wider">Esfuerzo</span>
-            <span className={`font-black text-sm ${(Number(todayHabits.gym?.value || 0) >= 1 || Number(todayHabits.bjj?.value || 0) >= 1) ? 'text-green-500' : 'text-orange-500'}`}>
-              {Math.min(100, Math.round(((Number(todayHabits.steps?.value || 0) / (targets.steps || 10000)) * 60 + ((Number(todayHabits.gym?.value || 0) >= 1 || Number(todayHabits.bjj?.value || 0) >= 1) ? 40 : 0))))}%
-            </span>
-          </div>
-          <div className="flex-1 bg-white/5 backdrop-blur-sm border border-white/10 p-3 rounded-2xl text-center">
-            <span className="block text-[9px] text-gray-500 uppercase tracking-wider">Hidratación</span>
-            <span className={`font-black text-sm ${Number(todayHabits.water?.value || 0) >= (targets.water || 2.5) ? 'text-green-500' : 'text-blue-400'}`}>
-              {Math.min(100, Math.round(((Number(todayHabits.water?.value || 0)) / (targets.water || 2.5)) * 100))}%
-            </span>
-          </div>
+        <div className="h-2 bg-gray-800 rounded-full overflow-hidden mb-2">
+          <div className={`h-full rounded-full transition-all duration-700 ${calBarColor}`} style={{ width: calPct + '%' }} />
+        </div>
+        <div className="flex justify-between text-[10px] text-gray-500">
+          <span>Comido: {calEaten}</span>
+          <span>{calPct}%</span>
+          {calBurned > 0 && <span>Quemado: {calBurned} 🔥</span>}
         </div>
       </div>
 
-      {/* ═══ MACROS ═══ */}
-      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 mb-6">
-        <div className="flex items-baseline gap-2 mb-2">
-          <p className={`text-2xl font-black ${calOver ? 'text-red-500' : 'text-white'}`}>{calOver ? '-' + (macros.calories - (targets.calories || 2100)) : calRemaining}</p>
-          <p className="text-[10px] text-gray-500 font-bold tracking-wider">{calOver ? 'KCAL EXCESO' : 'KCAL DISPONIBLES'}</p>
-        </div>
-        <p className="text-[9px] text-gray-600 mb-3">Vas {macros.calories} de {targets.calories || 2100}</p>
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Prot', current: Math.round(macros.protein), target: targets.protein || 150, color: 'bg-indigo-500' },
-            { label: 'Carbs', current: Math.round(macros.carbs), target: targets.carbs || 210, color: 'bg-amber-500' },
-            { label: 'Grasa', current: Math.round(macros.fat), target: targets.fat || 70, color: 'bg-red-500' },
-          ].map(m => {
-            const pct = m.target > 0 ? Math.min(100, Math.round((m.current / m.target) * 100)) : 0
-            const over = m.current > m.target
-            return (
-              <div key={m.label}>
-                <p className={`text-xs font-black ${over ? 'text-red-400' : 'text-gray-300'}`}>{m.current}/{m.target}g</p>
-                <p className="text-[8px] text-gray-600 uppercase">{m.label}</p>
-                <div className="h-1 bg-gray-800 rounded-full overflow-hidden mt-1">
-                  <div className={`h-full rounded-full transition-all duration-500 ${over ? 'bg-red-500' : m.color}`} style={{ width: pct + '%' }} />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* ═══ AI QUICK ACTIONS (Brain First) ═══ */}
-      <div className="flex gap-2 mb-4">
-        <Link to="/habits" state={{ tab: 'food' }}
-          className="flex-1 bg-white/5 border border-green-500/20 rounded-2xl p-3 text-center active:bg-green-500/10 transition">
-          <span className="text-lg block">🍽</span>
-          <p className="text-[8px] text-green-400 font-black uppercase mt-1">Analizar comida</p>
-        </Link>
-        <Link to="/walk"
-          className="flex-1 bg-white/5 border border-blue-500/20 rounded-2xl p-3 text-center active:bg-blue-500/10 transition">
-          <span className="text-lg block">🚶</span>
-          <p className="text-[8px] text-blue-400 font-black uppercase mt-1">Caminata</p>
-        </Link>
-        <Link to="/progress"
-          className="flex-1 bg-white/5 border border-violet-500/20 rounded-2xl p-3 text-center active:bg-violet-500/10 transition">
-          <span className="text-lg block">🏋️</span>
-          <p className="text-[8px] text-violet-400 font-black uppercase mt-1">Generar Rutina</p>
-        </Link>
-      </div>
-
-      {/* ═══ GYM WIDGET (dynamic — shows if routine exists) ═══ */}
-      {routine && (
-        <Link to="/workout" state={{ routine }}
-          className="bg-white/5 border border-orange-500/20 rounded-2xl p-4 mb-4 flex items-center gap-3 active:bg-orange-500/10 transition block">
-          <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-lg">🏋️</span>
-          </div>
-          <div className="flex-1">
-            <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest">Rutina lista</p>
-            <p className="text-xs text-gray-300">{routine.routine_name}</p>
-          </div>
-          <span className="bg-orange-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-black">START</span>
-        </Link>
-      )}
-
-      {/* ═══ HABIT WIDGETS (tap → bottom sheet, not navigation) ═══ */}
-      <div className="grid grid-cols-4 gap-2 mb-4">
-        {HABITS.map(h => {
-          const val = Number(todayHabits[h.type]?.value || 0)
-          const done = val >= h.target
-          const handleTap = () => {
-            hapticLight()
-            if (h.type === 'water') setWaterSheet(true)
-            else if (h.type === 'steps') setStepsSheet(true)
-            else if (h.type === 'gym') { /* navigate to workout or habits */ }
-            else if (h.type === 'bjj') { /* navigate to bjj session */ }
-          }
+      {/* Macro bars inline */}
+      <div className="grid grid-cols-3 gap-3 mb-5 px-1">
+        {[
+          { label: 'prot', current: Math.round(macros.protein), target: targets.protein || 150, color: 'bg-indigo-500' },
+          { label: 'carb', current: Math.round(macros.carbs), target: targets.carbs || 210, color: 'bg-amber-500' },
+          { label: 'fat', current: Math.round(macros.fat), target: targets.fat || 70, color: 'bg-red-500' },
+        ].map(m => {
+          const pct = m.target > 0 ? Math.min(100, Math.round((m.current / m.target) * 100)) : 0
+          const over = m.current > m.target
           return (
-            <button key={h.type} onClick={handleTap}
-              className={`bg-white/5 border border-white/10 rounded-2xl p-3 text-center transition active:scale-95 ${done ? 'opacity-40' : ''}`}>
-              <span className="text-lg block">{h.emoji}</span>
-              <p className="text-[8px] text-gray-500 font-bold uppercase mt-1">{h.label}</p>
-              {done ? <span className="text-emerald-500 text-[10px] font-black">✓</span>
-                : h.type === 'water' ? <span className="text-[10px] text-blue-400 font-black">{val.toFixed(1)}L</span>
-                : h.type === 'steps' ? <span className="text-[10px] text-gray-400 font-black">{val > 0 ? (val/1000).toFixed(1) + 'k' : '0'}</span>
-                : null}
-            </button>
+            <div key={m.label}>
+              <p className={`text-[10px] font-black ${over ? 'text-red-400' : 'text-gray-400'}`}>{m.current}/{m.target}g {m.label}</p>
+              <div className="h-1 bg-gray-800 rounded-full overflow-hidden mt-0.5">
+                <div className={`h-full rounded-full transition-all duration-500 ${over ? 'bg-red-500' : m.color}`} style={{ width: pct + '%' }} />
+              </div>
+            </div>
           )
         })}
       </div>
 
-      {/* ═══ FOOD LOG + INSIGHT (combined) ═══ */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-3 mb-4">
-        {todayLogs.length === 0 ? (
-          <Link to="/habits" className="block text-center py-4">
-            <p className="text-gray-500 text-sm">No logueaste comida todavía 🍽️</p>
-            <p className="text-[10px] text-blue-400 font-bold mt-1">Tocá para registrar →</p>
-          </Link>
-        ) : (
-          <>
-            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">Comidas de hoy</p>
-            {todayLogs.slice(-3).map(log => (
-              <div key={log.id} className="flex justify-between py-1.5 border-b border-white/5 last:border-0">
-                <span className="text-[10px] text-gray-400 truncate flex-1">{log.description}</span>
-                <span className="text-[10px] text-gray-500 ml-2">{log.calories} kcal</span>
+      {/* ═══ 2.3 HABIT CHIPS ═══ */}
+      <Link to="/activity" className="block mb-4">
+        <div className="flex gap-2">
+          {HABITS.map(h => {
+            const val = Number(todayHabits[h.type]?.value || 0)
+            const done = val >= h.target
+            return (
+              <div key={h.type} className={`flex-1 bg-white/5 border border-white/10 rounded-xl py-2 text-center transition ${done ? 'opacity-40' : ''}`}>
+                <span className="text-sm">{h.emoji}</span>
+                <p className="text-[9px] text-gray-500 font-bold mt-0.5">
+                  {done ? '✓' : h.type === 'water' ? `${val.toFixed(1)}L` : h.type === 'steps' ? (val > 0 ? (val / 1000).toFixed(1) + 'k' : '—') : '—'}
+                </p>
               </div>
-            ))}
-          </>
-        )}
-      </div>
+            )
+          })}
+        </div>
+      </Link>
 
-      {/* ═══ DAILY INSIGHT (tap to expand) ═══ */}
+      {/* ═══ 2.4 AI CHAT INLINE ═══ */}
+      <Link to="/chat" className="block mb-4">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
+          <p className="text-xs text-gray-600">💬 Preguntale a Brim...</p>
+          {todayPlan?.morning_brief && (
+            <p className="text-[10px] text-gray-500 mt-1 line-clamp-1 italic">{todayPlan.morning_brief.slice(0, 80)}...</p>
+          )}
+        </div>
+      </Link>
+
+      {/* ═══ 2.5 SUGGESTED ACTIONS ═══ */}
+      {suggestedActions.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {suggestedActions.map(action => (
+            <Link key={action.id} to={action.to} state={action.state}
+              className={`block bg-white/5 border border-${action.color}-500/20 rounded-2xl p-3 active:bg-white/10 transition`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{action.emoji}</span>
+                  <p className="text-xs text-gray-300">{action.text}</p>
+                </div>
+                {action.cta && <span className={`text-[10px] font-black text-${action.color}-400`}>{action.cta} →</span>}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* ═══ 2.6 DAILY INSIGHT ═══ */}
       {todayPlan && (todayPlan.morning_brief || todayPlan.midday_adjust || todayPlan.evening_wrap) && (
         <button onClick={() => setInsightSheet(true)}
           className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-4 text-left active:bg-white/10 transition">
@@ -440,20 +183,38 @@ export default function Dashboard() {
         </button>
       )}
 
-      {/* Journal card */}
-      <Link to="/habits" className="block mb-4">
-        <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-3">
-          <div className="flex items-center gap-3">
-            <span className="text-lg">{journalEntry ? (journalEntry.mood ? ['', '😫', '😕', '😐', '😊', '🔥'][journalEntry.mood] : '📝') : '📝'}</span>
-            <p className="text-xs text-gray-400 flex-1 truncate">{journalEntry?.content || '¿Cómo estuvo tu día?'}</p>
-            <span className="text-gray-600 text-xs">→</span>
+      {/* ═══ 2.7 ACTIVITY FEED ═══ */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-3 mb-4">
+        <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">Actividad de hoy</p>
+        <ActivityFeed todayLogs={todayLogs} todayHabits={todayHabits} />
+      </div>
+
+      {/* ═══ 2.8 REFLECTION (>21h) ═══ */}
+      {new Date().getHours() >= 21 && (
+        <div className="bg-white/5 border border-violet-500/20 rounded-2xl p-4 mb-4">
+          <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-3">🌙 Reflexión del día</p>
+          {/* Mini bento stats */}
+          <div className="grid grid-cols-4 gap-2 mb-3">
+            <div className="bg-white/5 rounded-lg p-1.5 text-center">
+              <p className="text-[10px] font-black text-blue-400">💧{Number(todayHabits.water?.value || 0).toFixed(1)}L</p>
+            </div>
+            <div className="bg-white/5 rounded-lg p-1.5 text-center">
+              <p className="text-[10px] font-black text-gray-300">🚶{(Number(todayHabits.steps?.value || 0) / 1000).toFixed(0)}k</p>
+            </div>
+            <div className="bg-white/5 rounded-lg p-1.5 text-center">
+              <p className="text-[10px] font-black text-white">🔥{calEaten} kcal</p>
+            </div>
+            <div className="bg-white/5 rounded-lg p-1.5 text-center">
+              <p className="text-[10px] font-black text-indigo-400">💪{Math.round(macros.protein)}g</p>
+            </div>
           </div>
+          <MicroJournal />
         </div>
-      </Link>
+      )}
 
       {/* Damage Control */}
       {damagePlan && (
-        <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-4">
+        <div className="bg-white/5 border border-amber-500/20 rounded-2xl px-4 py-3 mb-4">
           <div className="flex items-center justify-between mb-1">
             <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest">🔄 Compensación</p>
             <span className="text-[9px] text-gray-600">{damagePlan.days_completed}/{damagePlan.spread_days}</span>
@@ -464,95 +225,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ═══ BOTTOM SHEETS ═══ */}
-
-      {/* Water Sheet */}
-      <BottomSheet isOpen={waterSheet} onClose={() => setWaterSheet(false)} title="💧 Agregar agua">
-        <div className="space-y-3">
-          <div className="text-center mb-4">
-            <p className="text-3xl font-black text-white">{Number(todayHabits.water?.value || 0).toFixed(1)}L</p>
-            <p className="text-xs text-gray-500">de {targets.water || 2.5}L</p>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: '💧 Vaso', amount: WATER_UNITS.VASO },
-              { label: '🍾 Botella', amount: WATER_UNITS.BOTELLA },
-              { label: '🧉 Mate', amount: WATER_UNITS.MATE, isMate: true },
-            ].map(w => (
-              <button key={w.label} onClick={async () => {
-                hapticMedium()
-                if (w.isMate) await useHabitStore.getState().addMate(1, targets.water || 2.5)
-                else await useHabitStore.getState().addWater(w.amount, targets.water || 2.5)
-                setWaterSheet(false)
-              }} className="bg-white/5 border border-white/10 rounded-2xl py-4 text-center active:scale-95 transition">
-                <span className="text-2xl block">{w.label.split(' ')[0]}</span>
-                <p className="text-[10px] text-gray-400 mt-1">{w.label.split(' ')[1]}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-      </BottomSheet>
-
-      {/* Steps Sheet */}
-      <BottomSheet isOpen={stepsSheet} onClose={() => setStepsSheet(false)} title="🚶 Registrar pasos">
-        <div className="space-y-4">
-          <div className="text-center mb-2">
-            <p className="text-3xl font-black text-white">{Number(todayHabits.steps?.value || 0).toLocaleString()}</p>
-            <p className="text-xs text-gray-500">pasos hoy</p>
-          </div>
-          {[1000, 3000, 5000, 8000, 10000].map(s => (
-            <button key={s} onClick={async () => {
-              hapticMedium()
-              await useHabitStore.getState().upsertHabit('steps', s, targets.steps || 10000)
-              setStepsSheet(false)
-            }} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 text-center active:scale-95 transition">
-              <span className="text-sm font-black text-white">{s.toLocaleString()} pasos</span>
-            </button>
-          ))}
-        </div>
-      </BottomSheet>
-
-      {/* Insight Sheet */}
-      <BottomSheet isOpen={insightSheet} onClose={() => setInsightSheet(false)} title="🧠 Daily Insight">
-        <div className="space-y-4">
-          {todayPlan?.morning_brief && (
-            <div>
-              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Brief matutino</p>
-              <p className="text-sm text-gray-300 leading-relaxed">{todayPlan.morning_brief}</p>
-            </div>
-          )}
-          {todayPlan?.midday_adjust && (
-            <div>
-              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Recálculo</p>
-              <p className="text-sm text-gray-300 leading-relaxed">{todayPlan.midday_adjust}</p>
-            </div>
-          )}
-          {todayPlan?.evening_wrap && (
-            <div>
-              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Cierre</p>
-              <p className="text-sm text-gray-300 leading-relaxed">{todayPlan.evening_wrap}</p>
-            </div>
-          )}
-          {todayPlan?.adjusted_targets && (
-            <div className="bg-white/5 rounded-xl p-3">
-              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Targets ajustados</p>
-              <p className="text-xs text-gray-400">{todayPlan.adjusted_targets.reason}</p>
-            </div>
-          )}
-        </div>
-      </BottomSheet>
-
-      {/* ═══ VER MÁS (secondary content) ═══ */}
-      <button
-        onClick={() => setShowMore(!showMore)}
-        className="w-full text-center py-3 text-[10px] font-black text-gray-500 uppercase tracking-widest active:text-gray-300 transition"
-      >
+      {/* ═══ 2.9 VER MÁS ═══ */}
+      <button onClick={() => setShowMore(!showMore)}
+        className="w-full text-center py-3 text-[10px] font-black text-gray-600 uppercase tracking-widest">
         {showMore ? '△ Menos' : '▽ Ver más'}
       </button>
 
       {showMore && (
         <div className="space-y-3 animate-fade-in">
-          {/* Stats row */}
           <div className="grid grid-cols-3 gap-2">
             <Link to="/permitidos" className="block">
               <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
@@ -564,15 +244,12 @@ export default function Dashboard() {
               <p className="text-lg font-black text-emerald-400">{streak} 🔥</p>
               <p className="text-[8px] text-gray-600 uppercase">racha</p>
             </div>
-            {nextLevel && (
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
-                <p className="text-lg font-black text-violet-400">{totalPoints}</p>
-                <p className="text-[8px] text-gray-600 uppercase">{level.badge} pts</p>
-              </div>
-            )}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+              <p className="text-lg font-black text-violet-400">{totalPoints}</p>
+              <p className="text-[8px] text-gray-600 uppercase">{level.badge} pts</p>
+            </div>
           </div>
 
-          {/* Level bar */}
           {nextLevel && (
             <div className="bg-white/5 border border-white/10 rounded-xl px-3 py-2">
               <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
@@ -584,40 +261,38 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Cycle */}
-          {activeCycle && currentWeekStats && (
-            <Link to="/progress" className="block">
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex items-center justify-between">
-                <div className="flex gap-3">
-                  {HABITS.map(h => {
-                    const stat = currentWeekStats.habits[h.type]
-                    return <span key={h.type} className="text-sm">{stat ? getLight(stat.full, stat.weeklyTarget) : '·'}</span>
-                  })}
-                </div>
-                <span className="text-[10px] text-gray-600">S{currentWeekIndex + 1}/4 →</span>
-              </div>
-            </Link>
-          )}
-
           <WeeklyDigest />
+        </div>
+      )}
 
-          {/* Journal prompt — links to /habits at night */}
-          {new Date().getHours() >= 21 && (
-            <Link to="/habits" className="block bg-white/5 border border-violet-500/20 rounded-2xl p-3 active:bg-white/10 transition">
-              <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">📝 ¿Cómo fue tu día?</p>
-              <p className="text-xs text-gray-500 mt-0.5">Tocá para escribir en tu diario →</p>
-            </Link>
+      {/* ═══ BOTTOM SHEETS ═══ */}
+      <BottomSheet isOpen={insightSheet} onClose={() => setInsightSheet(false)} title="🧠 Daily Insight">
+        <div className="space-y-4">
+          {todayPlan?.morning_brief && (
+            <div>
+              <p className="text-[9px] font-black text-gray-500 uppercase mb-1">Brief</p>
+              <p className="text-sm text-gray-300 leading-relaxed">{todayPlan.morning_brief}</p>
+            </div>
+          )}
+          {todayPlan?.midday_adjust && (
+            <div>
+              <p className="text-[9px] font-black text-gray-500 uppercase mb-1">Recálculo</p>
+              <p className="text-sm text-gray-300 leading-relaxed">{todayPlan.midday_adjust}</p>
+            </div>
+          )}
+          {todayPlan?.evening_wrap && (
+            <div>
+              <p className="text-[9px] font-black text-gray-500 uppercase mb-1">Cierre</p>
+              <p className="text-sm text-gray-300 leading-relaxed">{todayPlan.evening_wrap}</p>
+            </div>
+          )}
+          {todayPlan?.adjusted_targets?.reason && (
+            <div className="bg-white/5 rounded-xl p-3">
+              <p className="text-xs text-gray-400">{todayPlan.adjusted_targets.reason}</p>
+            </div>
           )}
         </div>
-      )}
-
-      {/* Coach AI floating pill */}
-      {commandLine && commandLine !== 'Seguí así. Cada hábito suma.' && (
-        <div className="fixed bottom-24 right-4 bg-white/5 backdrop-blur-xl border border-blue-500/30 p-3 rounded-full flex items-center gap-2 z-40 max-w-[260px]">
-          <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping flex-shrink-0" />
-          <span className="text-[9px] font-bold text-blue-400 uppercase truncate">Brim: "{commandLine.slice(0, 60)}..."</span>
-        </div>
-      )}
+      </BottomSheet>
     </div>
   )
 }

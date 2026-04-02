@@ -8,6 +8,7 @@ import SyncIndicator from './components/ui/SyncIndicator'
 import { useDailyReset } from './hooks/useDailyReset'
 import Dashboard from './pages/Dashboard'
 import Habits from './pages/Habits'
+import Activity from './pages/Activity'
 import Permitidos from './pages/Permitidos'
 import Progress from './pages/Progress'
 import Profile from './pages/Profile'
@@ -47,16 +48,18 @@ export default function App() {
           <Routes>
             <Route path="/" element={isOnboarded ? <Dashboard /> : <Onboarding />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/activity" element={<Activity />} />
             <Route path="/habits" element={<Habits />} />
-            <Route path="/permitidos" element={<Permitidos />} />
             <Route path="/progress" element={<Progress />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/checkin" element={<Checkin />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/workout" element={<Workout />} />
-            <Route path="/breathe" element={<Breathe />} />
             <Route path="/walk" element={<Walk />} />
+            <Route path="/breathe" element={<Breathe />} />
             <Route path="/bjj-session" element={<BJJSession />} />
+            <Route path="/checkin" element={<Checkin />} />
+            <Route path="/permitidos" element={<Permitidos />} />
+            <Route path="/onboarding" element={<Onboarding />} />
           </Routes>
           <BottomNav />
 

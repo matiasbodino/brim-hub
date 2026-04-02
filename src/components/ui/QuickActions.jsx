@@ -4,7 +4,7 @@ import { useHabitStore } from '../../stores/habitStore'
 import { hapticLight, hapticMedium } from '../../lib/haptics'
 
 const ACTIONS = [
-  { id: 'food', emoji: '🍽', label: 'Comida', action: 'navigate', to: '/habits', state: { tab: 'food' } },
+  { id: 'food', emoji: '🍽', label: 'Comida', action: 'navigate', to: '/activity', state: { tab: 'food' } },
   { id: 'water', emoji: '💧', label: 'Agua', action: 'water' },
   { id: 'mate', emoji: '🧉', label: 'Mate', action: 'mate' },
   { id: 'gym', emoji: '🏋️', label: 'Gym', action: 'gym' },
