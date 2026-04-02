@@ -301,10 +301,21 @@ Deno.serve(async (req) => {
 
       const mealSlotMap: Record<string, string> = { desayuno: 'breakfast', almuerzo: 'lunch', merienda: 'snack', cena: 'dinner' };
 
+      // Calculate active burn for meal context
+      const gymDoneToday = (todayHabits as {habit_type:string;value:number}[]).some(h => h.habit_type === 'gym' && Number(h.value) >= 1);
+      const bjjDoneToday = (todayHabits as {habit_type:string;value:number}[]).some(h => h.habit_type === 'bjj' && Number(h.value) >= 1);
+      const stepsToday = Number(((todayHabits as {habit_type:string;value:number}[]).find(h => h.habit_type === 'steps')?.value) || 0);
+      // Rough burn estimate (server-side, matches client activeBurn.js logic)
+      let activeBurnToday = Math.round(stepsToday / 1300 / 5 * (85 * 3.5 - 85)); // steps
+      if (gymDoneToday) activeBurnToday += 300;
+      if (bjjDoneToday) activeBurnToday += 600;
+      const highBurn = activeBurnToday > 600;
+
       const mealsPrompt = `Target del día: ${adjustedTargets.calories} kcal, ${adjustedTargets.protein}g prot
 Ya consumió: ${consumedSoFar.calories} kcal, ${consumedSoFar.protein}g prot (${consumedSoFar.meals_logged} comidas)
 PRESUPUESTO RESTANTE: ${remainingBudget.calories} kcal, ${remainingBudget.protein}g prot
 Día: ${dayName}
+GASTO ACTIVO HOY: ${activeBurnToday} kcal ${highBurn ? '(ALTO — entrenó fuerte)' : ''}
 
 Ya comió hoy:
 ${alreadyAte}
@@ -312,6 +323,7 @@ ${alreadyAte}
 Comidas que faltan: ${missingMeals.join(', ')}
 
 IMPORTANTE: Las calorías de TODAS las sugerencias restantes deben sumar aproximadamente ${remainingBudget.calories} kcal.
+${highBurn ? 'GASTO ACTIVO ALTO (>' + activeBurnToday + ' kcal): Las sugerencias de CENA deben incluir más CARBOHIDRATOS COMPLEJOS (arroz, papa, fideos) para reponer glucógeno y evitar catabolismo. En el campo description incluir: "Para recuperar lo que quemaste hoy".' : ''}
 ${consumedSoFar.calories > adjustedTargets.calories * 0.5 ? 'COMIÓ BASTANTE — sugerí opciones livianas para las comidas restantes.' : ''}
 ${consumedSoFar.protein < adjustedTargets.protein * 0.3 ? 'PROTEÍNA MUY BAJA — priorizá opciones altas en proteína.' : ''}
 
