@@ -13,7 +13,9 @@ import { track } from '../lib/analytics'
 import { useBJJTheme } from '../hooks/useBJJTheme'
 import { useInsightsStore } from '../stores/insightsStore'
 import { usePlanStore } from '../stores/planStore'
+import { useEnergyStore } from '../stores/energyStore'
 import { useSync } from '../hooks/useSync'
+import VitalityRing from '../components/plan/VitalityRing'
 import DailyPlan from '../components/plan/DailyPlan'
 import PredictiveGhost from '../components/plan/PredictiveGhost'
 
@@ -65,6 +67,7 @@ export default function Dashboard() {
 
   const { userModel, lastGenerated, fetchUserModel } = useInsightsStore()
   const { todayPlan, fetchTodayPlan, generatePlan } = usePlanStore()
+  const { todayEnergy, fetchToday: fetchEnergy } = useEnergyStore()
 
   // Background sync: rehydrate from Supabase, flush pending writes
   useSync()
@@ -77,6 +80,7 @@ export default function Dashboard() {
     fetchTargets()
     fetchUserModel()
     fetchTodayPlan()
+    fetchEnergy()
     track('app_open')
   }, [])
 
@@ -162,26 +166,17 @@ export default function Dashboard() {
 
       {/* Bento Grid de Stats */}
       <div className="grid grid-cols-2 gap-4 mb-8">
-        {/* Card Principal: Score — themed by BJJ belt */}
+        {/* Vitality Ring — replaces old score card */}
         <div
           className="col-span-2 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden transition-colors duration-1000"
           style={{ backgroundColor: themeColors.primary, color: themeColors.text }}
         >
           <div className="relative z-10">
-            <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-3">Nivel Actual</p>
-            <div className="flex items-center gap-2 mb-4">
-              <h2 className="text-3xl font-black">{level.badge} {level.name}</h2>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-bold uppercase tracking-widest opacity-70">{level.badge} {level.name}</p>
+              <span className="text-xs font-bold opacity-50">{completedHabits}/{HABITS.length} hábitos</span>
             </div>
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-6xl font-black">{score}%</h2>
-              <span className="text-xs font-bold uppercase opacity-60">completado</span>
-            </div>
-            <div className="mt-4 flex items-center gap-2">
-              <div className="h-2 flex-1 rounded-full overflow-hidden" style={{ backgroundColor: themeColors.accent + '40' }}>
-                <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${score}%` }} />
-              </div>
-              <span className="text-xs font-semibold opacity-70">{completedHabits}/{HABITS.length}</span>
-            </div>
+            <VitalityRing todayHabits={todayHabits} macros={macros} targets={targets} todayEnergy={todayEnergy} />
           </div>
           <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
         </div>
