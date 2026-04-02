@@ -39,15 +39,62 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fetch user model + last workout log for adaptive adjustments
-    const [userModel, lastWorkouts] = await Promise.all([
+    // Fetch user model + last workouts + energy for auto-regulation
+    const [userModel, lastWorkouts, recentEnergy] = await Promise.all([
       query("user_model", `select=model_content&user_id=eq.${enc(MATI_ID)}&order=generated_at.desc&limit=1`) as Promise<{model_content:string}[]>,
-      query("workout_logs", `select=performance,rpe,routine_name,date&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=3`) as Promise<{performance:unknown[];rpe:number;routine_name:string;date:string}[]>,
+      query("workout_logs", `select=performance,rpe,routine_name,date,exercises&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=5`) as Promise<{performance:unknown[];rpe:number;routine_name:string;date:string;exercises:unknown}[]>,
+      query("daily_logs", `select=energy_level&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=1`) as Promise<{energy_level:number}[]>,
     ]);
 
-    // Build adaptive adjustments from last workout
+    const todayEnergy = recentEnergy.length > 0 ? recentEnergy[0].energy_level : null;
+
+    // ── Deload Detection ──
+    // Check if main lift weights are declining across last 2-3 sessions
+    let needsDeload = false;
+    let deloadReason = '';
+
+    // Energy-based deload
+    if (todayEnergy !== null && todayEnergy <= 2) {
+      needsDeload = true;
+      deloadReason = `Energía hoy: ${todayEnergy}/5. Sistema nervioso cargado.`;
+    }
+
+    // Weight regression detection: check if same exercises show declining weights
+    if (!needsDeload && lastWorkouts.length >= 2) {
+      const exerciseWeights: Record<string, number[]> = {};
+      for (const w of lastWorkouts.slice(0, 3)) {
+        const perf = (w.performance || []) as {exercise:string;actual?:{avgWeight:number};category?:string}[];
+        for (const p of perf) {
+          if (p.category === 'main_lift' && p.actual?.avgWeight) {
+            if (!exerciseWeights[p.exercise]) exerciseWeights[p.exercise] = [];
+            exerciseWeights[p.exercise].push(p.actual.avgWeight);
+          }
+        }
+      }
+      // If any main lift has declined for 2 consecutive sessions
+      for (const [ex, weights] of Object.entries(exerciseWeights)) {
+        if (weights.length >= 2 && weights[0] < weights[1] && (weights.length < 3 || weights[1] < weights[2])) {
+          needsDeload = true;
+          deloadReason = `${ex}: pesos bajando ${weights.length} sesiones seguidas (${weights.map(w => w + 'kg').join(' → ')}).`;
+          break;
+        }
+      }
+    }
+
+    // Build adaptive adjustments
     let adaptiveNotes = '';
-    if (lastWorkouts.length > 0) {
+
+    if (needsDeload) {
+      adaptiveNotes = `\n⚠️ DELOAD OBLIGATORIO — ${deloadReason}
+REGLAS DE DELOAD:
+- BAJAR todos los pesos un 30% respecto a los PRs
+- MANTENER las reps (o subir a 8-10 para trabajar técnica)
+- BAJAR sets a 3 por ejercicio (en vez de 4-5)
+- Descansos más cortos (60-90s)
+- El objetivo es MOVERSE BIEN, no levantar pesado
+- Incluir: movilidad, estabilidad, técnica
+- coach_note DEBE decir: "Mati, los números dicen que el sistema nervioso está cargado. Hoy bajamos peso para explotar la semana que viene. Haceme caso. Oss!"\n`;
+    } else if (lastWorkouts.length > 0) {
       const last = lastWorkouts[0];
       const perf = (last.performance || []) as {exercise:string;weightDelta:number;nextAdjust:string}[];
       const adjustments = perf.filter(p => p.nextAdjust !== 'maintain');
@@ -110,8 +157,9 @@ REGLAS DE ORO:
 
 6. Respondé SOLO con JSON válido:
 {
-  "routine_name": "Nombre descriptivo corto",
+  "routine_name": "Nombre descriptivo corto${needsDeload ? ' (o DELOAD si aplica)' : ''}",
   "focus": "${focus}",
+  "is_deload": ${needsDeload},
   "estimated_time": ${timeMinutes},
   "exercises": [
     {

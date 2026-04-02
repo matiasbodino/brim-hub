@@ -516,9 +516,21 @@ export default function Progress() {
 
         {routine ? (
           <div className="space-y-3">
+            {routine.is_deload && (
+              <div className="bg-amber-50 rounded-xl px-4 py-3 mb-3 flex items-start gap-2">
+                <span className="text-lg">⚠️</span>
+                <div>
+                  <p className="text-xs font-black text-amber-700">Deload Workout</p>
+                  <p className="text-[10px] text-amber-600">Pesos al 70%. Hoy se trabaja técnica y movilidad.</p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-black text-slate-800">{routine.routine_name}</h3>
-              <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full">{routine.estimated_time} min</span>
+              <div className="flex gap-1.5">
+                {routine.is_deload && <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded-full">DELOAD</span>}
+                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full">{routine.estimated_time} min</span>
+              </div>
             </div>
 
             {routine.exercises?.map((ex, i) => (
