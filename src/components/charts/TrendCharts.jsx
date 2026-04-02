@@ -11,7 +11,7 @@ const tooltipStyle = {
 }
 
 export function WeightChart({ data, targetWeight }) {
-  if (!data || data.length < 2) return <p className="text-sm text-slate-400">Necesitás al menos 2 registros de peso</p>
+  if (!data || data.length < 2) return <p className="text-sm text-slate-400 italic">Pesate 2 veces y la curva arranca. La balanza no muerde ⚖️</p>
 
   const chartData = data.map(w => ({
     date: new Date(w.date + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }),
@@ -38,7 +38,7 @@ export function WeightChart({ data, targetWeight }) {
 }
 
 export function HabitWeeklyChart({ data }) {
-  if (!data || data.length === 0) return <p className="text-sm text-slate-400">Sin datos suficientes</p>
+  if (!data || data.length === 0) return <p className="text-sm text-slate-400 italic">Loggeá una semana de hábitos y acá vas a ver el progreso 📈</p>
 
   return (
     <ResponsiveContainer width="100%" height={200}>
@@ -57,7 +57,7 @@ export function HabitWeeklyChart({ data }) {
 }
 
 export function MacroChart({ data }) {
-  if (!data || data.length < 2) return <p className="text-sm text-slate-400">Necesitás al menos 2 días de comida loggeada</p>
+  if (!data || data.length < 2) return <p className="text-sm text-slate-400 italic">Loggeá 2 días de comida y te muestro cómo venís con los macros 🍽</p>
 
   return (
     <ResponsiveContainer width="100%" height={200}>

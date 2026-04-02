@@ -393,7 +393,7 @@ export default function Progress() {
                 )
               })
             ) : (
-              <p className="text-xs text-slate-400 text-center py-2">No hay insights todavía</p>
+              <p className="text-xs text-slate-400 text-center py-2 italic">Tu AI todavía no te conoce. Dale a Generar y dejá que te analice 🧠</p>
             )}
 
             {/* Generate / Regenerate button */}
@@ -441,7 +441,7 @@ export default function Progress() {
       <div className="bg-white rounded-2xl p-4 border border-gray-100">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Peso</h2>
         {weightHistory.length === 0 ? (
-          <p className="text-sm text-gray-400">Sin registros de peso. Agregá desde Perfil.</p>
+          <p className="text-sm text-slate-400 italic">El gráfico de peso está esperando tus datos para decirte la verdad... no le tengas miedo ⚖️</p>
         ) : (
           <div className="space-y-2">
             {weightHistory.slice(-5).map(w => (
@@ -580,7 +580,7 @@ export default function Progress() {
                     </div>
                   )}
                   {isExpanded && history.length === 0 && (
-                    <p className="text-xs text-gray-400 py-2 pl-6">Sin registros</p>
+                    <p className="text-xs text-slate-400 py-2 pl-6 italic">Todavía no hay PRs acá. Metele fierro y volvé 💪</p>
                   )}
                 </div>
               )
@@ -636,7 +636,7 @@ export default function Progress() {
       <div className="bg-white rounded-2xl p-4 border border-gray-100">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">🥋 BJJ Journal</h2>
         {bjjSessions.length === 0 ? (
-          <p className="text-sm text-gray-400">Sin sesiones registradas este mes.</p>
+          <p className="text-sm text-slate-400 italic">El mat te extraña. Anotá tu próximo treino y arrancamos el journal 🥋</p>
         ) : (
           <div className="space-y-2">
             <div className="text-sm text-violet-600 font-semibold mb-2">
@@ -731,7 +731,7 @@ export default function Progress() {
                         </tbody>
                       </table>
                     ) : (
-                      <p className="text-sm text-gray-400">Sin datos</p>
+                      <p className="text-sm text-slate-400 italic">Este ciclo no juntó data suficiente. El próximo va a ser distinto 📊</p>
                     )}
                     {cycle.reflection && (
                       <p className="text-sm text-gray-400 italic mt-3 pt-2 border-t border-gray-100">

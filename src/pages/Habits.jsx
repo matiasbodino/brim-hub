@@ -345,7 +345,7 @@ function BJJFormContent({ onSubmit, onCancel }) {
 function TodayFoodList({ logs, onDelete }) {
   if (logs.length === 0) {
     return (
-      <p className="text-xs text-gray-400 py-2">No registraste comidas todavía</p>
+      <p className="text-xs text-slate-400 py-2 italic">Che, ¿todavía no comiste nada? Loggeá la primera comida y arrancamos 🍽</p>
     )
   }
 
