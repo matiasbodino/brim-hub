@@ -124,34 +124,46 @@ Deno.serve(async (req) => {
     };
 
     // Generate digest with Claude
-    const prompt = `Generá un resumen semanal de bienestar basado en estos datos.
+    const caloriesVsTarget = avgCal > 2100 ? `${avgCal - 2100} por encima del target` : avgCal > 0 ? `${2100 - avgCal} por debajo del target` : 'sin datos';
+
+    const prompt = `Analizá los datos de la semana de Mati y generá tu resumen.
 
 SEMANA: ${weekStart} al ${weekEnd}
 
 DATOS:
-- Días activos: ${activeDays.size} de 7
+- Hábitos completados: ${Math.round(activeDays.size / 7 * 100)}% de éxito (${activeDays.size}/7 días activos)
 - Agua: ${habitsSummary.water?.full || 0}/7 días completos (${habitsSummary.water?.pct || 0}%)
 - Pasos: ${habitsSummary.steps?.full || 0}/7 días completos (${habitsSummary.steps?.pct || 0}%)
 - BJJ: ${habitsSummary.bjj?.full || 0} sesiones
 - Gym: ${habitsSummary.gym?.full || 0} sesiones
-- Comida loggeada: ${foodDays.length} días, promedio ${avgCal} kcal/día, ${avgProt}g prot/día
+- Calorías: promedio ${avgCal} kcal/día (${caloriesVsTarget}), ${avgProt}g prot/día
+- Comida loggeada: ${foodDays.length} días
 - Peso: ${weightDelta !== null ? (weightDelta > 0 ? '+' : '') + weightDelta + 'kg' : 'sin datos'}
 - Puntos ganados: ${totalPoints}
 - Energía promedio: ${energyAvg !== null ? energyAvg + '/5' : 'sin datos'}
 ${cycles.length > 0 ? '- Ciclo activo: ' + cycles[0].name : ''}
 
-FORMATO:
-1. Score general de la semana (emoji + una oración)
-2. Top 2-3 wins (lo que salió bien)
-3. Top 1-2 áreas a mejorar
-4. 1 recomendación concreta para esta semana
+REGLAS DE TONO:
+- Escribí 3-4 oraciones en español argentino. Sé directo y conciso.
+- Si cumplió el BJJ, usá un término de lucha (ej: "metiste X rounds en el mat")
+- Si falló el agua, tirale un palazo amigable (ej: "el bidón juntó polvo")
+- Si fue buena semana, reconocelo sin ser cursi
+- Si fue floja, bancalo sin ser condescendiente
+- Terminá con una frase de aliento corta tipo "Afilá los ganchos para la semana que viene"
+- Usá markdown para **negritas** en los highlights
 
-Máximo 200 palabras. Tono: directo, argentino, como un coach que te conoce. No seas condescendiente. Usá markdown para negritas y listas.`;
+FORMATO:
+1. Score general (emoji + una oración de resumen)
+2. Lo mejor de la semana (1-2 wins concretos)
+3. Lo que hay que ajustar (1 área, con dato específico)
+4. Cierre motivacional (1 frase corta)
+
+Máximo 150 palabras.`;
 
     const digestContent = await callClaude(
-      "Sos Brim, coach de bienestar de Mati. Generás resúmenes semanales concisos y accionables.",
+      "Sos Brim, el coach personal de Mati. Hablás como un amigo argentino que entrena BJJ y sabe de nutrición. Sos directo, no condescendiente, y usás datos concretos. Tu estilo es entre coach de MMA y nutricionista deportivo.",
       prompt,
-      { maxTokens: 400, temperature: 0.6 }
+      { maxTokens: 400, temperature: 0.7 }
     );
 
     // Save to DB

@@ -65,51 +65,62 @@ export default function WeeklyDigest() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2.5rem] p-6 text-white overflow-hidden transition-all">
-      <div
-        className="flex justify-between items-center cursor-pointer"
-        onClick={function() { setExpanded(!expanded) }}
-      >
-        <div className="flex items-center gap-3">
-          <div className="bg-indigo-500 p-2 rounded-xl text-base">✨</div>
-          <div>
-            <h3 className="font-bold text-sm">Resumen semanal</h3>
-            <p className="text-[10px] text-slate-400 mt-0.5">
-              {currentDigest.week_start} → {currentDigest.week_end}
-            </p>
-          </div>
-        </div>
-        <span className={`text-slate-400 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>▼</span>
-      </div>
+    <div className="bg-slate-900 rounded-[2.5rem] p-6 text-white relative overflow-hidden border border-slate-800 transition-all">
+      {/* Blur decoration */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/20 blur-[60px] rounded-full" />
 
-      {expanded && (
-        <div className="mt-4 pt-4 border-t border-slate-700 animate-fade-in">
-          <div className="text-sm text-slate-300 leading-relaxed">
-            {renderMarkdown(currentDigest.digest_content)}
+      <div className="relative z-10">
+        <div
+          className="flex justify-between items-center cursor-pointer"
+          onClick={function() { setExpanded(!expanded) }}
+        >
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-indigo-500 rounded-xl text-base">✨</div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Resumen Semanal AI</span>
           </div>
-          {currentDigest.insights && (
-            <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-slate-700">
-              <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold px-2.5 py-1 rounded-full">
-                {currentDigest.insights.activeDays}/7 días
-              </span>
-              <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-2.5 py-1 rounded-full">
-                +{currentDigest.insights.totalPoints} pts
-              </span>
-              {currentDigest.insights.avgCalories > 0 && (
+          <span className={`text-slate-400 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>▼</span>
+        </div>
+
+        {/* Mini KPIs - always visible */}
+        {currentDigest.insights && (
+          <div className="grid grid-cols-3 gap-2 py-4 mt-4 border-t border-white/10">
+            <div className="text-center">
+              <p className="text-xl font-black">{currentDigest.insights.activeDays}/7</p>
+              <p className="text-[8px] uppercase text-slate-500 font-bold tracking-tighter">Días activos</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-black">+{currentDigest.insights.totalPoints}</p>
+              <p className="text-[8px] uppercase text-slate-500 font-bold tracking-tighter">Puntos</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-black">
+                {currentDigest.insights.weightDelta !== null
+                  ? (currentDigest.insights.weightDelta > 0 ? '+' : '') + currentDigest.insights.weightDelta + 'kg'
+                  : '—'}
+              </p>
+              <p className="text-[8px] uppercase text-slate-500 font-bold tracking-tighter">Peso</p>
+            </div>
+          </div>
+        )}
+
+        {expanded && (
+          <div className="mt-4 pt-4 border-t border-white/10 animate-fade-in">
+            <p className="text-sm leading-relaxed text-slate-300 italic mb-4">
+              {renderMarkdown(currentDigest.digest_content)}
+            </p>
+            {currentDigest.insights?.avgCalories > 0 && (
+              <div className="flex items-center gap-2">
                 <span className="text-[10px] bg-blue-500/20 text-blue-300 font-bold px-2.5 py-1 rounded-full">
                   ~{currentDigest.insights.avgCalories} kcal/día
                 </span>
-              )}
-              {currentDigest.insights.weightDelta !== null && (
-                <span className={'text-[10px] font-bold px-2.5 py-1 rounded-full ' +
-                  (currentDigest.insights.weightDelta <= 0 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300')}>
-                  {currentDigest.insights.weightDelta > 0 ? '+' : ''}{currentDigest.insights.weightDelta}kg
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+              </div>
+            )}
+            <p className="text-[10px] text-slate-500 mt-3">
+              {currentDigest.week_start} → {currentDigest.week_end}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
