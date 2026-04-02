@@ -8,7 +8,7 @@ import { HABITS } from '../lib/constants'
 import { useTargetsStore } from '../stores/targetsStore'
 import ShareButton from '../components/ShareButton'
 import WeeklyDigest from '../components/digest/WeeklyDigest'
-import MicroJournal from '../components/journal/MicroJournal'
+// MicroJournal moved to /habits
 import { track } from '../lib/analytics'
 import { useBJJTheme } from '../hooks/useBJJTheme'
 import { useInsightsStore } from '../stores/insightsStore'
@@ -16,12 +16,11 @@ import { usePlanStore } from '../stores/planStore'
 import { useEnergyStore } from '../stores/energyStore'
 import { useSync } from '../hooks/useSync'
 import VitalityRing from '../components/plan/VitalityRing'
-import DailyPlan from '../components/plan/DailyPlan'
-import PredictiveGhost from '../components/plan/PredictiveGhost'
+// DailyPlan and PredictiveGhost moved to /habits — Home is read-only
 import StatusRings from '../components/dashboard/StatusRings'
 import MacroArcs from '../components/dashboard/MacroArcs'
 import { getTodayBurn } from '../lib/activeBurn'
-import DamageControl, { DamageControlButton } from '../components/plan/DamageControl'
+// DamageControl interaction moved to /habits — Home shows read-only progress
 import { useDamageStore } from '../stores/damageStore'
 
 function MacroRing({ label, current, target, color, textColor, showRemaining }) {
@@ -77,8 +76,6 @@ export default function Dashboard() {
   const { todayPlan, fetchTodayPlan, generatePlan } = usePlanStore()
   const { todayEnergy, fetchToday: fetchEnergy } = useEnergyStore()
   const { activePlan: damagePlan, fetchActive: fetchDamage } = useDamageStore()
-  const [showDamageForm, setShowDamageForm] = useState(false)
-  const [showFullPlan, setShowFullPlan] = useState(false)
   const [showJournal, setShowJournal] = useState(false)
   const [showMore, setShowMore] = useState(false)
 
@@ -330,86 +327,70 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ═══ TIMELINE ═══ */}
-      <section className="relative space-y-4 mb-6">
-        {/* Vertical line */}
-        <div className="absolute left-[23px] top-0 bottom-0 w-[2px] bg-white/5 z-0" />
-
-        {/* Completed items */}
-        {timelineItems.map(item => (
-          <div key={item.key} className="relative flex gap-3 z-10 opacity-50">
-            <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center text-white text-sm font-black flex-shrink-0">✓</div>
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 flex-1 p-3 rounded-2xl">
-              <h3 className="text-xs font-bold text-gray-300">{item.title}</h3>
-              <p className="text-[10px] text-gray-500">{item.subtitle}</p>
-            </div>
-          </div>
-        ))}
-
-        {/* NOW — current action */}
-        <div className="relative flex gap-3 z-10">
-          <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white ring-4 ring-blue-500/20 animate-pulse flex-shrink-0">
-            <span className="text-lg">{mealWindow.emoji}</span>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 flex-1 p-4 rounded-2xl border-l-4 border-l-blue-500">
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded uppercase font-black tracking-wider">Ahora</span>
-                <p className="text-sm font-bold text-white mt-1 leading-snug">{commandLine}</p>
-              </div>
-              {(commandLine.includes('caminata') || commandLine.includes('Pasos')) && (
-                <Link to="/walk" className="bg-blue-500 text-white px-4 py-2 rounded-xl text-[10px] font-black active:scale-95 transition flex-shrink-0 ml-2">START</Link>
-              )}
-            </div>
-          </div>
+      {/* ═══ NEXT ACTION (read-only suggestion → tap goes to /habits) ═══ */}
+      <Link to={commandLine.includes('caminata') ? '/walk' : '/habits'}
+        className="bg-white/5 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-4 mb-4 flex items-center gap-3 active:bg-white/10 transition block">
+        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+          <span className="text-lg">{mealWindow.emoji}</span>
         </div>
-
-        {/* Pending habits */}
-        {pendingHabits.map(h => (
-          <Link key={h.type} to="/habits" className="relative flex gap-3 z-10">
-            <div className="w-12 h-12 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-400 flex-shrink-0">
-              <span className="text-lg">{h.emoji}</span>
-            </div>
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 flex-1 p-3 rounded-2xl opacity-80">
-              <h3 className="text-xs font-bold text-gray-300">{h.label}</h3>
-              <p className="text-[10px] text-gray-600">{h.cue}</p>
-            </div>
-          </Link>
-        ))}
-      </section>
-
-      {/* ═══ DAILY INSIGHT (2-line banner, tap to expand full plan) ═══ */}
-      {todayPlan ? (
-        <div className="mb-4">
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden">
-            <div className="px-4 py-3 cursor-pointer flex items-center justify-between" onClick={() => setShowFullPlan(!showFullPlan)}>
-              <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Daily Insight</p>
-                <p className="text-xs text-gray-300 line-clamp-2 mt-0.5 leading-snug">
-                  {todayPlan.morning_brief || todayPlan.midday_adjust || todayPlan.evening_wrap || commandLine}
-                </p>
-              </div>
-              <span className={`text-gray-600 text-xs ml-2 transition-transform duration-300 ${showFullPlan ? 'rotate-180' : ''}`}>▼</span>
-            </div>
-            {showFullPlan && (
-              <div className="px-4 pb-4 border-t border-white/5 animate-fade-in">
-                <DailyPlan />
-              </div>
-            )}
-          </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Próximo paso</p>
+          <p className="text-xs text-gray-300 leading-snug line-clamp-2 mt-0.5">{commandLine}</p>
         </div>
-      ) : (
-        <div className="mb-4">
-          <DailyPlan />
+        <span className="text-gray-600 text-xs flex-shrink-0">→</span>
+      </Link>
+
+      {/* ═══ HABITS SUMMARY (read-only, tap → /habits) ═══ */}
+      <Link to="/habits" className="block mb-4">
+        <div className="grid grid-cols-4 gap-2">
+          {HABITS.map(h => {
+            const val = Number(todayHabits[h.type]?.value || 0)
+            const done = val >= h.target
+            return (
+              <div key={h.type} className={`bg-white/5 border border-white/10 rounded-2xl p-3 text-center transition ${done ? 'opacity-40' : ''}`}>
+                <span className="text-lg block">{h.emoji}</span>
+                <p className="text-[8px] text-gray-500 font-bold uppercase mt-1">{h.label}</p>
+                {done && <span className="text-emerald-500 text-[10px] font-black">✓</span>}
+              </div>
+            )
+          })}
+        </div>
+      </Link>
+
+      {/* ═══ FOOD LOG PREVIEW (read-only) ═══ */}
+      {todayLogs.length > 0 && (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-3 mb-4">
+          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">Comidas de hoy</p>
+          {todayLogs.slice(-3).map(log => (
+            <div key={log.id} className="flex justify-between py-1.5 border-b border-white/5 last:border-0">
+              <span className="text-[10px] text-gray-400 truncate flex-1">{log.description}</span>
+              <span className="text-[10px] text-gray-500 ml-2">{log.calories} kcal</span>
+            </div>
+          ))}
+          {todayLogs.length > 3 && <p className="text-[9px] text-gray-600 mt-1">+{todayLogs.length - 3} más</p>}
         </div>
       )}
 
-      {/* Damage Control */}
-      {(showDamageForm || damagePlan) ? (
-        <div className="mb-4"><DamageControl /></div>
-      ) : (
-        <div className="flex justify-end mb-3">
-          <DamageControlButton onOpen={() => setShowDamageForm(true)} />
+      {/* ═══ DAILY INSIGHT (read-only 2-line banner) ═══ */}
+      {todayPlan && (todayPlan.morning_brief || todayPlan.midday_adjust || todayPlan.evening_wrap) && (
+        <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-4">
+          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Daily Insight</p>
+          <p className="text-xs text-gray-400 line-clamp-2 mt-0.5 leading-snug">
+            {todayPlan.morning_brief || todayPlan.midday_adjust || todayPlan.evening_wrap}
+          </p>
+        </div>
+      )}
+
+      {/* Damage Control (read-only progress if active) */}
+      {damagePlan && (
+        <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-4">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest">🔄 Compensación</p>
+            <span className="text-[9px] text-gray-600">{damagePlan.days_completed}/{damagePlan.spread_days} días</span>
+          </div>
+          <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 rounded-full transition-all" style={{ width: Math.round((damagePlan.days_completed / damagePlan.spread_days) * 100) + '%' }} />
+          </div>
         </div>
       )}
 
@@ -472,22 +453,13 @@ export default function Dashboard() {
 
           <WeeklyDigest />
 
-          {/* Journal — night prompt */}
-          {showJournal ? (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">📝 Journal</p>
-                <button onClick={() => setShowJournal(false)} className="text-xs text-gray-600">✕</button>
-              </div>
-              <MicroJournal />
-            </div>
-          ) : new Date().getHours() >= 21 ? (
-            <button onClick={() => setShowJournal(true)}
-              className="w-full bg-white/5 border border-violet-500/20 rounded-2xl p-3 text-left active:bg-white/10 transition">
+          {/* Journal prompt — links to /habits at night */}
+          {new Date().getHours() >= 21 && (
+            <Link to="/habits" className="block bg-white/5 border border-violet-500/20 rounded-2xl p-3 active:bg-white/10 transition">
               <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">📝 ¿Cómo fue tu día?</p>
-              <p className="text-xs text-gray-500 mt-0.5">Tocá para escribir antes de dormir</p>
-            </button>
-          ) : null}
+              <p className="text-xs text-gray-500 mt-0.5">Tocá para escribir en tu diario →</p>
+            </Link>
+          )}
         </div>
       )}
 
