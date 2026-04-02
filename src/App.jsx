@@ -15,6 +15,7 @@ import Checkin from './pages/Checkin'
 import Chat from './pages/Chat'
 import Workout from './pages/Workout'
 import Breathe from './pages/Breathe'
+import Walk from './pages/Walk'
 
 export default function App() {
   const [commandOpen, setCommandOpen] = useState(false)
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="/chat" element={<Chat />} />
             <Route path="/workout" element={<Workout />} />
             <Route path="/breathe" element={<Breathe />} />
+            <Route path="/walk" element={<Walk />} />
           </Routes>
           <BottomNav />
 

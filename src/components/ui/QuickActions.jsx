@@ -9,7 +9,7 @@ const ACTIONS = [
   { id: 'mate', emoji: '🧉', label: 'Mate', action: 'mate' },
   { id: 'gym', emoji: '🏋️', label: 'Gym', action: 'gym' },
   { id: 'bjj', emoji: '🥋', label: 'BJJ', action: 'bjj' },
-  { id: 'steps', emoji: '🚶', label: 'Pasos', action: 'navigate', to: '/habits' },
+  { id: 'walk', emoji: '🚶', label: 'Caminata', action: 'navigate', to: '/walk' },
   { id: 'journal', emoji: '📝', label: 'Nota', action: 'scroll', target: 'journal' },
   { id: 'damage', emoji: '🍖', label: 'Me pasé', action: 'damage' },
   { id: 'breathe', emoji: '🧘', label: 'Respirar', action: 'navigate', to: '/breathe' },
