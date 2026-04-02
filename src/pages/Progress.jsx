@@ -9,6 +9,7 @@ import { useInsightsStore } from '../stores/insightsStore'
 import { useRoutineStore } from '../stores/routineStore'
 import MonthlyReport from '../components/report/MonthlyReport'
 import { WeightChart, HabitWeeklyChart, MacroChart, useTrendData } from '../components/charts/TrendCharts'
+import { OneRepMaxChart, BalanceRadar } from '../components/charts/GymCharts'
 
 function Heatmap({ data }) {
   const days = []
@@ -596,6 +597,22 @@ export default function Progress() {
           </div>
         )}
       </div>
+
+      {/* 1RM Estimated Chart */}
+      {prs.length >= 2 && (
+        <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 px-1">📈 1RM Estimado (Big Lifts)</h2>
+          <OneRepMaxChart prs={prs} />
+        </div>
+      )}
+
+      {/* Muscle Balance Radar */}
+      {prs.length >= 3 && (
+        <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 px-1">🎯 Balance Muscular</h2>
+          <BalanceRadar prs={prs} />
+        </div>
+      )}
 
       {/* Gym PRs */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100">
