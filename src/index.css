@@ -64,3 +64,8 @@ body {
 .parallax-card:nth-child(4) { animation-delay: 180ms; }
 .parallax-card:nth-child(5) { animation-delay: 240ms; }
 .parallax-card:nth-child(6) { animation-delay: 300ms; }
+
+@keyframes scale-in {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}

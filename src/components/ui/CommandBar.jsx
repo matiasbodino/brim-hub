@@ -1,60 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
 import { useHabitStore } from '../../stores/habitStore'
 import { useFoodStore } from '../../stores/foodStore'
+import { usePointsStore } from '../../stores/pointsStore'
 import { useTargetsStore } from '../../stores/targetsStore'
+import { DEFAULT_PERMITIDOS } from '../../lib/constants'
 
-// ─── Intent Detection (client-side, no API call needed) ───
+const EDGE_URL = 'https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1'
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcnBxemFoYnRmYnh4dGFxZXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTExODMsImV4cCI6MjA5MDA2NzE4M30.f85JKwllPo1dLRvzFphPkLL8bEMts0IYjqCnTLDrA_c'
 
-const WATER_PATTERNS = [
-  /(\d+)\s*ml\s*(de\s+)?agua/i,
-  /(\d+)\s*ml\s*water/i,
-  /agua\s+(\d+)\s*ml/i,
-  /(\d+(?:\.\d+)?)\s*(?:l|lt|litro|litros)\s*(de\s+)?agua/i,
-  /agua\s+(\d+(?:\.\d+)?)\s*(?:l|lt|litro|litros)/i,
-  /(\d+)\s*vasos?\s*(de\s+)?agua/i,
-]
-
-const STEPS_PATTERNS = [
-  /(\d+)\s*pasos/i,
-  /(\d+)\s*steps/i,
-  /caminé?\s+(\d+)/i,
-]
-
-function parseIntent(text) {
-  const trimmed = text.trim().toLowerCase()
-
-  // Water detection
-  for (const pattern of WATER_PATTERNS) {
-    const match = trimmed.match(pattern)
-    if (match) {
-      const num = Number(match[1])
-      if (trimmed.includes('ml') || trimmed.includes('water')) {
-        return { type: 'water', value: num / 1000 } // ml → L
-      }
-      if (trimmed.includes('vaso')) {
-        return { type: 'water', value: num * 0.25 } // 1 vaso = 250ml
-      }
-      return { type: 'water', value: num } // assume liters
-    }
-  }
-
-  // Steps detection
-  for (const pattern of STEPS_PATTERNS) {
-    const match = trimmed.match(pattern)
-    if (match) {
-      return { type: 'steps', value: Number(match[1]) }
-    }
-  }
-
-  // Gym / BJJ quick toggles
-  if (/^(gym|hice gym|fui al gym)$/i.test(trimmed)) return { type: 'gym', value: 1 }
-  if (/^(bjj|hice bjj|fui a bjj|entrené bjj|entrene bjj)$/i.test(trimmed)) return { type: 'bjj', value: 1 }
-
-  // Default: treat as food
-  return { type: 'food', text: text.trim() }
+async function callParseIntent(text) {
+  const res = await fetch(EDGE_URL + '/parse-intent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ANON_KEY },
+    body: JSON.stringify({ text }),
+  })
+  return res.json()
 }
-
-// ─── Component ───
 
 export default function CommandBar({ isOpen, onClose }) {
   const [input, setInput] = useState('')
@@ -64,13 +25,28 @@ export default function CommandBar({ isOpen, onClose }) {
 
   const { todayHabits, upsertHabit } = useHabitStore()
   const { parseWithAI, confirmAIEstimate } = useFoodStore()
+  const { redeem } = usePointsStore()
   const { targets } = useTargetsStore()
+
+  // Cmd+K shortcut
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        if (isOpen) onClose()
+        else document.dispatchEvent(new CustomEvent('open-command-bar'))
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isOpen])
 
   useEffect(() => {
     if (isOpen) {
       setInput('')
       setStatus('idle')
       setMessage('')
+      if (window.navigator.vibrate) window.navigator.vibrate(10)
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }, [isOpen])
@@ -78,7 +54,7 @@ export default function CommandBar({ isOpen, onClose }) {
   // Auto-close after success
   useEffect(() => {
     if (status === 'success') {
-      const t = setTimeout(() => onClose(), 1200)
+      const t = setTimeout(() => onClose(), 1500)
       return () => clearTimeout(t)
     }
   }, [status])
@@ -87,40 +63,50 @@ export default function CommandBar({ isOpen, onClose }) {
     if (!input.trim() || status === 'processing') return
     setStatus('processing')
 
-    const intent = parseIntent(input)
-
     try {
-      if (intent.type === 'water') {
-        const current = Number(todayHabits.water?.value || 0)
-        const newVal = current + intent.value
-        await upsertHabit('water', newVal, targets.water || 2.5)
-        setMessage(`+${intent.value}L agua → ${newVal}L total`)
-        setStatus('success')
-      } else if (intent.type === 'steps') {
-        await upsertHabit('steps', intent.value, targets.steps || 10000)
-        setMessage(`${intent.value.toLocaleString()} pasos registrados`)
-        setStatus('success')
-      } else if (intent.type === 'gym') {
-        await upsertHabit('gym', 1, 1)
-        setMessage('Gym registrado')
-        setStatus('success')
-      } else if (intent.type === 'bjj') {
-        await upsertHabit('bjj', 1, 1)
-        setMessage('BJJ registrado')
-        setStatus('success')
-      } else if (intent.type === 'food') {
-        const estimate = await parseWithAI(intent.text, null)
+      const intent = await callParseIntent(input.trim())
+      if (intent.error) {
+        setMessage(intent.error)
+        setStatus('error')
+        return
+      }
+
+      // Execute based on intent type
+      if (intent.type === 'HABIT') {
+        if (intent.action === 'add_water') {
+          const current = Number(todayHabits.water?.value || 0)
+          const amount = intent.payload?.amount || 0.5
+          await upsertHabit('water', current + amount, targets.water || 2.5)
+        } else if (intent.action === 'set_steps') {
+          await upsertHabit('steps', intent.payload?.amount || 0, targets.steps || 10000)
+        } else if (intent.action === 'toggle_gym') {
+          await upsertHabit('gym', 1, 1)
+        } else if (intent.action === 'toggle_bjj') {
+          await upsertHabit('bjj', 1, 1)
+        }
+      } else if (intent.type === 'FOOD') {
+        const estimate = await parseWithAI(intent.payload?.description || input.trim(), null)
         if (estimate) {
-          await confirmAIEstimate({ ...estimate, rawInput: intent.text })
-          setMessage(`${estimate.description} · ${estimate.calories} kcal`)
-          setStatus('success')
+          await confirmAIEstimate({ ...estimate, rawInput: input.trim() })
+        }
+      } else if (intent.type === 'REDEEM') {
+        const itemId = intent.payload?.item_id
+        const item = DEFAULT_PERMITIDOS.find(p => p.id === itemId)
+        if (item) {
+          await redeem(item)
         } else {
-          setMessage('No pude parsear eso')
+          setMessage('No encontré ese permitido')
           setStatus('error')
+          return
         }
       }
-    } catch {
-      setMessage('Error al procesar')
+      // CHAT type — just show the confirmation, no action needed
+
+      if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
+      setMessage(intent.confirmation_msg || 'Hecho')
+      setStatus('success')
+    } catch (err) {
+      setMessage(String(err?.message || err))
       setStatus('error')
     }
   }
@@ -130,64 +116,62 @@ export default function CommandBar({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 z-[80]">
       {/* Glassmorphism overlay */}
-      <div
-        className="absolute inset-0 bg-white/70 backdrop-blur-xl"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-white/70 backdrop-blur-2xl" onClick={onClose} />
 
       {/* Command bar */}
-      <div className="relative z-10 flex flex-col items-center justify-start pt-[20vh] px-6 max-w-lg mx-auto">
+      <div className="relative z-10 flex flex-col items-center justify-start pt-[18vh] px-6 max-w-lg mx-auto">
         {status === 'success' ? (
-          <div className="animate-fade-in text-center">
-            <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-200">
-              <span className="text-3xl text-white">✓</span>
+          <div className="text-center animate-fade-in">
+            <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-xl shadow-emerald-200 scale-100 animate-[scale-in_0.3s_ease-out]">
+              <span className="text-4xl text-white">✓</span>
             </div>
-            <p className="text-sm font-bold text-slate-800">{message}</p>
+            <p className="text-base font-black text-slate-800">{message}</p>
           </div>
         ) : status === 'error' ? (
-          <div className="animate-fade-in text-center">
-            <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-200">
-              <span className="text-3xl text-white">✕</span>
+          <div className="text-center animate-fade-in">
+            <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-xl shadow-red-200">
+              <span className="text-4xl text-white">✕</span>
             </div>
             <p className="text-sm font-bold text-slate-800">{message}</p>
-            <button onClick={() => setStatus('idle')} className="text-xs text-violet-600 font-bold mt-3">Reintentar</button>
+            <button onClick={() => setStatus('idle')} className="text-xs text-violet-600 font-bold mt-4">Reintentar</button>
           </div>
         ) : (
           <>
-            <div className="w-full bg-white rounded-[2rem] shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden">
+            {/* Input card */}
+            <div className="w-full bg-white/80 backdrop-blur-md rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-white/30 overflow-hidden">
               <input
                 ref={inputRef}
                 type="text"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                placeholder="200ml agua, café con leche, 8000 pasos..."
-                className="w-full px-6 py-5 text-base text-slate-800 bg-transparent border-none focus:outline-none focus:ring-0 placeholder:text-slate-300"
+                placeholder="¿Qué hiciste hoy, Mati?"
+                className="w-full px-8 py-6 text-lg font-black text-slate-800 bg-transparent border-none focus:outline-none focus:ring-0 placeholder:text-slate-300 placeholder:font-medium"
                 disabled={status === 'processing'}
               />
               {status === 'processing' && (
-                <div className="px-6 pb-4 flex items-center gap-2">
-                  <div className="w-4 h-4 bg-violet-500 rounded animate-pulse" />
-                  <span className="text-xs text-slate-400">Procesando...</span>
+                <div className="px-8 pb-5 flex items-center gap-3">
+                  <div className="w-5 h-5 bg-violet-500 rounded-lg animate-pulse" />
+                  <span className="text-sm text-slate-400 font-medium">Brim está pensando...</span>
                 </div>
               )}
             </div>
 
             {/* Quick hints */}
-            <div className="flex flex-wrap gap-2 mt-4 justify-center">
-              {['500ml agua', 'café con leche', '8000 pasos', 'gym'].map(hint => (
+            <div className="flex flex-wrap gap-2 mt-5 justify-center">
+              {['500ml agua', 'café con leche', '8000 pasos', 'gym', 'canjeame una birra'].map(hint => (
                 <button
                   key={hint}
-                  onClick={() => { setInput(hint); setTimeout(handleSubmit, 50) }}
-                  className="text-[10px] font-bold text-slate-400 bg-white/80 px-3 py-1.5 rounded-full border border-slate-200 active:bg-slate-100 transition"
+                  onClick={() => { setInput(hint) }}
+                  className="text-[10px] font-bold text-slate-400 bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/30 active:bg-white/90 transition"
                 >
                   {hint}
                 </button>
               ))}
             </div>
 
-            <button onClick={onClose} className="mt-8 text-xs text-slate-400 font-medium">
-              Cerrar
+            <button onClick={onClose} className="mt-10 text-xs text-slate-300 font-medium">
+              ESC para cerrar
             </button>
           </>
         )}

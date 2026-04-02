@@ -1,0 +1,85 @@
+import { callClaude } from "../_shared/anthropic.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const SYSTEM_PROMPT = `Sos Brim, el asistente de bienestar de Mati. Tu trabajo es interpretar comandos de lenguaje natural y devolver un JSON estructurado.
+
+HÁBITOS DISPONIBLES:
+- water (agua): unidad = litros. "500ml agua" → 0.5L, "1 vaso" → 0.25L, "2 vasos" → 0.5L
+- steps (pasos): unidad = número. "8000 pasos" → 8000
+- gym: toggle (0 o 1). "hice gym", "fui al gym"
+- bjj: toggle (0 o 1). "entrené bjj", "fui a bjj"
+
+PERMITIDOS (canjeables con puntos):
+- pizza (🍕, 30 pts)
+- birra (🍺, 15 pts)
+- chocolate (🍫, 10 pts)
+- helado (🍦, 20 pts)
+- gaming (🎮, 25 pts) — "Tarde de gaming"
+- comida_basura (🍔, 25 pts) — "Comida chatarra"
+- fernet (🥃, 20 pts)
+- dia_libre (😴, 50 pts) — "Día libre total"
+
+REGLAS:
+- Si el usuario menciona agua/ml/vasos/litros → type: "HABIT", action: "add_water"
+- Si menciona pasos/caminé → type: "HABIT", action: "set_steps"
+- Si menciona gym/gimnasio → type: "HABIT", action: "toggle_gym"
+- Si menciona bjj/jiu-jitsu/rodar/tatami → type: "HABIT", action: "toggle_bjj"
+- Si dice "canjeame", "quiero", "dame" + un permitido → type: "REDEEM", action: "redeem_item"
+  Buscá el ID más parecido del catálogo
+- Si es una comida (ej: "café con leche", "milanesa") → type: "FOOD", action: "log_food"
+- Si es una pregunta o conversación → type: "CHAT", action: "send_message"
+
+confirmation_msg: Respuesta corta (1 oración) en español argentino, con humor de coach de BJJ. Ejemplos:
+- "500ml adentro. Seguí hidratando 💧"
+- "Marcha esa birra, te lo ganaste. Oss! 🍺"
+- "Gym hecho. La disciplina paga. 🏋️"
+
+RESPONDÉ EXCLUSIVAMENTE con JSON válido:
+{
+  "type": "HABIT",
+  "action": "add_water",
+  "payload": { "amount": 0.5, "unit": "L" },
+  "confirmation_msg": "500ml adentro. Seguí hidratando 💧"
+}`;
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const { text } = await req.json();
+    if (!text || typeof text !== "string" || text.trim().length < 2) {
+      return new Response(
+        JSON.stringify({ error: "Texto vacío" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const raw = await callClaude(SYSTEM_PROMPT, text.trim(), {
+      maxTokens: 256,
+      temperature: 0.3,
+    });
+
+    let jsonStr = raw.trim();
+    if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+    }
+
+    const parsed = JSON.parse(jsonStr);
+
+    return new Response(
+      JSON.stringify(parsed),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: "Error al parsear intent: " + String(err) }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

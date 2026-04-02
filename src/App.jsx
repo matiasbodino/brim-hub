@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ToastProvider } from './components/Toast'
 import BottomNav from './components/BottomNav'
@@ -13,6 +13,13 @@ import Chat from './pages/Chat'
 
 export default function App() {
   const [commandOpen, setCommandOpen] = useState(false)
+
+  // Listen for Cmd+K event from CommandBar
+  useEffect(() => {
+    const handler = () => setCommandOpen(true)
+    document.addEventListener('open-command-bar', handler)
+    return () => document.removeEventListener('open-command-bar', handler)
+  }, [])
 
   return (
     <BrowserRouter>
