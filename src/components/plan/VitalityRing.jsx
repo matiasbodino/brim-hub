@@ -5,38 +5,38 @@ import { hapticHeartbeat } from '../../lib/haptics'
 import { useBJJTheme } from '../../hooks/useBJJTheme'
 import confetti from 'canvas-confetti'
 
-// Vitality Score = Hydration 25% + Nutrition 25% + Movement 30% + Energy 20%
+// Wellness Score — Nutrition is king (80% weight when no food = max 20% possible)
+// Weights: Nutrition 50%, Movement 20%, Hydration 15%, Energy 15%
 
 function calculateVitality({ todayHabits, macros, targets, todayEnergy }) {
-  // Hydration (25%) — water progress vs target
+  // Hydration (15%)
   const waterVal = Number(todayHabits.water?.value || 0)
   const waterTarget = targets.water || 2.5
   const hydration = Math.min(100, Math.round((waterVal / waterTarget) * 100))
 
-  // Nutrition (25%) — calories + protein vs target (penalize over AND under)
+  // Nutrition (50%) — THE dominant factor
+  const hasFood = macros.calories > 0
   const calPct = targets.calories > 0 ? macros.calories / targets.calories : 0
   const protPct = targets.protein > 0 ? macros.protein / targets.protein : 0
-  // Sweet spot: 80-110% of target = full score. Below or above = penalty
   const calScore = calPct >= 0.8 && calPct <= 1.1 ? 100 : calPct < 0.8 ? Math.round(calPct * 125) : Math.max(0, Math.round((2 - calPct) * 100))
   const protScore = Math.min(100, Math.round(protPct * 100))
-  const nutrition = Math.round((calScore + protScore) / 2)
+  const nutrition = hasFood ? Math.round((calScore + protScore) / 2) : 0
 
-  // Movement (30%) — gym OR bjj + steps
+  // Movement (20%)
   const gymDone = Number(todayHabits.gym?.value || 0) >= 1
   const bjjDone = Number(todayHabits.bjj?.value || 0) >= 1
   const stepsVal = Number(todayHabits.steps?.value || 0)
   const stepsTarget = targets.steps || 10000
   const stepsPct = Math.min(100, Math.round((stepsVal / stepsTarget) * 100))
   const exerciseDone = gymDone || bjjDone
-  // Exercise = 60% of movement, steps = 40%
   const movement = Math.round((exerciseDone ? 60 : 0) + (stepsPct * 0.4))
 
-  // Energy (20%) — perceived energy 1-5 → 0-100
+  // Energy (15%)
   const energyVal = todayEnergy || 0
-  const energy = energyVal > 0 ? Math.round((energyVal / 5) * 100) : 50 // default 50 if not logged
+  const energy = energyVal > 0 ? Math.round((energyVal / 5) * 100) : 50
 
-  // Weighted total
-  const total = Math.round(hydration * 0.25 + nutrition * 0.25 + movement * 0.30 + energy * 0.20)
+  // Weighted total — no food = max 20% (movement 20% + hydration 15% partial + energy 15% partial)
+  const total = Math.round(nutrition * 0.50 + movement * 0.20 + hydration * 0.15 + energy * 0.15)
 
   return { total, hydration, nutrition, movement, energy }
 }

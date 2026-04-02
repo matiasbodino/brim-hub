@@ -155,6 +155,14 @@ export default function Dashboard() {
     const protForThisMeal = Math.min(protRemaining, mealWindow.maxProt)
     const calForThisMeal = Math.min(calRemaining, mealWindow.maxKcal)
 
+    // Priority 0: Post high-strain recovery
+    const bjjRpe = todayHabits.bjj?.metadata?.rpe || 0
+    const gymRpe = todayHabits.gym?.metadata?.rpe || 0
+    const highStrain = bjjRpe >= 8 || gymRpe >= 8
+    if (highStrain && h > 18) {
+      return `🧘 Esfuerzo alto detectado (RPE ${Math.max(bjjRpe, gymRpe)}). Priorizá recuperación profunda: Respiración 4-7-8 sedante + 20g proteína extra en la cena.`
+    }
+
     // Priority 1: Hydration if very low
     if (waterVal === 0 && h < 12) return `Arrancá con un vaso de agua. El cuerpo te lo pide.`
 

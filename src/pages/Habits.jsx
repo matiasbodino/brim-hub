@@ -553,18 +553,25 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
 
   return (
     <div className="space-y-4">
-      {/* "Same as yesterday" quick-log */}
-      {todayLogs.length > 0 && todayLogs.length <= 2 && (() => {
-        const last = todayLogs[todayLogs.length - 1]
+      {/* Quick-Relog: match by current meal type */}
+      {(() => {
+        // Find last log matching current meal window
+        const currentMeal = defaultMeal // from getMealTypeByHour()
+        const matchingLog = todayLogs.find(l => l.meal_type === currentMeal)
+          || (todayLogs.length > 0 ? todayLogs[todayLogs.length - 1] : null)
+        if (!matchingLog || todayLogs.length > 3) return null
+        const mealLabel = { desayuno: 'Desayuno', almuerzo: 'Almuerzo', merienda: 'Merienda', cena: 'Cena', snack: 'Snack' }
         return (
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 border-l-4 border-l-blue-500 flex justify-between items-center">
             <div>
-              <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-wider">Repetir última</h3>
-              <p className="text-sm text-white font-medium">{last.description}</p>
-              <p className="text-[10px] text-gray-500 italic">{last.calories} kcal · {last.protein}g prot</p>
+              <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-wider">
+                {matchingLog.meal_type === currentMeal ? `¿Mismo ${mealLabel[currentMeal] || currentMeal}?` : 'Repetir última'}
+              </h3>
+              <p className="text-sm text-white font-medium">{matchingLog.description}</p>
+              <p className="text-[10px] text-gray-500 italic">{matchingLog.calories} kcal · {matchingLog.protein}g prot</p>
             </div>
             <button
-              onClick={() => onManualSubmit({ ...last, id: undefined, logged_at: undefined })}
+              onClick={() => { hapticMedium(); onManualSubmit({ ...matchingLog, id: undefined, logged_at: undefined, meal_type: currentMeal }) }}
               className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black active:scale-95 transition flex-shrink-0"
             >
               LOG

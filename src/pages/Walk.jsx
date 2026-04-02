@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useHabitStore } from '../stores/habitStore'
+import { useFoodStore } from '../stores/foodStore'
 import { useToast } from '../components/Toast'
 import { hapticLight, hapticMedium, hapticHeartbeat } from '../lib/haptics'
 import { burnFromSteps } from '../lib/activeBurn'
@@ -11,12 +12,17 @@ export default function Walk() {
   const navigate = useNavigate()
   const showToast = useToast()
   const { upsertHabit, todayHabits } = useHabitStore()
+  const { getTodayMacros } = useFoodStore()
+
+  // Smart default: 50% of last meal consumed (post-prandial walk incentive)
+  const macros = getTodayMacros()
+  const smartTarget = macros.calories > 200 ? Math.round(macros.calories * 0.25) : 250
 
   const [active, setActive] = useState(false)
   const [paused, setPaused] = useState(false)
   const [seconds, setSeconds] = useState(0)
   const [distance, setDistance] = useState(0) // km
-  const [targetKcal, setTargetKcal] = useState(250)
+  const [targetKcal, setTargetKcal] = useState(smartTarget)
   const intervalRef = useRef(null)
   const startTimeRef = useRef(null)
 
@@ -84,7 +90,10 @@ export default function Walk() {
         <h1 className="text-5xl font-black text-white tracking-tighter mb-2">
           {targetKcal} <span className="text-xl text-gray-500 font-bold">kcal</span>
         </h1>
-        <p className="text-sm text-gray-400 mb-8">para quemar caminando</p>
+        <p className="text-sm text-gray-400 mb-2">para quemar caminando</p>
+        {macros.calories > 0 && (
+          <p className="text-[10px] text-gray-600 mb-6">Consumiste {macros.calories} kcal hoy · {Math.round(macros.calories * 0.25)} kcal = 25% post-prandial</p>
+        )}
 
         {/* Target selector */}
         <div className="flex gap-2 mb-10 w-full">
