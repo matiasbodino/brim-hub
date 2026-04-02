@@ -880,15 +880,8 @@ export default function Habits() {
   }
 
   const handleBJJ = async (meta) => {
-    const habit = HABITS.find(h => h.type === 'bjj')
-    await upsertHabit('bjj', 1, habit.target, meta)
-    await awardPoints('bjj', POINTS.bjj)
-    await checkPerfectDay()
-    showIdentity('bjj')
-    hapticMedium()
-    showToast('🥋 +' + POINTS.bjj + ' pts')
-    track('habit_completed', { habit_type: 'bjj', completion_type: 'full' })
     setShowBJJ(false)
+    navigate('/bjj-session', { state: { meta } })
   }
 
   const handleFood = async (log) => {

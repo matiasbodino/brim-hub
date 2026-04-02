@@ -16,6 +16,7 @@ import Chat from './pages/Chat'
 import Workout from './pages/Workout'
 import Breathe from './pages/Breathe'
 import Walk from './pages/Walk'
+import BJJSession from './pages/BJJSession'
 
 export default function App() {
   const [commandOpen, setCommandOpen] = useState(false)
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="/workout" element={<Workout />} />
             <Route path="/breathe" element={<Breathe />} />
             <Route path="/walk" element={<Walk />} />
+            <Route path="/bjj-session" element={<BJJSession />} />
           </Routes>
           <BottomNav />
 
