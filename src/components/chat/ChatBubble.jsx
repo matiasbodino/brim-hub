@@ -23,17 +23,17 @@ export default function ChatBubble({ role, content, time, isStreaming }) {
   }
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-3`}>
-      <div className={`max-w-[85%] ${isUser ? 'order-1' : 'order-1'}`}>
-        <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 px-2`}>
+      <div className="max-w-[85%]">
+        <div className={`p-4 rounded-[1.8rem] text-sm leading-relaxed shadow-sm ${
           isUser
-            ? 'bg-violet-600 text-white rounded-br-md'
-            : 'bg-gray-100 text-gray-800 rounded-bl-md'
+            ? 'bg-violet-600 text-white rounded-tr-none'
+            : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none'
         }`}>
           {renderContent(content)}
         </div>
         {time && (
-          <div className={`text-xs text-gray-300 mt-0.5 ${isUser ? 'text-right' : 'text-left'} px-1`}>
+          <div className={`text-[10px] text-slate-300 mt-1 ${isUser ? 'text-right' : 'text-left'} px-2`}>
             {time}
           </div>
         )}
