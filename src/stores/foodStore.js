@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { MATI_ID } from '../lib/constants'
 import { track } from '../lib/analytics'
+import { usePlanStore } from './planStore'
 
 const EDGE_URL = 'https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcnBxemFoYnRmYnh4dGFxZXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTExODMsImV4cCI6MjA5MDA2NzE4M30.f85JKwllPo1dLRvzFphPkLL8bEMts0IYjqCnTLDrA_c'
@@ -37,6 +38,7 @@ export const useFoodStore = create((set, get) => ({
     if (error) throw error
     set({ todayLogs: [...get().todayLogs, data] })
     track('food_logged', { method: 'manual', meal_type: log.meal_type })
+    usePlanStore.getState().recalculate()
     return data
   },
 
@@ -51,6 +53,7 @@ export const useFoodStore = create((set, get) => ({
   deleteLog: async (id) => {
     await supabase.from('food_logs').delete().eq('id', id)
     set({ todayLogs: get().todayLogs.filter(l => l.id !== id) })
+    usePlanStore.getState().recalculate()
   },
 
   updateLog: async (id, updates) => {
@@ -127,6 +130,7 @@ export const useFoodStore = create((set, get) => ({
     track('food_logged', { method: 'ai', meal_type: estimate.meal_type })
     set({ aiEstimate: null })
     await get().fetchToday()
+    usePlanStore.getState().recalculate()
     return log
   },
 
@@ -161,6 +165,7 @@ export const useFoodStore = create((set, get) => ({
 
     set({ aiEstimate: null })
     await get().fetchToday()
+    usePlanStore.getState().recalculate()
     return log
   },
 

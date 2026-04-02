@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { MATI_ID } from '../lib/constants'
 import { usePointsStore } from '../stores/pointsStore'
 import { useTargetsStore } from '../stores/targetsStore'
+import { useToast } from '../components/Toast'
 
 export default function Profile() {
   const { getLevel, totalPoints } = usePointsStore()
@@ -14,8 +15,22 @@ export default function Profile() {
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [weightGoal, setWeightGoal] = useState('')
+  const [weightGoalDate, setWeightGoalDate] = useState('')
+  const [weeklyRate, setWeeklyRate] = useState('-0.4')
+  const [goalSaved, setGoalSaved] = useState(false)
+  const showToast = useToast()
 
-  useEffect(() => { fetchTargets() }, [])
+  useEffect(() => {
+    fetchTargets()
+    // Fetch existing weight goal
+    supabase.from('user_profile').select('weight_goal, weight_goal_date, weekly_weight_target').eq('id', MATI_ID).maybeSingle()
+      .then(({ data }) => {
+        if (data?.weight_goal) setWeightGoal(String(data.weight_goal))
+        if (data?.weight_goal_date) setWeightGoalDate(data.weight_goal_date)
+        if (data?.weekly_weight_target != null) setWeeklyRate(String(data.weekly_weight_target))
+      })
+  }, [])
 
   const handleSaveWeight = async () => {
     if (!weight) return
@@ -106,6 +121,55 @@ export default function Profile() {
             {weightSaved ? '✓' : 'Guardar'}
           </button>
         </div>
+      </div>
+
+      {/* Weight Goal */}
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-3">
+        <h2 className="text-sm font-semibold text-gray-700">Objetivo de peso</h2>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-gray-500">Peso objetivo (kg)</label>
+            <input type="number" step="0.5" value={weightGoal} onChange={e => setWeightGoal(e.target.value)}
+              placeholder="80.0" className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Fecha límite</label>
+            <input type="date" value={weightGoalDate} onChange={e => setWeightGoalDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500">Ritmo semanal</label>
+          <div className="flex gap-2 mt-1">
+            {['-0.25', '-0.5', '-0.75', '-1.0'].map(r => (
+              <button key={r} onClick={() => setWeeklyRate(r)}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
+                  weeklyRate === r ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600'
+                }`}>
+                {r} kg
+              </button>
+            ))}
+          </div>
+        </div>
+        <button
+          onClick={async () => {
+            const { error } = await supabase.from('user_profile').upsert({
+              id: MATI_ID,
+              weight_goal: weightGoal ? Number(weightGoal) : null,
+              weight_goal_date: weightGoalDate || null,
+              weekly_weight_target: Number(weeklyRate),
+            }, { onConflict: 'id' })
+            if (!error) {
+              setGoalSaved(true)
+              showToast('Objetivo guardado ✓')
+              setTimeout(() => setGoalSaved(false), 2000)
+            }
+          }}
+          disabled={!weightGoal}
+          className="w-full py-2.5 bg-violet-600 text-white font-semibold text-sm rounded-xl disabled:opacity-40 active:scale-95 transition"
+        >
+          {goalSaved ? '✓ Guardado' : 'Guardar objetivo'}
+        </button>
       </div>
 
       {/* Targets */}

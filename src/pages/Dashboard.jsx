@@ -12,6 +12,8 @@ import MicroJournal from '../components/journal/MicroJournal'
 import { track } from '../lib/analytics'
 import { useBJJTheme } from '../hooks/useBJJTheme'
 import { useInsightsStore } from '../stores/insightsStore'
+import { usePlanStore } from '../stores/planStore'
+import DailyPlan from '../components/plan/DailyPlan'
 
 function MacroRing({ label, current, target, color, textColor }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
@@ -60,6 +62,7 @@ export default function Dashboard() {
   const { targets, fetchTargets } = useTargetsStore()
 
   const { userModel, lastGenerated, fetchUserModel } = useInsightsStore()
+  const { todayPlan, fetchTodayPlan, generatePlan } = usePlanStore()
 
   useEffect(() => {
     fetchFood()
@@ -68,6 +71,7 @@ export default function Dashboard() {
     fetchActive()
     fetchTargets()
     fetchUserModel()
+    fetchTodayPlan()
     track('app_open')
   }, [])
 
@@ -145,6 +149,11 @@ export default function Dashboard() {
           </div>
         </Link>
       )}
+
+      {/* Daily Plan */}
+      <div className="mb-6">
+        <DailyPlan />
+      </div>
 
       {/* Bento Grid de Stats */}
       <div className="grid grid-cols-2 gap-4 mb-8">
