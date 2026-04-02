@@ -110,7 +110,7 @@ export default function Breathe() {
               <span className="text-xs font-bold text-white/60 uppercase tracking-widest mt-1">{phase}</span>
             </>
           ) : (
-            <span className="text-5xl">🧘</span>
+            <span className="text-5xl">😊</span>
           )}
         </div>
       </div>

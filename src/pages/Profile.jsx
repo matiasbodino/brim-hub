@@ -70,7 +70,7 @@ export default function Profile() {
   ]
 
   return (
-    <div className="px-4 py-5 pb-24 space-y-5">
+    <div className="min-h-screen bg-[#0a0a0a] px-4 py-5 pb-24 space-y-5 max-w-lg mx-auto">
       <h1 className="text-xl font-bold text-gray-900">Perfil</h1>
 
       {/* Avatar + Level */}

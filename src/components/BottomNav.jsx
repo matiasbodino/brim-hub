@@ -1,18 +1,21 @@
 import { NavLink, useLocation } from 'react-router-dom'
 
 const tabs = [
-  { to: '/', label: 'Hoy', icon: '🏠' },
-  { to: '/habits', label: 'Hábitos', icon: '💪' },
+  { to: '/', label: 'Home', icon: '🏠' },
+  { to: '/habits', label: 'Nutrición', icon: '🍽' },
   { to: '/chat', label: 'Brim', icon: '💬' },
   { to: '/progress', label: 'Progreso', icon: '📈' },
   { to: '/profile', label: 'Perfil', icon: '👤' },
 ]
 
+const HIDDEN_ROUTES = ['/checkin', '/workout', '/walk', '/bjj-session', '/breathe']
+
 export default function BottomNav() {
   const location = useLocation()
-  if (location.pathname === '/checkin') return null
+  if (HIDDEN_ROUTES.includes(location.pathname)) return null
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 z-50">
       <div className="max-w-lg mx-auto flex">
         {tabs.map(tab => (
           <NavLink
@@ -20,8 +23,8 @@ export default function BottomNav() {
             to={tab.to}
             end={tab.to === '/'}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center py-2 text-xs font-medium transition ${
-                isActive ? 'text-violet-600' : 'text-gray-400'
+              `flex-1 flex flex-col items-center py-2.5 text-[9px] font-bold uppercase tracking-wider transition ${
+                isActive ? 'text-blue-400' : 'text-gray-600'
               }`
             }
           >

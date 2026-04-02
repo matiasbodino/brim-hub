@@ -343,8 +343,15 @@ export default function Dashboard() {
             <span className="text-lg">{mealWindow.emoji}</span>
           </div>
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 flex-1 p-4 rounded-2xl border-l-4 border-l-blue-500">
-            <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded uppercase font-black tracking-wider">Ahora</span>
-            <p className="text-sm font-bold text-white mt-1 leading-snug">{commandLine}</p>
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded uppercase font-black tracking-wider">Ahora</span>
+                <p className="text-sm font-bold text-white mt-1 leading-snug">{commandLine}</p>
+              </div>
+              {(commandLine.includes('caminata') || commandLine.includes('Pasos')) && (
+                <Link to="/walk" className="bg-blue-500 text-white px-4 py-2 rounded-xl text-[10px] font-black active:scale-95 transition flex-shrink-0 ml-2">START</Link>
+              )}
+            </div>
           </div>
         </div>
 

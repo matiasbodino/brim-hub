@@ -38,7 +38,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-64px)]">
+    <div className="flex flex-col h-[calc(100dvh-64px)] bg-[#0a0a0a] max-w-lg mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
         <h2 className="text-sm font-semibold text-gray-800">💬 Brim</h2>

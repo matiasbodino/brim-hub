@@ -162,7 +162,7 @@ function NewCycleForm({ onSubmit }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-4">
+    <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 space-y-4">
       <h2 className="font-bold text-gray-900">Nuevo ciclo</h2>
       <div>
         <label className="text-xs text-gray-500">Nombre del ciclo</label>
@@ -309,8 +309,8 @@ export default function Progress() {
   }
 
   return (
-    <div className="px-4 py-5 pb-24 space-y-4">
-      <h1 className="text-xl font-bold text-gray-900">Progreso</h1>
+    <div className="min-h-screen bg-[#0a0a0a] px-4 py-5 pb-24 space-y-4 max-w-lg mx-auto">
+      <h1 className="text-xl font-bold text-white">Progreso</h1>
 
       {/* Active Cycle */}
       {activeCycle ? (
@@ -327,8 +327,8 @@ export default function Progress() {
       )}
 
       {/* Heatmap */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Últimos 28 días</h2>
+      <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+        <h2 className="text-sm font-semibold text-gray-300 mb-3">Últimos 28 días</h2>
         <Heatmap data={heatmapData} />
       </div>
 
@@ -421,7 +421,7 @@ export default function Progress() {
         <>
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setShowWeightChart(!showWeightChart)}>
-              <h2 className="text-sm font-semibold text-gray-700">{'\u2696\uFE0F'} Tendencia de peso</h2>
+              <h2 className="text-sm font-semibold text-gray-300">{'\u2696\uFE0F'} Tendencia de peso</h2>
               <span className="text-xs text-gray-400">{showWeightChart ? '\u25B2' : '\u25BC'}</span>
             </div>
             {showWeightChart && <div className="px-2 pb-4"><WeightChart data={trendWeights} /></div>}
@@ -429,7 +429,7 @@ export default function Progress() {
 
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setShowHabitChart(!showHabitChart)}>
-              <h2 className="text-sm font-semibold text-gray-700">{'\uD83D\uDCCA'} Habitos por semana</h2>
+              <h2 className="text-sm font-semibold text-gray-300">{'\uD83D\uDCCA'} Habitos por semana</h2>
               <span className="text-xs text-gray-400">{showHabitChart ? '\u25B2' : '\u25BC'}</span>
             </div>
             {showHabitChart && <div className="px-2 pb-4"><HabitWeeklyChart data={habitWeeklyData} /></div>}
@@ -437,7 +437,7 @@ export default function Progress() {
 
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setShowMacroChart(!showMacroChart)}>
-              <h2 className="text-sm font-semibold text-gray-700">{'\uD83C\uDF7D'} Macros diarios</h2>
+              <h2 className="text-sm font-semibold text-gray-300">{'\uD83C\uDF7D'} Macros diarios</h2>
               <span className="text-xs text-gray-400">{showMacroChart ? '\u25B2' : '\u25BC'}</span>
             </div>
             {showMacroChart && <div className="px-2 pb-4"><MacroChart data={macroData} /></div>}
@@ -446,8 +446,8 @@ export default function Progress() {
       )}
 
       {/* Weight trend */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Peso</h2>
+      <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+        <h2 className="text-sm font-semibold text-gray-300 mb-3">Peso</h2>
         {weightHistory.length === 0 ? (
           <p className="text-sm text-slate-400 italic">El gráfico de peso está esperando tus datos para decirte la verdad... no le tengas miedo ⚖️</p>
         ) : (
@@ -484,8 +484,8 @@ export default function Progress() {
         const checkins = weightHistory.filter(w => w.notes !== null).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10)
         if (checkins.length === 0) return null
         return (
-          <div className="bg-white rounded-2xl p-4 border border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">📋 Check-ins semanales</h2>
+          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+            <h2 className="text-sm font-semibold text-gray-300 mb-3">📋 Check-ins semanales</h2>
             <div className="space-y-0">
               {checkins.map(w => (
                 <div key={w.date}>
@@ -615,8 +615,8 @@ export default function Progress() {
       )}
 
       {/* Gym PRs */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">🏋️ PRs de Gym</h2>
+      <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+        <h2 className="text-sm font-semibold text-gray-300 mb-3">🏋️ PRs de Gym</h2>
 
         {selectedExercise ? (
           <div className="space-y-3">
@@ -724,8 +724,8 @@ export default function Progress() {
 
       {/* Journal */}
       {monthEntries.length > 0 && (
-        <div className="bg-white rounded-2xl p-4 border border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">{'\u{1F4DD}'} Journal</h2>
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+          <h2 className="text-sm font-semibold text-gray-300 mb-3">{'\u{1F4DD}'} Journal</h2>
           <div className="space-y-2">
             {monthEntries.slice(0, 10).map(function(e) {
               var moodEmoji = e.mood ? ['', '\u{1F62B}', '\u{1F615}', '\u{1F610}', '\u{1F60A}', '\u{1F525}'][e.mood] : ''
@@ -744,8 +744,8 @@ export default function Progress() {
       )}
 
       {/* BJJ Journal */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">🥋 BJJ Journal</h2>
+      <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+        <h2 className="text-sm font-semibold text-gray-300 mb-3">🥋 BJJ Journal</h2>
         {bjjSessions.length === 0 ? (
           <p className="text-sm text-slate-400 italic">El mat te extraña. Anotá tu próximo treino y arrancamos el journal 🥋</p>
         ) : (
@@ -783,14 +783,14 @@ export default function Progress() {
       {/* Past Cycles */}
       {pastCycles.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Ciclos anteriores</h2>
+          <h2 className="text-sm font-semibold text-gray-300 mb-3">Ciclos anteriores</h2>
           {pastCycles.map(cycle => {
             const isExpanded = expandedCycle === cycle.id
             const statusBadge = cycle.status === 'completed'
               ? <span className="text-xs bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">✓ Completado</span>
               : <span className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">Abandonado</span>
             return (
-              <div key={cycle.id} className="bg-white rounded-2xl p-4 border border-gray-100 mb-3">
+              <div key={cycle.id} className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 mb-3">
                 <div
                   className="flex items-center justify-between cursor-pointer"
                   onClick={() => setExpandedCycle(isExpanded ? null : cycle.id)}

@@ -26,7 +26,7 @@ export default function Permitidos() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-32 pt-6 max-w-lg mx-auto px-4 space-y-6">
+    <div className="min-h-screen bg-[#0a0a0a] pb-32 pt-6 max-w-lg mx-auto px-4 space-y-6">
       {/* Balance Card */}
       <div className="bg-gradient-to-br from-amber-400 to-orange-600 rounded-[2.5rem] p-8 text-white shadow-xl shadow-orange-100 relative overflow-hidden">
         <div className="relative z-10">
