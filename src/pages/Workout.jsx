@@ -3,10 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useHabitStore } from '../stores/habitStore'
 import { useGymPrStore } from '../stores/gymPrStore'
 import { usePointsStore } from '../stores/pointsStore'
+import { useRoutineStore } from '../stores/routineStore'
 import { POINTS, MATI_ID } from '../lib/constants'
 import { useToast } from '../components/Toast'
 import { track } from '../lib/analytics'
 import { supabase } from '../lib/supabase'
+import { hapticLight, hapticMedium } from '../lib/haptics'
 
 // ─── Rest Timer ───
 
@@ -207,28 +209,75 @@ function ExerciseScreen({ exercise, exerciseIndex, total, prs, onSetComplete, on
 export default function Workout() {
   const location = useLocation()
   const navigate = useNavigate()
-  const routine = location.state?.routine
+  const [routine, setRoutine] = useState(location.state?.routine || null)
+  const skipGenerate = location.state?.skipGenerate
   const showToast = useToast()
   const { upsertHabit } = useHabitStore()
   const { prs, addPR, fetchPRs, getMaxPR } = useGymPrStore()
   const { awardPoints } = usePointsStore()
+  const { generateRoutine, loading: genLoading } = useRoutineStore()
 
   const [currentExercise, setCurrentExercise] = useState(0)
   const [allLogs, setAllLogs] = useState({})
   const [finished, setFinished] = useState(false)
   const [saving, setSaving] = useState(false)
   const [rpe, setRpe] = useState(7)
+  const [genFocus, setGenFocus] = useState('fuerza')
+  const [genTime, setGenTime] = useState(60)
   const startTime = useRef(Date.now())
 
   useEffect(() => { fetchPRs() }, [])
 
+  // No routine — show inline generator
   if (!routine) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-violet-50/30 flex items-center justify-center px-4">
-        <div className="text-center">
-          <p className="text-slate-400 text-sm mb-4">No hay rutina cargada</p>
-          <button onClick={() => navigate('/progress')} className="text-indigo-600 font-bold text-sm">← Volver a Progress</button>
+      <div className="min-h-screen bg-[#0a0a0a] p-6 pt-10 max-w-lg mx-auto pb-28">
+        <button onClick={() => navigate(-1)} className="text-xs text-gray-600 mb-6">← Volver</button>
+        <h1 className="text-xl font-black text-white mb-6">¿Qué querés entrenar?</h1>
+
+        {/* Focus selector */}
+        <div className="flex gap-2 mb-4">
+          {[
+            { id: 'fuerza', label: '💪 Push', sub: 'Pecho, hombros, tríceps' },
+            { id: 'pull', label: '🏋️ Pull', sub: 'Espalda, bíceps' },
+            { id: 'piernas', label: '🦵 Piernas', sub: 'Squat, deadlift' },
+            { id: 'full', label: '🔥 Full', sub: 'Todo el cuerpo' },
+          ].map(f => (
+            <button key={f.id} onClick={() => { setGenFocus(f.id); hapticLight() }}
+              className={`flex-1 py-3 rounded-2xl text-center transition active:scale-95 ${
+                genFocus === f.id ? 'bg-orange-500 text-white' : 'bg-white/5 border border-white/10 text-gray-400'
+              }`}>
+              <span className="text-lg block">{f.label.split(' ')[0]}</span>
+              <p className="text-[8px] font-bold mt-0.5">{f.label.split(' ')[1]}</p>
+            </button>
+          ))}
         </div>
+
+        {/* Time selector */}
+        <div className="flex gap-2 mb-6">
+          {[45, 60, 75, 90].map(t => (
+            <button key={t} onClick={() => { setGenTime(t); hapticLight() }}
+              className={`flex-1 min-h-[40px] rounded-full text-xs font-bold transition ${
+                genTime === t ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-500 border border-white/10'
+              }`}>
+              {t}'
+            </button>
+          ))}
+        </div>
+
+        <button onClick={async () => {
+          hapticMedium()
+          const result = await generateRoutine(genTime, genFocus)
+          if (result) setRoutine(result)
+        }} disabled={genLoading}
+          className="w-full bg-orange-500 text-white py-5 rounded-[2rem] font-black text-lg active:scale-[0.98] transition disabled:opacity-50 mb-4">
+          {genLoading ? 'Generando con AI...' : '🧠 Generar rutina'}
+        </button>
+
+        <Link to="/workout" state={{ skipGenerate: true }}
+          className="block w-full bg-white/5 border border-white/10 text-gray-400 py-4 rounded-[2rem] font-bold text-sm text-center active:bg-white/10 transition">
+          📋 Entrenar sin rutina
+        </Link>
       </div>
     )
   }

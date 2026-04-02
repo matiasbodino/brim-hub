@@ -653,9 +653,9 @@ export default function Progress() {
         )
       })()}
 
-      {/* Routine Generator */}
-      <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
-        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 px-1">🏋️ Generador de Rutina</h2>
+      {/* Routine Generator moved to /workout — hidden */}
+      {false && (
+        <div>
 
         {routine ? (
           <div className="space-y-3">
@@ -739,6 +739,7 @@ export default function Progress() {
           </div>
         )}
       </div>
+      )}
 
       {/* 1RM Estimated Chart */}
       {prs.length >= 2 && (

@@ -6,6 +6,7 @@ import { useFoodStore } from '../stores/foodStore'
 import { useEnergyStore } from '../stores/energyStore'
 import { useTargetsStore } from '../stores/targetsStore'
 import { useRoutineStore } from '../stores/routineStore'
+// useRoutineStore also used inline for clearRoutine
 import { MATI_ID, WATER_UNITS } from '../lib/constants'
 import { hapticMedium } from '../lib/haptics'
 import { useToast } from '../components/Toast'
@@ -139,23 +140,57 @@ export default function Activity() {
         )}
       </section>
 
-      {/* ═══ ACTIVITIES GRID ═══ */}
+      {/* ═══ ACTIVITIES ═══ */}
       <section>
         <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-3">🎯 Actividades</p>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { to: '/walk', emoji: '🚶', label: 'Caminata' },
-            { to: routine ? '/workout' : '/progress', emoji: '🏋️', label: 'Workout', state: routine ? { routine } : undefined, badge: !!routine },
-            { to: '/bjj-session', emoji: '🥋', label: 'BJJ' },
-            { to: '/breathe', emoji: '🧘', label: 'Respirar' },
-          ].map(a => (
-            <Link key={a.to + a.label} to={a.to} state={a.state}
-              className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center active:bg-white/10 transition relative">
-              <span className="text-2xl block">{a.emoji}</span>
-              <p className="text-xs font-bold text-gray-300 mt-1">{a.label}</p>
-              {a.badge && <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full" />}
-            </Link>
-          ))}
+
+        {/* Smart Gym Card */}
+        {routine ? (
+          <div className="bg-white/5 border border-orange-500/20 rounded-2xl p-4 mb-2">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-xs font-bold text-gray-200">🏋️ {routine.routine_name}</p>
+                <p className="text-[10px] text-gray-500">{routine.exercises?.length || 0} ejercicios · ~{routine.estimated_time || 60} min</p>
+              </div>
+              <Link to="/workout" state={{ routine }}
+                className="bg-orange-500 text-white px-4 py-2 rounded-xl text-[10px] font-black active:scale-95 transition">
+                EMPEZAR
+              </Link>
+            </div>
+            <button onClick={() => { useRoutineStore.getState().clearRoutine(); hapticMedium() }}
+              className="text-[10px] text-gray-600 font-bold">↻ Generar otra</button>
+          </div>
+        ) : (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-2">
+            <p className="text-xs font-bold text-gray-300 mb-2">🏋️ Workout</p>
+            <p className="text-[10px] text-gray-600 mb-3">No tenés rutina para hoy</p>
+            <div className="flex gap-2">
+              <Link to="/workout"
+                className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-[10px] font-black text-center active:scale-95 transition">
+                🧠 Generar rutina
+              </Link>
+              <Link to="/workout" state={{ skipGenerate: true }}
+                className="flex-1 bg-white/5 border border-white/10 text-gray-400 py-2.5 rounded-xl text-[10px] font-bold text-center active:scale-95 transition">
+                📋 Ir sin rutina
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Other activities */}
+        <div className="grid grid-cols-3 gap-2">
+          <Link to="/walk" className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center active:bg-white/10 transition">
+            <span className="text-xl block">🚶</span>
+            <p className="text-[9px] font-bold text-gray-400 mt-1">Caminata</p>
+          </Link>
+          <Link to="/bjj-session" className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center active:bg-white/10 transition">
+            <span className="text-xl block">🥋</span>
+            <p className="text-[9px] font-bold text-gray-400 mt-1">BJJ</p>
+          </Link>
+          <Link to="/breathe" className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center active:bg-white/10 transition">
+            <span className="text-xl block">🧘</span>
+            <p className="text-[9px] font-bold text-gray-400 mt-1">Respirar</p>
+          </Link>
         </div>
       </section>
 
