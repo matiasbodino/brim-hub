@@ -293,7 +293,7 @@ Agua hoy: ${adjustedTargets.water}L ${hadAlcoholYesterday ? '(+1L por alcohol de
 Energía: ${energyLevel ? energyLevel + '/5' : 'sin registrar'}
 Día: ${dayName}
 Hábitos: ${habitsStatus}
-${hadAlcoholYesterday ? 'IMPORTANTE: Ayer tomó alcohol. Enfocá el brief en recuperación: agua, comida liviana, descanso. Mencioná que si tiene que rodar/entrenar necesita hidratarse bien.' : ''}`,
+${hadAlcoholYesterday ? 'IMPORTANTE: Ayer tomó alcohol. Enfocá el brief en recuperación: agua, comida liviana, descanso. Mencioná que si tiene que rodar/entrenar necesita tomar mucha agua.' : ''}`,
         { maxTokens: 200, temperature: 0.7 }
       );
     } else if (timeOfDay === 'midday' && recalculate) {
