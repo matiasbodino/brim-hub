@@ -20,7 +20,7 @@ const TECHNIQUES = [
   ]},
 ]
 
-const DURATIONS = [1, 2, 3, 5]
+const DURATIONS = [1, 2, 3, 5, 10, 15, 20]
 
 export default function Breathe() {
   const [technique, setTechnique] = useState(TECHNIQUES[0])
