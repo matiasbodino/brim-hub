@@ -5,6 +5,7 @@ import { useCycleStore } from '../stores/cycleStore'
 import { useGymPrStore } from '../stores/gymPrStore'
 import { useJournalStore } from '../stores/journalStore'
 import { useInsightsStore } from '../stores/insightsStore'
+import { useRoutineStore } from '../stores/routineStore'
 import { WeightChart, HabitWeeklyChart, MacroChart, useTrendData } from '../components/charts/TrendCharts'
 
 function Heatmap({ data }) {
@@ -225,6 +226,9 @@ export default function Progress() {
   const { prs, fetchPRs, addPR, deletePR, getMaxPR, getExercises } = useGymPrStore()
   var { monthEntries, fetchMonth } = useJournalStore()
   const { insights, userModel, generating, lastGenerated, fetchInsights, fetchUserModel, generateInsights, dismissInsight } = useInsightsStore()
+  const { routine, loading: routineLoading, generateRoutine, clearRoutine } = useRoutineStore()
+  const [routineTime, setRoutineTime] = useState(60)
+  const [routineFocus, setRoutineFocus] = useState('fuerza')
   const [showInsights, setShowInsights] = useState(false)
   const [showUserModel, setShowUserModel] = useState(false)
 
@@ -502,6 +506,75 @@ export default function Progress() {
           </div>
         )
       })()}
+
+      {/* Routine Generator */}
+      <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
+        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 px-1">🏋️ Generador de Rutina</h2>
+
+        {routine ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-black text-slate-800">{routine.routine_name}</h3>
+              <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full">{routine.estimated_time} min</span>
+            </div>
+
+            {routine.exercises?.map((ex, i) => (
+              <div key={i} className={`rounded-xl p-3 ${ex.category === 'main_lift' ? 'bg-indigo-50 border border-indigo-100' : 'bg-slate-50'}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-slate-800">{ex.name}</span>
+                  <span className="text-xs text-slate-500">{ex.sets} × {ex.target_reps} @ {ex.target_weight}kg</span>
+                </div>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-[10px] text-slate-400">Descanso: {ex.rest_seconds}s</span>
+                  {ex.notes && <span className="text-[10px] text-slate-400 italic">{ex.notes}</span>}
+                </div>
+              </div>
+            ))}
+
+            {routine.coach_note && (
+              <p className="text-xs text-slate-500 italic text-center mt-2">"{routine.coach_note}"</p>
+            )}
+
+            <button onClick={clearRoutine} className="w-full text-xs text-slate-400 font-bold mt-2 py-2">
+              Generar otra rutina
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Tiempo</label>
+                <div className="flex gap-1.5 mt-1">
+                  {[45, 60, 75, 90].map(t => (
+                    <button key={t} onClick={() => setRoutineTime(t)}
+                      className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${routineTime === t ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                      {t}'
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Foco</label>
+              <div className="flex gap-1.5 mt-1">
+                {[{ id: 'fuerza', label: '💪 Fuerza' }, { id: 'bjj', label: '🥋 BJJ' }, { id: 'estetica', label: '🪞 Estética' }].map(f => (
+                  <button key={f.id} onClick={() => setRoutineFocus(f.id)}
+                    className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${routineFocus === f.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={() => generateRoutine(routineTime, routineFocus)}
+              disabled={routineLoading}
+              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              {routineLoading ? 'Armando rutina...' : 'Generar Rutina'}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Gym PRs */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100">
