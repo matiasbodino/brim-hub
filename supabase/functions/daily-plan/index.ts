@@ -61,13 +61,13 @@ function calculateAdjustedTargets(input: TargetInput) {
   let adjustedCalories = Math.round(remainingBudget / remainingDays);
 
   const FLOOR = 1400;
-  const CEILING = input.baseCalories + 200;
+  const CEILING = input.baseCalories + 300;
   adjustedCalories = Math.max(FLOOR, Math.min(CEILING, adjustedCalories));
 
-  const calorieGap = adjustedCalories < (input.baseCalories - 300)
-    ? Math.round((input.baseCalories - 300 - adjustedCalories) / 0.05)
-    : 0;
-  const adjustedSteps = Math.min(input.baseSteps + calorieGap, 15000);
+  // If target is low, compensate with extra steps
+  const isLowTarget = adjustedCalories < (input.baseCalories - 200);
+  const stepsBoost = isLowTarget ? Math.min(5000, Math.round((input.baseCalories - adjustedCalories) * 10)) : 0;
+  const adjustedSteps = Math.min(input.baseSteps + stepsBoost, 15000);
 
   const adjustedProtein = Math.max(input.baseProtein, 150);
   const remainingCals = Math.max(0, adjustedCalories - (adjustedProtein * 4));
@@ -79,7 +79,8 @@ function calculateAdjustedTargets(input: TargetInput) {
   const status = weekPct > 110 ? 'over' : weekPct < 90 ? 'under' : 'on_track';
 
   let reason: string;
-  if (status === 'over') reason = `Ajustado a ${adjustedCalories} kcal (base ${input.baseCalories}). Comiste de más esta semana, compensamos suave.`;
+  if (status === 'over' && isLowTarget) reason = `Ajustado a ${adjustedCalories} kcal (base ${input.baseCalories}). Te pasaste esta semana — metele ${adjustedSteps >= 12000 ? adjustedSteps.toLocaleString() + ' pasos hoy' : 'actividad extra'} para compensar.`;
+  else if (status === 'over') reason = `Ajustado a ${adjustedCalories} kcal (base ${input.baseCalories}). Comiste de más esta semana, compensamos suave.`;
   else if (status === 'under') reason = `${adjustedCalories} kcal hoy. Venís bajo esta semana, podés comer normal.`;
   else reason = `${adjustedCalories} kcal. Vas on track, seguí así.`;
 
