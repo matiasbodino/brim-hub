@@ -39,8 +39,34 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fetch user model for context
-    const userModel = await query("user_model", `select=model_content&user_id=eq.${enc(MATI_ID)}&order=generated_at.desc&limit=1`) as {model_content:string}[];
+    // Fetch user model + last workout log for adaptive adjustments
+    const [userModel, lastWorkouts] = await Promise.all([
+      query("user_model", `select=model_content&user_id=eq.${enc(MATI_ID)}&order=generated_at.desc&limit=1`) as Promise<{model_content:string}[]>,
+      query("workout_logs", `select=performance,rpe,routine_name,date&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=3`) as Promise<{performance:unknown[];rpe:number;routine_name:string;date:string}[]>,
+    ]);
+
+    // Build adaptive adjustments from last workout
+    let adaptiveNotes = '';
+    if (lastWorkouts.length > 0) {
+      const last = lastWorkouts[0];
+      const perf = (last.performance || []) as {exercise:string;weightDelta:number;nextAdjust:string}[];
+      const adjustments = perf.filter(p => p.nextAdjust !== 'maintain');
+      if (adjustments.length > 0) {
+        adaptiveNotes = '\nAJUSTES ADAPTATIVOS (basados en último entrenamiento ' + last.date + ', RPE ' + last.rpe + '/10):\n';
+        for (const a of adjustments) {
+          if (a.nextAdjust === 'increase_5pct') {
+            adaptiveNotes += `- ${a.exercise}: SUBIR peso +5% (superó target por ${a.weightDelta}%)\n`;
+          } else if (a.nextAdjust === 'decrease_rpe') {
+            adaptiveNotes += `- ${a.exercise}: MANTENER peso pero BAJAR intensidad (no llegó al target)\n`;
+          }
+        }
+        if (last.rpe >= 9) {
+          adaptiveNotes += '- RPE fue ' + last.rpe + '/10 — BAJAR volumen general, priorizar recuperación\n';
+        } else if (last.rpe <= 5) {
+          adaptiveNotes += '- RPE fue ' + last.rpe + '/10 — SUBIR intensidad, fue muy fácil\n';
+        }
+      }
+    }
 
     const prsText = Object.entries(maxPRs).map(([ex, pr]) => `- ${ex}: ${pr.weight}kg × ${pr.reps} (${pr.date})`).join('\n') || 'Sin PRs registrados';
 
@@ -55,6 +81,7 @@ PRs HISTÓRICOS:
 ${prsText}
 
 ${userModel.length > 0 ? '\nPERFIL:\n' + userModel[0].model_content : ''}
+${adaptiveNotes}
 
 REGLAS DE ORO:
 1. SIEMPRE arrancar con un Main Lift pesado:

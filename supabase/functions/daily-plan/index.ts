@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     })();
 
     // ── 3a. Parallel data fetch ──
-    const [profile, weekFood, todayFood, todayHabits, todayEnergy, userModelData, foodInsights, existingPlan, yesterdayFood] = await Promise.all([
+    const [profile, weekFood, todayFood, todayHabits, todayEnergy, userModelData, foodInsights, existingPlan, yesterdayFood, recentWorkouts] = await Promise.all([
       querySingle("user_profile", `select=daily_calorie_target,daily_protein_target,daily_carbs_target,daily_fat_target,daily_water_target,daily_steps_target,weight_goal,weight_goal_date,weekly_weight_target&id=eq.${enc(MATI_ID)}`),
       query("food_logs", `select=calories,protein,carbs,fat,logged_at&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(monday + "T00:00:00-03:00")}&logged_at=lte.${enc(today + "T23:59:59-03:00")}`) as Promise<{calories:number;protein:number;carbs:number;fat:number;logged_at:string}[]>,
       query("food_logs", `select=calories,protein,carbs,fat,meal_type,description,logged_at&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(today + "T00:00:00-03:00")}&logged_at=lte.${enc(today + "T23:59:59-03:00")}`) as Promise<{calories:number;protein:number;carbs:number;fat:number;meal_type:string;description:string;logged_at:string}[]>,
@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
       query("user_insights", `select=insight_value&user_id=eq.${enc(MATI_ID)}&insight_type=eq.food_preference&active=eq.true`) as Promise<{insight_value:Record<string,string>}[]>,
       querySingle("daily_plans", `select=*&user_id=eq.${enc(MATI_ID)}&date=eq.${enc(today)}`),
       query("food_logs", `select=description&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(yesterday + "T00:00:00-03:00")}&logged_at=lte.${enc(yesterday + "T23:59:59-03:00")}`) as Promise<{description:string}[]>,
+      query("workout_logs", `select=rpe,date&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=1`) as Promise<{rpe:number;date:string}[]>,
     ]);
 
     // ── 3b. Calculate adjusted targets ──
@@ -187,6 +188,16 @@ Deno.serve(async (req) => {
       adjustedTargets.cleanup_day = true;
       if (!adjustedTargets.reason.includes('limpieza')) {
         adjustedTargets.reason += ' 🧹 Día de limpieza: ayer hubo alcohol, agua a 3.5L.';
+      }
+    }
+
+    // ── RPE-based recovery: high RPE from last workout → lower steps ──
+    const lastRpe = (recentWorkouts as {rpe:number;date:string}[]).length > 0 ? (recentWorkouts as {rpe:number;date:string}[])[0].rpe : null;
+    if (lastRpe !== null && lastRpe >= 9) {
+      adjustedTargets.steps = Math.min(adjustedTargets.steps, 8000);
+      adjustedTargets.recovery_mode = true;
+      if (!adjustedTargets.reason.includes('recovery')) {
+        adjustedTargets.reason += ' 🧘 RPE ' + lastRpe + ' ayer — hoy bajamos pasos a ' + adjustedTargets.steps + ' para recuperar.';
       }
     }
 

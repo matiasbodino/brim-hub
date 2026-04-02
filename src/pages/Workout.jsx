@@ -3,9 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useHabitStore } from '../stores/habitStore'
 import { useGymPrStore } from '../stores/gymPrStore'
 import { usePointsStore } from '../stores/pointsStore'
-import { POINTS } from '../lib/constants'
+import { POINTS, MATI_ID } from '../lib/constants'
 import { useToast } from '../components/Toast'
 import { track } from '../lib/analytics'
+import { supabase } from '../lib/supabase'
 
 // ─── Rest Timer ───
 
@@ -216,6 +217,8 @@ export default function Workout() {
   const [allLogs, setAllLogs] = useState({})
   const [finished, setFinished] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [rpe, setRpe] = useState(7)
+  const startTime = useRef(Date.now())
 
   useEffect(() => { fetchPRs() }, [])
 
@@ -248,8 +251,37 @@ export default function Workout() {
     }
   }
 
+  // Calculate performance delta per exercise (actual vs target)
+  const getPerformance = () => {
+    return exercises.map(ex => {
+      const sets = allLogs[ex.name] || []
+      const avgWeight = sets.length > 0 ? sets.reduce((a, s) => a + Number(s.weight), 0) / sets.length : 0
+      const avgReps = sets.length > 0 ? sets.reduce((a, s) => a + Number(s.reps), 0) / sets.length : 0
+      const targetWeight = ex.target_weight || 0
+      const targetReps = ex.target_reps || 0
+      const weightDelta = targetWeight > 0 ? Math.round(((avgWeight - targetWeight) / targetWeight) * 100) : 0
+      const repsDelta = targetReps > 0 ? Math.round(((avgReps - targetReps) / targetReps) * 100) : 0
+      // Recommendation for next session
+      let nextAdjust = 'maintain'
+      if (weightDelta > 10) nextAdjust = 'increase_5pct'
+      else if (weightDelta < -10) nextAdjust = 'decrease_rpe'
+      return {
+        exercise: ex.name,
+        category: ex.category,
+        target: { weight: targetWeight, reps: targetReps },
+        actual: { avgWeight: Math.round(avgWeight * 10) / 10, avgReps: Math.round(avgReps * 10) / 10, sets: sets.length },
+        weightDelta,
+        repsDelta,
+        nextAdjust,
+      }
+    })
+  }
+
   const handleFinishWorkout = async () => {
     setSaving(true)
+    const durationMin = Math.round((Date.now() - startTime.current) / 60000)
+    const performance = getPerformance()
+    const totalVolume = Object.values(allLogs).flat().reduce((a, s) => a + Number(s.weight) * Number(s.reps), 0)
 
     // 1. Mark gym as completed
     await upsertHabit('gym', 1, 1)
@@ -266,7 +298,20 @@ export default function Workout() {
     // 3. Award points
     await awardPoints('gym', POINTS.gym, 1)
 
-    track('workout_completed', { routine: routine.routine_name, exercises: exercises.length })
+    // 4. Save workout log with performance + RPE
+    await supabase.from('workout_logs').insert({
+      user_id: MATI_ID,
+      date: new Date().toISOString().slice(0, 10),
+      routine_name: routine.routine_name,
+      focus: routine.focus,
+      exercises: allLogs,
+      performance,
+      rpe,
+      total_volume: totalVolume,
+      duration_min: durationMin,
+    })
+
+    track('workout_completed', { routine: routine.routine_name, exercises: exercises.length, rpe, durationMin })
     setSaving(false)
     showToast('🏋️ Entrenamiento guardado +' + POINTS.gym + ' pts')
     navigate('/progress')
@@ -276,21 +321,25 @@ export default function Workout() {
   if (finished) {
     const totalSets = Object.values(allLogs).flat().length
     const totalVolume = Object.values(allLogs).flat().reduce((a, s) => a + Number(s.weight) * Number(s.reps), 0)
+    const durationMin = Math.round((Date.now() - startTime.current) / 60000)
+    const performance = getPerformance()
     const newPRs = Object.entries(allLogs).filter(([name, sets]) => {
       const maxSet = sets.reduce((best, s) => Number(s.weight) > Number(best.weight) ? s : best, sets[0])
       const currentMax = getMaxPR(name)
       return !currentMax || Number(maxSet.weight) > Number(currentMax.weight)
     })
 
+    const rpeLabels = { 1: 'Nada', 2: 'Muy fácil', 3: 'Fácil', 4: 'Moderado', 5: 'Medio', 6: 'Algo duro', 7: 'Duro', 8: 'Muy duro', 9: 'Casi al límite', 10: 'Máximo' }
+
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-violet-50/30 pb-28 pt-8 px-4 max-w-lg mx-auto">
-        <div className="text-center mb-8">
+      <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-violet-50/30 pb-28 pt-8 px-4 max-w-lg mx-auto space-y-5">
+        <div className="text-center mb-4">
           <span className="text-5xl block mb-3">💪</span>
           <h1 className="text-2xl font-black text-slate-900">Entrenamiento completo</h1>
-          <p className="text-sm text-slate-400 mt-1">{routine.routine_name}</p>
+          <p className="text-sm text-slate-400 mt-1">{routine.routine_name} · {durationMin} min</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-3">
           <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 text-center border border-white/20">
             <p className="text-2xl font-black text-slate-800">{exercises.length}</p>
             <p className="text-[10px] text-slate-400 font-bold uppercase">Ejercicios</p>
@@ -305,8 +354,27 @@ export default function Workout() {
           </div>
         </div>
 
+        {/* Performance deltas */}
+        <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Performance vs Target</p>
+          {performance.map((p, i) => {
+            const icon = p.weightDelta > 10 ? '📈' : p.weightDelta < -10 ? '📉' : '➡️'
+            const color = p.weightDelta > 10 ? 'text-emerald-600' : p.weightDelta < -10 ? 'text-amber-600' : 'text-slate-500'
+            const label = p.nextAdjust === 'increase_5pct' ? '+5% próxima' : p.nextAdjust === 'decrease_rpe' ? 'Bajar RPE' : 'Mantener'
+            return (
+              <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                <span className="text-xs font-bold text-slate-700">{p.exercise}</span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-black ${color}`}>{icon} {p.weightDelta > 0 ? '+' : ''}{p.weightDelta}%</span>
+                  <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{label}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
         {newPRs.length > 0 && (
-          <div className="bg-gradient-to-br from-amber-400 to-yellow-500 rounded-[2rem] p-5 text-white mb-6 shadow-lg">
+          <div className="bg-gradient-to-br from-amber-400 to-yellow-500 rounded-[2rem] p-5 text-white shadow-lg">
             <p className="text-xs font-black uppercase tracking-widest mb-2">🦍 Nuevos PRs</p>
             {newPRs.map(([name, sets]) => {
               const best = sets.reduce((b, s) => Number(s.weight) > Number(b.weight) ? s : best, sets[0])
@@ -314,6 +382,37 @@ export default function Workout() {
             })}
           </div>
         )}
+
+        {/* RPE Selector */}
+        <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">¿Cómo se sintió?</p>
+          <p className="text-xs text-slate-500 mb-3">RPE: {rpe}/10 — {rpeLabels[rpe]}</p>
+          <div className="flex gap-1">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => (
+              <button
+                key={v}
+                onClick={() => setRpe(v)}
+                className={`flex-1 py-2 text-[10px] font-black rounded-lg transition-all ${
+                  rpe === v
+                    ? v >= 9 ? 'bg-red-500 text-white' : v >= 7 ? 'bg-amber-500 text-white' : v >= 4 ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                    : 'bg-slate-100 text-slate-400'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          {rpe >= 9 && (
+            <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-3 py-1.5 mt-2">
+              ⚠️ RPE alto — mañana el plan va a priorizar descanso y bajar pasos
+            </p>
+          )}
+          {rpe <= 5 && (
+            <p className="text-[10px] text-indigo-600 bg-indigo-50 rounded-lg px-3 py-1.5 mt-2">
+              💪 RPE bajo — la próxima rutina va a ser más agresiva
+            </p>
+          )}
+        </div>
 
         <button
           onClick={handleFinishWorkout}
