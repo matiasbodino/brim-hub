@@ -72,9 +72,24 @@ export const useFoodStore = create((set, get) => ({
     }
   },
 
-  // AI food parsing
+  // AI food parsing with optimistic skeleton
   parseWithAI: async (text, mealType) => {
-    set({ aiLoading: true, aiError: null, aiEstimate: null })
+    const skeletonId = '_skeleton_' + Date.now()
+    const skeleton = {
+      id: skeletonId,
+      _skeleton: true,
+      meal_type: mealType || 'almuerzo',
+      description: text,
+      calories: null,
+      protein: null,
+      logged_at: new Date().toISOString(),
+    }
+    set({
+      aiLoading: true,
+      aiError: null,
+      aiEstimate: null,
+      todayLogs: [...get().todayLogs, skeleton],
+    })
     try {
       const res = await fetch(EDGE_URL + '/parse-food', {
         method: 'POST',
@@ -86,13 +101,26 @@ export const useFoodStore = create((set, get) => ({
       })
       const data = await res.json()
       if (data.error) {
-        set({ aiLoading: false, aiError: data.error })
+        set({
+          aiLoading: false,
+          aiError: data.error,
+          todayLogs: get().todayLogs.filter(l => l.id !== skeletonId),
+        })
         return null
       }
-      set({ aiLoading: false, aiEstimate: { ...data, rawInput: text } })
+      // Remove skeleton, keep estimate for confirmation
+      set({
+        aiLoading: false,
+        aiEstimate: { ...data, rawInput: text },
+        todayLogs: get().todayLogs.filter(l => l.id !== skeletonId),
+      })
       return data
     } catch (err) {
-      set({ aiLoading: false, aiError: 'Error de conexión' })
+      set({
+        aiLoading: false,
+        aiError: 'Error de conexión',
+        todayLogs: get().todayLogs.filter(l => l.id !== skeletonId),
+      })
       return null
     }
   },

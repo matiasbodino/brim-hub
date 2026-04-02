@@ -358,6 +358,19 @@ function TodayFoodList({ logs, onDelete }) {
   return (
     <div className="space-y-1.5">
       {logs.map(log => {
+        // Skeleton entry while AI is parsing
+        if (log._skeleton) {
+          return (
+            <div key={log.id} className="flex items-center gap-2 py-2 px-1 animate-pulse">
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <div className="w-4 h-4 bg-violet-200 rounded" />
+                <span className="text-xs text-slate-400 truncate">{log.description}</span>
+                <span className="text-[10px] bg-violet-100 text-violet-500 px-2 py-0.5 rounded-full font-bold">Analizando...</span>
+              </div>
+            </div>
+          )
+        }
+
         const time = log.logged_at
           ? new Date(log.logged_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })
           : ''
