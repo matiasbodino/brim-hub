@@ -3,7 +3,6 @@ import { useHabitStore } from '../../stores/habitStore'
 import { useFoodStore } from '../../stores/foodStore'
 import { usePointsStore } from '../../stores/pointsStore'
 import { useTargetsStore } from '../../stores/targetsStore'
-import { DEFAULT_PERMITIDOS } from '../../lib/constants'
 
 const EDGE_URL = 'https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcnBxemFoYnRmYnh4dGFxZXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTExODMsImV4cCI6MjA5MDA2NzE4M30.f85JKwllPo1dLRvzFphPkLL8bEMts0IYjqCnTLDrA_c'
@@ -25,7 +24,7 @@ export default function CommandBar({ isOpen, onClose }) {
 
   const { todayHabits, upsertHabit } = useHabitStore()
   const { parseWithAI, confirmAIEstimate } = useFoodStore()
-  const { redeem } = usePointsStore()
+  const { processIntentRedeem } = usePointsStore()
   const { targets } = useTargetsStore()
 
   // Cmd+K shortcut
@@ -90,15 +89,16 @@ export default function CommandBar({ isOpen, onClose }) {
           await confirmAIEstimate({ ...estimate, rawInput: input.trim() })
         }
       } else if (intent.type === 'REDEEM') {
-        const itemId = intent.payload?.item_id
-        const item = DEFAULT_PERMITIDOS.find(p => p.id === itemId)
-        if (item) {
-          await redeem(item)
-        } else {
-          setMessage('No encontré ese permitido')
+        const result = await processIntentRedeem(intent.payload?.item_id || input.trim())
+        if (!result.success) {
+          setMessage(result.msg)
           setStatus('error')
           return
         }
+        if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
+        setMessage(result.msg)
+        setStatus('success')
+        return
       }
       // CHAT type — just show the confirmation, no action needed
 

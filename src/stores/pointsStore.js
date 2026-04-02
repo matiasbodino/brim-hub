@@ -238,6 +238,23 @@ export const usePointsStore = create(persist((set, get) => ({
     })
   },
 
+  // Spotlight-friendly redeem by name or ID
+  processIntentRedeem: async (nameOrId) => {
+    const key = (nameOrId || '').toLowerCase().trim()
+    const item = DEFAULT_PERMITIDOS.find(p =>
+      p.id === key || p.name.toLowerCase() === key || p.id.includes(key) || p.name.toLowerCase().includes(key)
+    )
+    if (!item) return { success: false, msg: `No encontré "${nameOrId}" en el catálogo de permitidos.` }
+
+    const balance = get().totalPoints - get().spentPoints
+    if (balance < item.cost) {
+      return { success: false, msg: `Faltan ${item.cost - balance} pts para esa ${item.name.toLowerCase()}. Metele un roll más de BJJ 🥋` }
+    }
+
+    await get().redeem(item)
+    return { success: true, msg: `${item.emoji} ${item.name} canjeado. Disfrutalo, te lo ganaste. Oss!`, item }
+  },
+
   getLevel: () => getLevel(get().totalPoints),
 }), {
   name: 'brim-points',
