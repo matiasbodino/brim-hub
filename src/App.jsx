@@ -10,6 +10,7 @@ import Progress from './pages/Progress'
 import Profile from './pages/Profile'
 import Checkin from './pages/Checkin'
 import Chat from './pages/Chat'
+import Workout from './pages/Workout'
 
 export default function App() {
   const [commandOpen, setCommandOpen] = useState(false)
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/checkin" element={<Checkin />} />
             <Route path="/chat" element={<Chat />} />
+            <Route path="/workout" element={<Workout />} />
           </Routes>
           <BottomNav />
 

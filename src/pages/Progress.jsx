@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { MATI_ID, HABITS, GYM_EXERCISES } from '../lib/constants'
 import { useCycleStore } from '../stores/cycleStore'
@@ -227,6 +228,7 @@ export default function Progress() {
   var { monthEntries, fetchMonth } = useJournalStore()
   const { insights, userModel, generating, lastGenerated, fetchInsights, fetchUserModel, generateInsights, dismissInsight } = useInsightsStore()
   const { routine, loading: routineLoading, generateRoutine, clearRoutine } = useRoutineStore()
+  const progressNavigate = useNavigate()
   const [routineTime, setRoutineTime] = useState(60)
   const [routineFocus, setRoutineFocus] = useState('fuerza')
   const [showInsights, setShowInsights] = useState(false)
@@ -535,8 +537,14 @@ export default function Progress() {
               <p className="text-xs text-slate-500 italic text-center mt-2">"{routine.coach_note}"</p>
             )}
 
-            <button onClick={clearRoutine} className="w-full text-xs text-slate-400 font-bold mt-2 py-2">
-              Generar otra rutina
+            <button
+              onClick={() => progressNavigate('/workout', { state: { routine } })}
+              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black active:scale-[0.98] transition-all mt-2"
+            >
+              🏋️ Arrancar Entrenamiento
+            </button>
+            <button onClick={clearRoutine} className="w-full text-xs text-slate-400 font-bold mt-1 py-2">
+              Generar otra
             </button>
           </div>
         ) : (
