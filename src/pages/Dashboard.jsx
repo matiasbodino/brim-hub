@@ -146,17 +146,17 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-4 mb-8">
         {/* Card Principal: Score — themed by BJJ belt */}
         <div
-          className="col-span-2 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden"
+          className="col-span-2 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden transition-colors duration-1000"
           style={{ backgroundColor: themeColors.primary, color: themeColors.text }}
         >
           <div className="relative z-10">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-xs font-bold uppercase tracking-wider opacity-70">Daily Completion</p>
-              <span className="text-xs font-black opacity-60">{level.badge} {level.name}</span>
+            <p className="text-xs font-bold uppercase tracking-widest opacity-70 mb-3">Nivel Actual</p>
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-3xl font-black">{level.badge} {level.name}</h2>
             </div>
             <div className="flex items-baseline gap-2">
               <h2 className="text-6xl font-black">{score}%</h2>
-              <span className="text-2xl">🏆</span>
+              <span className="text-xs font-bold uppercase opacity-60">completado</span>
             </div>
             <div className="mt-4 flex items-center gap-2">
               <div className="h-2 flex-1 rounded-full overflow-hidden" style={{ backgroundColor: themeColors.accent + '40' }}>
