@@ -22,8 +22,9 @@ import { getTodayBurn } from '../lib/activeBurn'
 import DamageControl, { DamageControlButton } from '../components/plan/DamageControl'
 import { useDamageStore } from '../stores/damageStore'
 
-function MacroRing({ label, current, target, color, textColor }) {
+function MacroRing({ label, current, target, color, textColor, showRemaining }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
+  const remaining = Math.max(0, target - current)
   return (
     <div className="flex-1 text-center">
       <div className="relative w-14 h-14 mx-auto mb-1">
@@ -32,10 +33,12 @@ function MacroRing({ label, current, target, color, textColor }) {
           <circle cx="18" cy="18" r="15.5" fill="none" stroke={color} strokeWidth="3"
             strokeDasharray={`${pct} 100`} strokeLinecap="round" className="transition-all duration-1000" />
         </svg>
-        <span className={`absolute inset-0 flex items-center justify-center text-xs font-bold ${textColor}`}>{pct}%</span>
+        <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-black ${textColor}`}>
+          {showRemaining ? remaining : pct + '%'}
+        </span>
       </div>
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{label}</p>
-      <p className="text-xs font-semibold text-slate-600">{current}/{target}</p>
+      <p className="text-[10px] text-slate-500">{showRemaining ? `faltan` : `${current}/${target}`}</p>
     </div>
   )
 }
@@ -118,184 +121,183 @@ export default function Dashboard() {
     return '🔴'
   }
 
+  // ── "Tu jugada ahora" — AI next step based on what's missing ──
+  const getNextMove = () => {
+    const waterVal = Number(todayHabits.water?.value || 0)
+    const waterTarget = targets.water || 2.5
+    const protRemaining = Math.max(0, (targets.protein || 150) - Math.round(macros.protein))
+    const calRemaining = Math.max(0, (targets.calories || 2100) - macros.calories)
+    const gymDone = todayHabits.gym && Number(todayHabits.gym.value) >= 1
+    const bjjDone = todayHabits.bjj && Number(todayHabits.bjj.value) >= 1
+    const stepsVal = Number(todayHabits.steps?.value || 0)
+
+    if (waterVal === 0) return { emoji: '💧', text: 'Arrancá con un vaso de agua. El cuerpo te lo pide.' }
+    if (!todayEnergy) return { emoji: '⚡', text: 'Registrá tu energía de hoy para que Brim calibre el plan.' }
+    if (protRemaining > 30 && macros.calories > 0) return { emoji: '🥩', text: `Faltan ${protRemaining}g de prota. Mandate un snack de yogurt o frutos secos.` }
+    if (calRemaining > 800 && macros.calories === 0) return { emoji: '🍽', text: 'Todavía no comiste nada. Arrancá con un desayuno potente.' }
+    if (waterVal < waterTarget * 0.5) return { emoji: '💧', text: `Vas ${waterVal.toFixed(1)}L de ${waterTarget}L. Llená el vaso.` }
+    if (stepsVal < 3000 && new Date().getHours() > 14) return { emoji: '🚶', text: 'Metele una caminata post-almuerzo. Los pasos están flojos.' }
+    if (!gymDone && !bjjDone && new Date().getHours() > 16) return { emoji: '🏋️', text: '¿Hoy toca mover el cuerpo? Gym o tatami, vos elegís.' }
+    if (calRemaining > 0 && calRemaining < 500) return { emoji: '🎯', text: `Te quedan ${calRemaining} kcal. Una cena liviana y cerrás perfecto.` }
+    if (completedHabits === HABITS.length) return { emoji: '🏆', text: 'Día perfecto. Disfrutalo, Mati. Mañana seguimos.' }
+    return { emoji: '💪', text: 'Seguí así. Cada hábito suma.' }
+  }
+  const nextMove = getNextMove()
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-violet-50/30 pb-28 px-4 pt-6 max-w-lg mx-auto">
-      {/* Header */}
-      <header className="flex justify-between items-end mb-8 px-1">
-        <div>
-          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Brim Hub</p>
-          <h1 className="text-3xl font-bold text-slate-900">Hola, Mati</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </p>
+
+      {/* ═══ 1. HEADER + VITALITY ═══ */}
+      <div
+        className="rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden transition-colors duration-1000 mb-6"
+        style={{ backgroundColor: themeColors.primary, color: themeColors.text }}
+      >
+        <div className="relative z-10">
+          {/* Header inside the ring card */}
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest opacity-60">Brim Hub</p>
+              <h1 className="text-2xl font-black">Hola, Mati</h1>
+              <p className="text-[10px] opacity-50 mt-0.5">
+                {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <ShareButton cardProps={{
+                score, streak, level, credits: balance,
+                cycleName: activeCycle?.name ?? null,
+                cycleWeek: currentWeekIndex !== null ? currentWeekIndex + 1 : null,
+                habits: HABITS.map(h => ({ label: h.label, emoji: h.emoji, done: todayHabits[h.type] && Number(todayHabits[h.type].value) >= h.target })),
+                date: new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }),
+              }} />
+              <div className="text-center">
+                <div className="text-xl">{level.badge}</div>
+                <div className="text-[8px] opacity-50 font-bold">{level.name.split(' ')[1]}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Vitality Ring */}
+          <VitalityRing todayHabits={todayHabits} macros={macros} targets={targets} todayEnergy={todayEnergy} damageActive={!!damagePlan} />
+
+          {/* Active Burn */}
+          {(() => {
+            const burn = getTodayBurn(todayHabits)
+            if (burn.total === 0) return null
+            return (
+              <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between">
+                <span className="text-[10px] font-bold opacity-50">Gasto activo</span>
+                <div className="flex items-center gap-2">
+                  {burn.breakdown.map(b => (
+                    <span key={b.source} className="text-[10px] opacity-50 bg-white/10 px-2 py-0.5 rounded-full">{b.emoji} {b.burn}</span>
+                  ))}
+                  <span className="text-xs font-black">🔥 {burn.total} kcal</span>
+                </div>
+              </div>
+            )
+          })()}
         </div>
-        <div className="flex items-center gap-2">
-          <ShareButton cardProps={{
-            score,
-            streak,
-            level,
-            credits: balance,
-            cycleName: activeCycle?.name ?? null,
-            cycleWeek: currentWeekIndex !== null ? currentWeekIndex + 1 : null,
-            habits: HABITS.map(h => ({
-              label: h.label,
-              emoji: h.emoji,
-              done: todayHabits[h.type] && Number(todayHabits[h.type].value) >= h.target,
-            })),
-            date: new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }),
-          }} />
-          <div className="text-right">
-            <div className="text-2xl">{level.badge}</div>
-            <div className="text-[10px] text-slate-400 font-medium">{level.name}</div>
+        <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+      </div>
+
+      {/* ═══ 2. TU JUGADA AHORA ═══ */}
+      <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-4 border border-violet-200/30 shadow-[0_0_15px_-3px_rgba(124,58,237,0.1)] mb-4">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">{nextMove.emoji}</span>
+          <div className="flex-1">
+            <p className="text-[10px] font-black text-violet-500 uppercase tracking-widest mb-0.5">Tu jugada ahora</p>
+            <p className="text-sm font-bold text-slate-800 leading-snug">{nextMove.text}</p>
           </div>
         </div>
-      </header>
+      </div>
+
+      {/* ═══ 3. MACROS COMPACTOS (Restante) ═══ */}
+      <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-4 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] mb-4">
+        <div className="flex gap-2">
+          <MacroRing label="Kcal" current={macros.calories} target={targets.calories} color="#8b5cf6" textColor="text-violet-600" showRemaining />
+          <MacroRing label="Prot" current={Math.round(macros.protein)} target={targets.protein} color="#3b82f6" textColor="text-blue-600" showRemaining />
+          <MacroRing label="Carbs" current={Math.round(macros.carbs)} target={targets.carbs} color="#f59e0b" textColor="text-amber-600" showRemaining />
+          <MacroRing label="Grasa" current={Math.round(macros.fat)} target={targets.fat} color="#ef4444" textColor="text-red-500" showRemaining />
+        </div>
+      </div>
 
       {/* Sunday check-in banner */}
       {isSunday && (
-        <Link to="/checkin" className="block mb-6">
-          <div className="bg-violet-950 border border-violet-700 rounded-3xl p-5 flex items-center justify-between">
+        <Link to="/checkin" className="block mb-4">
+          <div className="bg-violet-950 border border-violet-700 rounded-[2rem] p-4 flex items-center justify-between">
             <div>
-              <p className="text-violet-300 text-sm font-medium">Domingo 📋</p>
-              <p className="text-white font-semibold">Hacé tu check-in semanal</p>
-              <p className="text-zinc-400 text-xs mt-0.5">Peso · reflexión · cómo fue la semana</p>
+              <p className="text-violet-300 text-xs font-medium">Domingo 📋</p>
+              <p className="text-white font-semibold text-sm">Hacé tu check-in semanal</p>
             </div>
-            <span className="text-violet-400 text-xl">→</span>
+            <span className="text-violet-400">→</span>
           </div>
         </Link>
       )}
 
-      {/* Daily Plan */}
+      {/* Daily Plan (collapsible) */}
       <div className="mb-4">
         <DailyPlan />
       </div>
 
       {/* Damage Control */}
-      {showDamageForm ? (
-        <div className="mb-4">
-          <DamageControl />
-        </div>
-      ) : damagePlan ? (
-        <div className="mb-4">
-          <DamageControl />
-        </div>
+      {(showDamageForm || damagePlan) ? (
+        <div className="mb-4"><DamageControl /></div>
       ) : (
         <div className="flex justify-end mb-4">
           <DamageControlButton onOpen={() => setShowDamageForm(true)} />
         </div>
       )}
 
-      {/* Bento Grid de Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        {/* Vitality Ring — replaces old score card */}
-        <div
-          className="col-span-2 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden transition-colors duration-1000"
-          style={{ backgroundColor: themeColors.primary, color: themeColors.text }}
-        >
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-bold uppercase tracking-widest opacity-70">{level.badge} {level.name}</p>
-              <span className="text-xs font-bold opacity-50">{completedHabits}/{HABITS.length} hábitos</span>
-            </div>
-            <VitalityRing todayHabits={todayHabits} macros={macros} targets={targets} todayEnergy={todayEnergy} damageActive={!!damagePlan} />
-            {/* Active Burn */}
-            {(() => {
-              const burn = getTodayBurn(todayHabits)
-              if (burn.total === 0) return null
-              return (
-                <div className="mt-4 pt-3 border-t border-white/10">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-bold opacity-60 uppercase">Gasto activo hoy</span>
-                    <span className="text-sm font-black">🔥 {burn.total} kcal</span>
-                  </div>
-                  <div className="flex gap-2">
-                    {burn.breakdown.map(b => (
-                      <span key={b.source} className="text-[10px] opacity-50 bg-white/10 px-2 py-0.5 rounded-full">
-                        {b.emoji} {b.burn} kcal
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
-          <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-        </div>
-
-        {/* Card de Créditos */}
+      {/* Stats row: Credits + Streak */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
         <Link to="/permitidos" className="block">
-          <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-[2rem] p-5 text-white shadow-lg shadow-orange-100 h-full">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-lg">💰</span>
-              <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-full uppercase">Balance</span>
-            </div>
-            <p className="text-3xl font-black">{balance}</p>
-            <p className="text-[10px] opacity-90 mt-1 font-medium">créditos disponibles</p>
+          <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-[1.5rem] p-4 text-white shadow-md h-full">
+            <p className="text-2xl font-black">{balance}</p>
+            <p className="text-[10px] opacity-80 font-medium">💰 créditos</p>
           </div>
         </Link>
-
-        {/* Card de Racha */}
-        <div className="bg-gradient-to-br from-emerald-400 to-teal-600 rounded-[2rem] p-5 text-white shadow-lg shadow-emerald-100">
-          <div className="flex justify-between items-start mb-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-lg">🔥</span>
-              {shieldsCount > 0 && (
-                <span className="text-[10px] font-black bg-white/25 px-1.5 py-0.5 rounded-full">🛡️ {shieldsCount}</span>
-              )}
-            </div>
-            <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-full uppercase">Streak</span>
-          </div>
-          <p className="text-3xl font-black">{streak} días</p>
-          <p className="text-[10px] opacity-90 mt-1 font-medium">
-            {shieldsCount > 0 ? `${shieldsCount} escudo${shieldsCount > 1 ? 's' : ''} protegiendo tu racha` : 'Never miss twice!'}
+        <div className="bg-gradient-to-br from-emerald-400 to-teal-600 rounded-[1.5rem] p-4 text-white shadow-md">
+          <p className="text-2xl font-black">{streak} <span className="text-base">🔥</span></p>
+          <p className="text-[10px] opacity-80 font-medium">
+            {shieldsCount > 0 ? `racha · 🛡️${shieldsCount}` : 'racha'}
           </p>
         </div>
       </div>
 
-      {/* Level progress */}
+      {/* Level progress (compact) */}
       {nextLevel && (
-        <div className="bg-white/80 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] mb-6">
-          <div className="flex justify-between text-xs mb-2">
-            <span className="text-slate-400 font-medium">{level.badge} {level.name}</span>
-            <span className="font-bold text-slate-600">{totalPoints} / {nextLevel.min} pts</span>
+        <div className="bg-white/80 backdrop-blur-md rounded-[1.5rem] px-4 py-3 border border-white/20 mb-4">
+          <div className="flex items-center justify-between text-[10px] mb-1">
+            <span className="text-slate-400 font-bold">{level.badge} → {nextLevel.badge}</span>
+            <span className="font-bold text-slate-600">{totalPoints}/{nextLevel.min} pts</span>
           </div>
-          <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
             <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-1000" style={{
               width: Math.min(100, Math.round(((totalPoints - level.min) / (nextLevel.min - level.min)) * 100)) + '%'
             }} />
           </div>
-          <p className="text-[10px] text-slate-400 mt-1.5 text-right">
-            {nextLevel.badge} {nextLevel.name} en {nextLevel.min - totalPoints} pts
-          </p>
         </div>
       )}
 
-      {/* Active cycle card */}
+      {/* Predictive Ghost */}
+      <PredictiveGhost todayHabits={todayHabits} />
+
+      {/* Cycle card */}
       {activeCycle && currentWeekStats && (
-        <Link to="/progress" className="block mb-6">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5">
-            <div className="flex justify-between items-center mb-3">
-              <div>
-                <p className="text-xs text-zinc-500 uppercase tracking-widest">
-                  Ciclo activo · Semana {currentWeekIndex + 1}/4
-                </p>
-                <p className="text-white font-semibold">{activeCycle.name}</p>
-              </div>
-              <span className="text-zinc-400 text-sm">→</span>
+        <Link to="/progress" className="block mt-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-[2rem] p-4">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-xs text-zinc-500 uppercase tracking-widest">Ciclo · S{currentWeekIndex + 1}/4</p>
+              <span className="text-zinc-400 text-xs">→</span>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 justify-center">
               {HABITS.map(h => {
                 const stat = currentWeekStats.habits[h.type]
                 const light = stat ? getLight(stat.full, stat.weeklyTarget) : '·'
                 return (
                   <div key={h.type} className="flex flex-col items-center gap-0.5">
-                    <span className="text-lg">{light}</span>
-                    <span className="text-xs text-zinc-500">{h.emoji}</span>
-                    {stat && (
-                      <span className="text-xs text-zinc-600">
-                        {stat.full}/{stat.weeklyTarget}
-                      </span>
-                    )}
+                    <span className="text-sm">{light}</span>
+                    <span className="text-[10px] text-zinc-500">{h.emoji}</span>
                   </div>
                 )
               })}
@@ -304,47 +306,10 @@ export default function Dashboard() {
         </Link>
       )}
 
-      {/* Weekly Digest */}
-      <WeeklyDigest />
-
-      {/* AI Indicator */}
-      <Link to="/progress" className="block">
-        {userModel ? (
-          <div className="bg-violet-50 rounded-xl p-3 flex items-center justify-between">
-            <span className="text-xs font-medium text-violet-600">
-              🧠 AI actualizada · {(() => {
-                if (!lastGenerated) return ''
-                const diff = Math.round((Date.now() - new Date(lastGenerated).getTime()) / 86400000)
-                return diff === 0 ? 'hoy' : diff === 1 ? 'ayer' : `hace ${diff} días`
-              })()}
-            </span>
-            <span className="text-violet-400 text-xs">→</span>
-          </div>
-        ) : (
-          <div className="bg-violet-50 rounded-xl p-3 flex items-center justify-between">
-            <span className="text-xs font-medium text-violet-600">🧠 Activá tu AI personalizada</span>
-            <span className="text-violet-400 text-xs">→</span>
-          </div>
-        )}
-      </Link>
-
-      {/* Macros - Ring Style */}
-      <div className="bg-white/80 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] mt-6 mb-6">
-        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 px-1">Macros del día</h2>
-        <div className="flex gap-2">
-          <MacroRing label="Kcal" current={macros.calories} target={targets.calories} color="#8b5cf6" textColor="text-violet-600" />
-          <MacroRing label="Prot" current={Math.round(macros.protein)} target={targets.protein} color="#3b82f6" textColor="text-blue-600" />
-          <MacroRing label="Carbs" current={Math.round(macros.carbs)} target={targets.carbs} color="#f59e0b" textColor="text-amber-600" />
-          <MacroRing label="Grasa" current={Math.round(macros.fat)} target={targets.fat} color="#ef4444" textColor="text-red-500" />
-        </div>
-      </div>
-
-      {/* Micro-Journal */}
-      <MicroJournal />
-
-      {/* Predictive Ghost */}
-      <div className="mt-6">
-        <PredictiveGhost todayHabits={todayHabits} />
+      {/* Weekly Digest + Journal + AI Indicator */}
+      <div className="mt-4 space-y-3">
+        <WeeklyDigest />
+        <MicroJournal />
       </div>
 
       {/* Habits */}
