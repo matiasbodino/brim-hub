@@ -11,6 +11,7 @@ import { hapticMedium } from '../lib/haptics'
 import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import MicroJournal from '../components/journal/MicroJournal'
+import NextMealCard from '../components/dashboard/NextMealCard'
 
 const MEAL_SLOTS = [
   { type: 'desayuno', label: 'Desayuno', emoji: '🌅', budgetPct: 0.27 },
@@ -122,6 +123,11 @@ export default function Activity() {
               </div>
             )
           })}
+        </div>
+
+        {/* Next meal suggestion */}
+        <div className="mt-3">
+          <NextMealCard />
         </div>
 
         {todayLogs.length > 0 && (

@@ -12,9 +12,11 @@ const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 export const useFoodStore = create(persist((set, get) => ({
   todayLogs: [],
   loading: false,
-  aiEstimate: null,   // current AI estimate pending confirmation
+  aiEstimate: null,
   aiLoading: false,
   aiError: null,
+  nextMealSuggestion: null,
+  suggestionLoading: false,
 
   _lastFetched: 0,
 
@@ -45,6 +47,7 @@ export const useFoodStore = create(persist((set, get) => ({
     track('food_logged', { method: 'manual', meal_type: log.meal_type })
     usePlanStore.getState().recalculate()
     notifySync()
+    get().fetchNextMealSuggestion() // auto-suggest next meal
     return data
   },
 
@@ -204,6 +207,35 @@ export const useFoodStore = create(persist((set, get) => ({
   },
 
   clearAIEstimate: () => set({ aiEstimate: null, aiError: null }),
+
+  // Auto-fetch next meal suggestion after any food log
+  fetchNextMealSuggestion: async () => {
+    const macros = get().getTodayMacros()
+    const targets = (await import('./targetsStore')).useTargetsStore.getState().targets
+    const remaining = {
+      kcal: Math.max(0, (targets.calories || 2100) - macros.calories),
+      protein: Math.max(0, (targets.protein || 150) - Math.round(macros.protein)),
+      carbs: Math.max(0, (targets.carbs || 210) - Math.round(macros.carbs)),
+      fat: Math.max(0, (targets.fat || 70) - Math.round(macros.fat)),
+    }
+    if (remaining.kcal < 200) {
+      set({ nextMealSuggestion: null, suggestionLoading: false })
+      return
+    }
+    set({ suggestionLoading: true })
+    try {
+      const res = await fetch(EDGE_URL + '/chef-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ANON_KEY },
+        body: JSON.stringify({ remaining_macros: remaining }),
+      })
+      const data = await res.json()
+      if (!data.error) set({ nextMealSuggestion: data, suggestionLoading: false })
+      else set({ suggestionLoading: false })
+    } catch {
+      set({ suggestionLoading: false })
+    }
+  },
 }), {
   name: 'brim-food',
   partialize: (state) => ({ todayLogs: state.todayLogs }),

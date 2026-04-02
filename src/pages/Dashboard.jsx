@@ -20,6 +20,7 @@ import { getTodayBurn } from '../lib/activeBurn'
 import { useDamageStore } from '../stores/damageStore'
 import { getSuggestedActions } from '../lib/suggestions'
 import ActivityFeed from '../components/dashboard/ActivityFeed'
+import NextMealCard from '../components/dashboard/NextMealCard'
 import MicroJournal from '../components/journal/MicroJournal'
 
 export default function Dashboard() {
@@ -187,6 +188,11 @@ export default function Dashboard() {
       <div className="bg-white/5 border border-white/10 rounded-2xl p-3 mb-4">
         <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">Actividad de hoy</p>
         <ActivityFeed todayLogs={todayLogs} todayHabits={todayHabits} />
+      </div>
+
+      {/* ═══ NEXT MEAL SUGGESTION ═══ */}
+      <div className="mb-4">
+        <NextMealCard />
       </div>
 
       {/* ═══ 2.8 REFLECTION (>21h) ═══ */}
