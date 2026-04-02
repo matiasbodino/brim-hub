@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePlanStore } from '../../stores/planStore'
+import { useFoodStore } from '../../stores/foodStore'
+import { MATI_ID } from '../../lib/constants'
+
+const EDGE_URL = 'https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1'
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcnBxemFoYnRmYnh4dGFxZXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTExODMsImV4cCI6MjA5MDA2NzE4M30.f85JKwllPo1dLRvzFphPkLL8bEMts0IYjqCnTLDrA_c'
 
 const MEAL_EMOJIS = { breakfast: '☕', lunch: '🍽', snack: '🧉', dinner: '🌙' }
 const MEAL_LABELS = { breakfast: 'Desayuno', lunch: 'Almuerzo', snack: 'Merienda', dinner: 'Cena' }
@@ -20,6 +25,69 @@ function MealOption({ option, type, label, onLog }) {
         Loggear esto →
       </button>
     </div>
+  )
+}
+
+function SmartSuggestion({ remaining, onLog }) {
+  const [suggestion, setSuggestion] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const handleGenerate = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(EDGE_URL + '/parse-food', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ANON_KEY },
+        body: JSON.stringify({
+          text: `Necesito una comida que tenga exactamente ${remaining.calories} kcal y ${remaining.protein}g de proteína. Sugerí algo con ingredientes comunes argentinos (pollo, carne, huevo, arroz, verduras, queso). Tiene que ser realista y fácil de hacer.`,
+          meal_type: new Date().getHours() >= 19 ? 'cena' : new Date().getHours() >= 16 ? 'merienda' : 'almuerzo',
+        }),
+      })
+      const data = await res.json()
+      if (!data.error) setSuggestion(data)
+    } catch { /* silent */ }
+    setLoading(false)
+  }
+
+  const handleLog = () => {
+    if (!suggestion) return
+    onLog(suggestion)
+    setSuggestion(null)
+  }
+
+  if (suggestion) {
+    return (
+      <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-black text-emerald-700">🎯 Sugerencia macro-perfect</span>
+          <button onClick={() => setSuggestion(null)} className="text-[10px] text-slate-400">✕</button>
+        </div>
+        <p className="text-sm font-bold text-slate-800">{suggestion.description}</p>
+        <div className="flex gap-3 text-xs text-slate-500">
+          <span>{suggestion.calories} kcal</span>
+          <span>{suggestion.protein}g prot</span>
+          {suggestion.carbs > 0 && <span>{suggestion.carbs}g carbs</span>}
+          {suggestion.fat > 0 && <span>{suggestion.fat}g fat</span>}
+        </div>
+        <p className="text-[10px] text-emerald-600 italic">Te deja clavado en el target</p>
+        <button
+          onClick={handleLog}
+          className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition"
+        >
+          ✅ Loggear esto
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={handleGenerate}
+      disabled={loading}
+      className="w-full bg-emerald-50 text-emerald-700 py-3 rounded-2xl text-xs font-bold border border-emerald-100 active:bg-emerald-100 transition disabled:opacity-50"
+    >
+      {loading ? 'Pensando receta...' : `🎯 ¿Qué como para clavar ${remaining.calories} kcal y ${remaining.protein}g prot?`}
+    </button>
   )
 }
 
@@ -184,10 +252,28 @@ export default function DailyPlan() {
         </div>
       )}
 
-      {/* Remaining budget */}
+      {/* Remaining budget + smart suggestion */}
       {!isEvening && remaining.calories > 0 && (
-        <div className="text-xs text-slate-500 mb-4">
-          Te quedan: <strong>{remaining.calories} kcal</strong> · <strong>{remaining.protein}g prot</strong> para repartir
+        <div className="space-y-3 mb-4">
+          <div className="text-xs text-slate-500">
+            Te quedan: <strong>{remaining.calories} kcal</strong> · <strong>{remaining.protein}g prot</strong> para repartir
+          </div>
+          <SmartSuggestion
+            remaining={remaining}
+            onLog={(suggestion) => {
+              const { addLog } = useFoodStore.getState()
+              addLog({
+                meal_type: suggestion.meal_type || 'cena',
+                description: suggestion.description,
+                calories: suggestion.calories,
+                protein: suggestion.protein,
+                carbs: suggestion.carbs || 0,
+                fat: suggestion.fat || 0,
+                confirmed: true,
+                user_id: MATI_ID,
+              })
+            }}
+          />
         </div>
       )}
 
