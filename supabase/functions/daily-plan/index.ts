@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     })();
 
     // ── 3a. Parallel data fetch ──
-    const [profile, weekFood, todayFood, todayHabits, todayEnergy, userModelData, foodInsights, existingPlan, yesterdayFood, recentWorkouts, recentEnergy] = await Promise.all([
+    const [profile, weekFood, todayFood, todayHabits, todayEnergy, userModelData, foodInsights, existingPlan, yesterdayFood, recentWorkouts, recentEnergy, recentBJJ] = await Promise.all([
       querySingle("user_profile", `select=daily_calorie_target,daily_protein_target,daily_carbs_target,daily_fat_target,daily_water_target,daily_steps_target,weight_goal,weight_goal_date,weekly_weight_target&id=eq.${enc(MATI_ID)}`),
       query("food_logs", `select=calories,protein,carbs,fat,logged_at&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(monday + "T00:00:00-03:00")}&logged_at=lte.${enc(today + "T23:59:59-03:00")}`) as Promise<{calories:number;protein:number;carbs:number;fat:number;logged_at:string}[]>,
       query("food_logs", `select=calories,protein,carbs,fat,meal_type,description,logged_at&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(today + "T00:00:00-03:00")}&logged_at=lte.${enc(today + "T23:59:59-03:00")}`) as Promise<{calories:number;protein:number;carbs:number;fat:number;meal_type:string;description:string;logged_at:string}[]>,
@@ -154,8 +154,9 @@ Deno.serve(async (req) => {
       query("user_insights", `select=insight_value&user_id=eq.${enc(MATI_ID)}&insight_type=eq.food_preference&active=eq.true`) as Promise<{insight_value:Record<string,string>}[]>,
       querySingle("daily_plans", `select=*&user_id=eq.${enc(MATI_ID)}&date=eq.${enc(today)}`),
       query("food_logs", `select=description&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(yesterday + "T00:00:00-03:00")}&logged_at=lte.${enc(yesterday + "T23:59:59-03:00")}`) as Promise<{description:string}[]>,
-      query("workout_logs", `select=rpe,date&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=1`) as Promise<{rpe:number;date:string}[]>,
+      query("workout_logs", `select=rpe,date,duration_min&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=7`) as Promise<{rpe:number;date:string;duration_min:number}[]>,
       query("daily_logs", `select=date,energy_level&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=3`) as Promise<{date:string;energy_level:number}[]>,
+      query("habit_logs", `select=date,metadata&user_id=eq.${enc(MATI_ID)}&habit_type=eq.bjj&completion_type=eq.full&order=date.desc&limit=7`) as Promise<{date:string;metadata:{duracion?:number;tipo?:string}}[]>,
     ]);
 
     // ── 3b. Calculate adjusted targets ──
@@ -192,13 +193,52 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── RPE-based recovery: high RPE from last workout → lower steps ──
-    const lastRpe = (recentWorkouts as {rpe:number;date:string}[]).length > 0 ? (recentWorkouts as {rpe:number;date:string}[])[0].rpe : null;
-    if (lastRpe !== null && lastRpe >= 9) {
-      adjustedTargets.steps = Math.min(adjustedTargets.steps, 8000);
+    // ── Recovery Engine: training load analysis (duration × RPE) ──
+    // Combine gym workouts + BJJ sessions into a unified training load
+    const gymWorkouts = (recentWorkouts as {rpe:number;date:string;duration_min:number}[]) || [];
+    const bjjSessions = (recentBJJ as {date:string;metadata:{duracion?:number}}[]) || [];
+
+    interface LoadEntry { date: string; load: number }
+    const trainingLoads: LoadEntry[] = [];
+
+    // Gym: load = duration × RPE
+    for (const w of gymWorkouts) {
+      if (w.rpe && w.duration_min) {
+        trainingLoads.push({ date: w.date, load: w.duration_min * w.rpe });
+      }
+    }
+    // BJJ: load = duration × estimated RPE 7 (BJJ is always hard)
+    for (const b of bjjSessions) {
+      const dur = b.metadata?.duracion || 90;
+      trainingLoads.push({ date: b.date, load: dur * 7 });
+    }
+
+    // Sort by date, calculate weekly avg vs last 3 days
+    trainingLoads.sort((a, b) => a.date.localeCompare(b.date));
+
+    const threeDaysAgo = new Date(today + 'T12:00:00');
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const threeDaysStr = threeDaysAgo.toISOString().slice(0, 10);
+
+    const last3DaysLoad = trainingLoads.filter(l => l.date >= threeDaysStr).reduce((a, l) => a + l.load, 0);
+    const weeklyAvgLoad = trainingLoads.length > 0
+      ? trainingLoads.reduce((a, l) => a + l.load, 0) / Math.max(1, Math.ceil(trainingLoads.length / 3) * 3) * 3
+      : 0;
+
+    const loadSpike = weeklyAvgLoad > 0 && last3DaysLoad > weeklyAvgLoad * 1.3;
+    const lastRpe = gymWorkouts.length > 0 ? gymWorkouts[0].rpe : null;
+
+    if (loadSpike || (lastRpe !== null && lastRpe >= 9)) {
+      const stepsCap = loadSpike ? Math.round(adjustedTargets.steps * 0.6) : 8000;
+      adjustedTargets.steps = Math.min(adjustedTargets.steps, stepsCap);
+      adjustedTargets.water = Math.max(adjustedTargets.water, adjustedTargets.water + 0.5);
       adjustedTargets.recovery_mode = true;
-      if (!adjustedTargets.reason.includes('recovery')) {
-        adjustedTargets.reason += ' 🧘 RPE ' + lastRpe + ' ayer — hoy bajamos pasos a ' + adjustedTargets.steps + ' para recuperar.';
+      adjustedTargets.training_load = { last3Days: last3DaysLoad, weeklyAvg: Math.round(weeklyAvgLoad), spike: loadSpike };
+
+      if (loadSpike && !adjustedTargets.reason.includes('carga')) {
+        adjustedTargets.reason += ` 🔴 Carga alta: ${last3DaysLoad} vs promedio ${Math.round(weeklyAvgLoad)} (+${Math.round((last3DaysLoad / weeklyAvgLoad - 1) * 100)}%). Bajamos pasos a ${adjustedTargets.steps} y subimos agua +500ml.`;
+      } else if (lastRpe >= 9 && !adjustedTargets.reason.includes('RPE')) {
+        adjustedTargets.reason += ` 🧘 RPE ${lastRpe} — bajamos pasos para recuperar.`;
       }
     }
 
@@ -319,7 +359,8 @@ Energía: ${energyLevel ? energyLevel + '/5' : 'sin registrar'}
 Día: ${dayName}
 Hábitos: ${habitsStatus}
 ${hadAlcoholYesterday ? 'IMPORTANTE: Ayer tomó alcohol. Enfocá el brief en recuperación: agua, comida liviana, descanso. Mencioná que si tiene que rodar/entrenar necesita tomar mucha agua.' : ''}
-${isFatigued ? 'IMPORTANTE: Energía baja ≤2 por ' + lowEnergyDays + ' días seguidos. Hoy es DÍA DE RECUPERACIÓN ACTIVA. NO empujar al gym. El brief debe decir: "Hoy es día de recuperación. Bajamos calorías, subimos agua y prioridad: 8hs de sueño. Mañana volvemos con todo." El bienestar es consistencia, no intensidad infinita.' : ''}`,
+${isFatigued ? 'IMPORTANTE: Energía baja ≤2 por ' + lowEnergyDays + ' días seguidos. Hoy es DÍA DE RECUPERACIÓN ACTIVA. NO empujar al gym. El brief debe decir: "Hoy es día de recuperación. Bajamos calorías, subimos agua y prioridad: 8hs de sueño. Mañana volvemos con todo." El bienestar es consistencia, no intensidad infinita.' : ''}
+${loadSpike ? 'IMPORTANTE: Carga de entrenamiento alta — los últimos 3 días fueron ' + Math.round((last3DaysLoad / weeklyAvgLoad - 1) * 100) + '% más que el promedio. El cuerpo necesita reconstruir. Mencioná: "Los datos dicen que le diste duro. Hoy bajamos la intensidad para volver más fuerte mañana."' : ''}`,
         { maxTokens: 200, temperature: 0.7 }
       );
     } else if (timeOfDay === 'midday' && recalculate) {

@@ -231,6 +231,7 @@ export default function DailyPlan() {
 
   const isFatigued = targets.fatigue_detected
   const isRecovery = targets.recovery_mode
+  const trainingLoad = targets.training_load
 
   return (
     <div className={`bg-white rounded-[2rem] p-5 shadow-sm border-l-4 ${
@@ -250,10 +251,24 @@ export default function DailyPlan() {
         </div>
       )}
 
+      {/* Training load spike banner */}
+      {trainingLoad?.spike && !isFatigued && (
+        <div className="bg-red-50 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
+          <span className="text-lg">🔴</span>
+          <div>
+            <p className="text-xs font-black text-red-700">Carga de entrenamiento alta</p>
+            <p className="text-[10px] text-red-600 mt-0.5">
+              Últimos 3 días: {trainingLoad.last3Days} puntos vs promedio {trainingLoad.weeklyAvg} (+{Math.round((trainingLoad.last3Days / trainingLoad.weeklyAvg - 1) * 100)}%).
+              Hoy bajamos intensidad para recuperar.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
-          {isFatigued ? '🧘 Recuperación' : isEvening ? '📊 Resumen del día' : timeOfDay === 'midday' ? '⚡ Recálculo del día' : '🎯 Tu plan para hoy'}
+          {isFatigued ? '🧘 Recuperación' : trainingLoad?.spike ? '🔴 Recovery Mode' : isEvening ? '📊 Resumen del día' : timeOfDay === 'midday' ? '⚡ Recálculo del día' : '🎯 Tu plan para hoy'}
         </h3>
         <span className="text-[10px] text-slate-400">v{plan.plan_version}</span>
       </div>
