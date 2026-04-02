@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useHabitStore } from '../../stores/habitStore'
 import { useFoodStore } from '../../stores/foodStore'
 import { usePointsStore } from '../../stores/pointsStore'
 import { useTargetsStore } from '../../stores/targetsStore'
+import { useEnergyStore } from '../../stores/energyStore'
+import { usePlanStore } from '../../stores/planStore'
+import { useRoutineStore } from '../../stores/routineStore'
 import { WATER_UNITS } from '../../lib/constants'
 
 const EDGE_URL = 'https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1'
@@ -102,6 +106,31 @@ export default function CommandBar({ isOpen, onClose }) {
         setMessage(result.msg)
         setStatus('success')
         return
+      } else if (intent.type === 'MOOD') {
+        const energy = intent.payload?.energy || 3
+        await useEnergyStore.getState().saveEnergy(energy)
+
+        if (energy <= 2 && intent.payload?.suggest_plan_adjust) {
+          // Recalculate plan for recovery
+          await usePlanStore.getState().recalculate()
+          if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
+          setMessage(intent.confirmation_msg || `Energía ${energy}/5 registrada. Plan ajustado para recuperar.`)
+          setStatus('success')
+          return
+        }
+
+        if (energy >= 4 && intent.payload?.suggest_workout) {
+          // Generate a routine suggestion
+          if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
+          setMessage(intent.confirmation_msg || `Energía ${energy}/5. Estás arriba, aprovechá.`)
+          setStatus('success')
+          return
+        }
+
+        if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
+        setMessage(intent.confirmation_msg || `Energía ${energy}/5 registrada.`)
+        setStatus('success')
+        return
       }
       // CHAT type — just show the confirmation, no action needed
 
@@ -162,7 +191,7 @@ export default function CommandBar({ isOpen, onClose }) {
 
             {/* Quick hints */}
             <div className="flex flex-wrap gap-2 mt-5 justify-center">
-              {['500ml agua', 'café con leche', '8000 pasos', 'gym', 'canjeame una birra'].map(hint => (
+              {['500ml agua', 'café con leche', '8000 pasos', 'gym', 'estoy detonado', 'me siento un crack'].map(hint => (
                 <button
                   key={hint}
                   onClick={() => { setInput(hint) }}

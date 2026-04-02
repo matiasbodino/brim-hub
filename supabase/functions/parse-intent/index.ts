@@ -40,6 +40,18 @@ REGLAS:
 - Si dice "canjeame", "quiero", "dame" + un permitido → type: "REDEEM", action: "redeem_item"
   Buscá el ID más parecido del catálogo
 - Si es una comida (ej: "café con leche", "milanesa") → type: "FOOD", action: "log_food"
+- Si expresa un ESTADO EMOCIONAL o físico → type: "MOOD", action: "log_energy"
+  Mapeo de frases a energía (1-5):
+  "estoy detonado" / "estoy muerto" / "no doy más" / "destruido" / "hecho mierda" → energy: 1
+  "estoy cansado" / "medio bajón" / "flojo" / "meh" → energy: 2
+  "normal" / "más o menos" / "ahí ando" / "tirando" → energy: 3
+  "bien" / "pilas" / "con energía" / "activo" → energy: 4
+  "me siento un crack" / "estoy volando" / "on fire" / "explosivo" / "al 100" → energy: 5
+  payload: { energy: N, suggest_plan_adjust: true si energy ≤ 2, suggest_workout: true si energy ≥ 4 }
+  confirmation_msg debe incluir qué va a pasar:
+  - energy ≤ 2: "Registrado. ¿Querés que ajuste el plan de hoy para recuperar?"
+  - energy ≥ 4: "Estás arriba. ¿Te armo una rutina de fuerza para aprovechar?"
+
 - Si es una pregunta o conversación → type: "CHAT", action: "send_message"
 
 confirmation_msg: Respuesta corta (1 oración) en español argentino, con humor de coach de BJJ. Ejemplos:
