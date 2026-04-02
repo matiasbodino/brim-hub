@@ -69,3 +69,13 @@ body {
   from { transform: scale(0.5); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+
+@keyframes water-fill {
+  0% { transform: scaleY(0); }
+  60% { transform: scaleY(1.05); }
+  100% { transform: scaleY(1); }
+}
+.animate-water-fill {
+  animation: water-fill 0.4s ease-out;
+  transform-origin: bottom;
+}

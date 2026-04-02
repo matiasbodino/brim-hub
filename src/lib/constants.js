@@ -1,6 +1,13 @@
 // Mati's hardcoded user ID (no auth, personal app)
 export const MATI_ID = 'c17e4105-4861-43c8-bf13-0d32f7818418'
 
+// Water units (L)
+export const WATER_UNITS = {
+  VASO: 0.25,     // 250ml
+  BOTELLA: 0.5,   // 500ml
+  TERMO: 1.0,     // 1L (mate/entrenamiento)
+}
+
 // Daily targets (editable in Profile later)
 export const TARGETS = {
   calories: 2100,

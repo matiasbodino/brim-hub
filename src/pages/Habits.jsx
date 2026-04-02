@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useHabitStore } from '../stores/habitStore'
 import { usePointsStore } from '../stores/pointsStore'
 import { useFoodStore } from '../stores/foodStore'
-import { HABITS, HABIT_GROUPS, POINTS, MATI_ID, TARGETS } from '../lib/constants'
+import { HABITS, HABIT_GROUPS, POINTS, MATI_ID, TARGETS, WATER_UNITS } from '../lib/constants'
 import { useEnergyStore } from '../stores/energyStore'
 import { useTargetsStore } from '../stores/targetsStore'
 import { track } from '../lib/analytics'
@@ -211,17 +211,48 @@ function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, colla
       </div>
 
       <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
-        <div className={`h-full rounded-full transition-all ${done ? 'bg-violet-500' : 'bg-violet-300'}`} style={{ width: pct + '%' }} />
+        <div className={`h-full rounded-full transition-all animate-water-fill ${
+          type === 'water' ? (done ? 'bg-blue-500' : 'bg-blue-300') : (done ? 'bg-violet-500' : 'bg-violet-300')
+        }`} style={{ width: pct + '%' }} />
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {type === 'water' && (
-          <>
-            {value > 0 && <button onClick={(e) => { e.stopPropagation(); onUpdate(Math.max(0, value - 0.25)) }} className="py-2 px-3 text-sm font-semibold rounded-xl border border-red-200 text-red-400 active:bg-red-50">−</button>}
-            <button onClick={(e) => { e.stopPropagation(); onUpdate(value + 0.25) }} className="flex-1 py-2 text-sm font-semibold rounded-xl border border-gray-200 active:bg-gray-50">+250ml</button>
-            <button onClick={(e) => { e.stopPropagation(); onUpdate(value + 0.5) }} className="flex-1 py-2 text-sm font-semibold rounded-xl border border-gray-200 active:bg-gray-50">+500ml</button>
-          </>
-        )}
+        {type === 'water' && (() => {
+          const remaining = Math.max(0, target - value)
+          const vasosLeft = Math.ceil(remaining / WATER_UNITS.VASO)
+          const handleWater = (e, amount) => {
+            e.stopPropagation()
+            if (window.navigator.vibrate) window.navigator.vibrate(10)
+            onUpdate(value + amount)
+          }
+          return (
+            <>
+              {remaining > 0 && (
+                <p className="text-[10px] text-blue-500 font-bold w-full mb-1">
+                  Te faltan {vasosLeft} vasos para el target ({remaining.toFixed(2)}L)
+                </p>
+              )}
+              <div className="flex gap-2 w-full">
+                {value > 0 && (
+                  <button onClick={(e) => { e.stopPropagation(); onUpdate(Math.max(0, value - WATER_UNITS.VASO)) }}
+                    className="py-2 px-3 text-sm font-semibold rounded-xl border border-red-200 text-red-400 active:bg-red-50">−</button>
+                )}
+                <button onClick={(e) => handleWater(e, WATER_UNITS.VASO)}
+                  className="flex-1 py-2.5 text-sm font-bold rounded-xl border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
+                  💧 Vaso
+                </button>
+                <button onClick={(e) => handleWater(e, WATER_UNITS.BOTELLA)}
+                  className="flex-1 py-2.5 text-sm font-bold rounded-xl border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
+                  🍾 Botella
+                </button>
+                <button onClick={(e) => handleWater(e, WATER_UNITS.TERMO)}
+                  className="flex-1 py-2.5 text-sm font-bold rounded-xl border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
+                  🧉 Termo
+                </button>
+              </div>
+            </>
+          )
+        })()}
         {type === 'steps' && (
           <>
             <div className="flex gap-2 w-full mb-2">
