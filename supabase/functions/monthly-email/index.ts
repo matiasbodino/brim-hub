@@ -1,7 +1,7 @@
 import { callClaude } from "../_shared/anthropic.ts";
 
 const MATI_ID = "c17e4105-4861-43c8-bf13-0d32f7818418";
-const MATI_EMAIL = "matiasbodino@gmail.com";
+const MATI_EMAIL = "matias@rufusocial.com";
 const SB_URL = "https://birpqzahbtfbxxtaqeth.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcnBxemFoYnRmYnh4dGFxZXRoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDQ5MTE4MywiZXhwIjoyMDkwMDY3MTgzfQ.k8tjbC_fcUv34cPwo2Vcewu3eUe7GDjyOy3B9f9Jtnk";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
