@@ -40,3 +40,27 @@ body {
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+/* Glass card base */
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+/* Subtle parallax on scroll */
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.parallax-card {
+  animation: card-enter 0.4s ease-out both;
+}
+.parallax-card:nth-child(1) { animation-delay: 0ms; }
+.parallax-card:nth-child(2) { animation-delay: 60ms; }
+.parallax-card:nth-child(3) { animation-delay: 120ms; }
+.parallax-card:nth-child(4) { animation-delay: 180ms; }
+.parallax-card:nth-child(5) { animation-delay: 240ms; }
+.parallax-card:nth-child(6) { animation-delay: 300ms; }

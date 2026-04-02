@@ -36,10 +36,10 @@ function MacroRing({ label, current, target, color, textColor }) {
 
 function HabitRow({ label, done, emoji, cue, identity }) {
   return (
-    <div className={`flex items-center p-4 rounded-3xl border transition-all duration-300 ${
+    <div className={`flex items-center p-4 rounded-3xl border transition-all duration-300 parallax-card ${
       done
-        ? 'bg-slate-100 border-transparent opacity-60 scale-[0.98]'
-        : 'bg-white border-slate-100 shadow-sm'
+        ? 'bg-white/40 backdrop-blur-sm border-white/20 opacity-50 scale-[0.98]'
+        : 'bg-white/80 backdrop-blur-md border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]'
     }`}>
       <span className="text-3xl mr-4">{emoji}</span>
       <div className="flex-1 min-w-0">
@@ -105,7 +105,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-28 px-4 pt-6 max-w-lg mx-auto">
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-violet-50/30 pb-28 px-4 pt-6 max-w-lg mx-auto">
       {/* Header */}
       <header className="flex justify-between items-end mb-8 px-1">
         <div>
@@ -207,7 +207,7 @@ export default function Dashboard() {
 
       {/* Level progress */}
       {nextLevel && (
-        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm mb-6">
+        <div className="bg-white/80 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] mb-6">
           <div className="flex justify-between text-xs mb-2">
             <span className="text-slate-400 font-medium">{level.badge} {level.name}</span>
             <span className="font-bold text-slate-600">{totalPoints} / {nextLevel.min} pts</span>
@@ -282,7 +282,7 @@ export default function Dashboard() {
       </Link>
 
       {/* Macros - Ring Style */}
-      <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm mt-6 mb-6">
+      <div className="bg-white/80 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] mt-6 mb-6">
         <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 px-1">Macros del día</h2>
         <div className="flex gap-2">
           <MacroRing label="Kcal" current={macros.calories} target={targets.calories} color="#8b5cf6" textColor="text-violet-600" />
@@ -319,7 +319,7 @@ export default function Dashboard() {
 
       {/* Food logs */}
       {todayLogs.length > 0 && (
-        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm mt-6">
+        <div className="bg-white/80 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] mt-6">
           <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Comidas de hoy</h2>
           <div className="space-y-1">
             {todayLogs.map(log => (

@@ -130,7 +130,7 @@ function WeightCard() {
 
   if (todayWeight && !editing) {
     return (
-      <div className="bg-white rounded-2xl p-4 border border-violet-200 bg-violet-50 cursor-pointer" onClick={() => setEditing(true)}>
+      <div className="bg-violet-50/80 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] cursor-pointer" onClick={() => setEditing(true)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xl">⚖️</span>
@@ -143,7 +143,7 @@ function WeightCard() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-4 border border-gray-100">
+    <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-xl">⚖️</span>
         <span className="font-semibold text-gray-800">Peso</span>
@@ -178,7 +178,7 @@ function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, colla
   if (done && collapsed) {
     return (
       <div
-        className="bg-white rounded-2xl px-4 py-3 border border-violet-200 bg-violet-50 opacity-60 cursor-pointer transition-all"
+        className="bg-white/40 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/20 opacity-50 cursor-pointer transition-all shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)]"
         onClick={onToggle}
       >
         <div className="flex items-center justify-between">
@@ -195,7 +195,7 @@ function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, colla
 
   return (
     <div
-      className={`bg-white rounded-2xl p-4 border ${done ? 'border-violet-200 bg-violet-50' : 'border-gray-100'}`}
+      className={`rounded-2xl p-4 border transition-all ${done ? 'bg-white/40 backdrop-blur-sm border-white/20' : 'bg-white/80 backdrop-blur-md border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]'}`}
       onClick={done ? onToggle : undefined}
     >
       <div className="flex items-center justify-between mb-3">
@@ -529,7 +529,7 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
       {mode === 'ai' ? (
         <div className="space-y-4">
           {/* AI input card */}
-          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+          <div className="bg-white/80 backdrop-blur-md p-5 rounded-[2rem] border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
             <div className="flex items-center gap-2 mb-4">
               <div className="p-2 bg-indigo-100 rounded-xl">
                 <span className="text-base">✨</span>
@@ -659,7 +659,7 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
           })()}
         </div>
       ) : (
-        <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 space-y-3">
+        <div className="bg-white/80 backdrop-blur-md p-5 rounded-[2rem] border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] space-y-3">
           <input type="text" value={desc} onChange={e => setDesc(e.target.value)}
             placeholder="Qué comiste..."
             className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-100 transition-all" />
@@ -697,7 +697,7 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
       )}
 
       {/* Today's food list */}
-      <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100">
+      <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Comidas de hoy</p>
         <TodayFoodList logs={todayLogs} onDelete={deleteLog} />
       </div>
@@ -804,7 +804,7 @@ export default function Habits() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-32 pt-6 max-w-lg mx-auto px-4 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-violet-50/30 pb-32 pt-6 max-w-lg mx-auto px-4 space-y-6">
       {/* Estado Vital */}
       <section>
         <div className="flex justify-between items-center px-1 mb-3">
