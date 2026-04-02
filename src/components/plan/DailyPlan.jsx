@@ -5,32 +5,55 @@ import { usePlanStore } from '../../stores/planStore'
 const MEAL_EMOJIS = { breakfast: '☕', lunch: '🍽', snack: '🧉', dinner: '🌙' }
 const MEAL_LABELS = { breakfast: 'Desayuno', lunch: 'Almuerzo', snack: 'Merienda', dinner: 'Cena' }
 
-function MealSuggestion({ type, meal, onLog }) {
-  const [expanded, setExpanded] = useState(false)
+function MealOption({ option, type, label, onLog }) {
   return (
-    <div
-      className="bg-violet-50 rounded-2xl p-3 cursor-pointer transition-all"
-      onClick={() => setExpanded(!expanded)}
-    >
-      <div className="flex items-center justify-between">
+    <div className="bg-white rounded-xl p-3 border border-slate-100">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-bold text-slate-700">{option.name}</span>
+        <span className="text-[10px] text-slate-400">{option.estimated_calories} kcal · {option.estimated_protein}g prot</span>
+      </div>
+      <p className="text-xs text-slate-500 mb-2">{option.description}</p>
+      <button
+        onClick={() => onLog(type, option)}
+        className="text-xs font-bold text-violet-600 active:text-violet-800"
+      >
+        Loggear esto →
+      </button>
+    </div>
+  )
+}
+
+function MealSlot({ type, data, onLog }) {
+  const [expanded, setExpanded] = useState(false)
+
+  // Support both formats: { options: [...] } (new) and { name, ... } (old)
+  const options = data.options || [data]
+  const firstOption = options[0]
+
+  return (
+    <div className="bg-violet-50 rounded-2xl p-3 transition-all">
+      <div className="flex items-center justify-between cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div className="flex items-center gap-2">
           <span className="text-base">{MEAL_EMOJIS[type] || '🍽'}</span>
           <span className="text-xs font-bold text-slate-700">{MEAL_LABELS[type] || type}</span>
-          <span className="text-xs text-slate-400">~{meal.estimated_calories} kcal</span>
+          <span className="text-xs text-slate-400">~{firstOption.estimated_calories} kcal</span>
         </div>
-        <span className="text-[10px] text-slate-400">{expanded ? '▲' : '▼'}</span>
+        <div className="flex items-center gap-1">
+          {options.length > 1 && <span className="text-[10px] bg-violet-200 text-violet-700 px-1.5 py-0.5 rounded-full font-bold">{options.length} opciones</span>}
+          <span className="text-[10px] text-slate-400">{expanded ? '▲' : '▼'}</span>
+        </div>
       </div>
       {expanded && (
-        <div className="mt-2 space-y-2 animate-fade-in">
-          <p className="text-sm text-slate-700 font-medium">{meal.name}</p>
-          <p className="text-xs text-slate-500">{meal.description}</p>
-          <p className="text-xs text-slate-400">{meal.estimated_calories} kcal · {meal.estimated_protein}g prot</p>
-          <button
-            onClick={(e) => { e.stopPropagation(); onLog(type, meal) }}
-            className="text-xs font-bold text-violet-600 flex items-center gap-1"
-          >
-            Loggear esto →
-          </button>
+        <div className="mt-3 space-y-2 animate-fade-in">
+          {options.map((opt, i) => (
+            <MealOption
+              key={i}
+              option={opt}
+              type={type}
+              label={options.length > 1 ? (i === 0 ? 'Opción A' : 'Opción B') : null}
+              onLog={onLog}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -48,7 +71,7 @@ export default function DailyPlan() {
       state: {
         prefill: {
           meal_type: mealTypeMap[type] || 'almuerzo',
-          description: meal.name + ' - ' + meal.description,
+          description: meal.name + (meal.description ? ' - ' + meal.description : ''),
           calories: meal.estimated_calories,
           protein: meal.estimated_protein,
         }
@@ -86,7 +109,6 @@ export default function DailyPlan() {
   const meals = plan.meal_suggestions || {}
   const calPct = targets.calories > 0 ? Math.round((consumed.calories / targets.calories) * 100) : 0
 
-  // Pick narrative by time of day
   const narrative = timeOfDay === 'morning' ? plan.morning_brief
     : timeOfDay === 'midday' ? (plan.midday_adjust || plan.morning_brief)
     : (plan.evening_wrap || plan.midday_adjust || plan.morning_brief)
@@ -116,7 +138,7 @@ export default function DailyPlan() {
       <div className="space-y-3 mb-4">
         <div className="flex items-center justify-between text-xs">
           <span className="text-slate-500">
-            {isEvening ? 'Consumido' : 'Consumido hasta ahora'}: <strong>{consumed.calories} kcal</strong> · <strong>{consumed.protein}g prot</strong>
+            Consumido: <strong>{consumed.calories} kcal</strong> · <strong>{consumed.protein}g prot</strong>
           </span>
         </div>
         <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
@@ -145,18 +167,19 @@ export default function DailyPlan() {
         </div>
       )}
 
-      {/* Remaining budget (midday/morning) */}
+      {/* Remaining budget */}
       {!isEvening && remaining.calories > 0 && (
         <div className="text-xs text-slate-500 mb-4">
-          Te quedan: <strong>{remaining.calories} kcal</strong> · <strong>{remaining.protein}g prot</strong>
+          Te quedan: <strong>{remaining.calories} kcal</strong> · <strong>{remaining.protein}g prot</strong> para repartir
         </div>
       )}
 
-      {/* Meal suggestions */}
+      {/* Meal suggestions - 2 options per slot */}
       {!isEvening && meals && Object.keys(meals).length > 0 && (
         <div className="space-y-2 mb-3">
-          {Object.entries(meals).map(([type, meal]) => (
-            <MealSuggestion key={type} type={type} meal={meal} onLog={handleLogMeal} />
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Comidas sugeridas</p>
+          {Object.entries(meals).map(([type, data]) => (
+            <MealSlot key={type} type={type} data={data} onLog={handleLogMeal} />
           ))}
         </div>
       )}

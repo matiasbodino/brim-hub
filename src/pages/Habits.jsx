@@ -397,6 +397,7 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
   const [editing, setEditing] = useState(false)
+  const [portionSize, setPortionSize] = useState(1.0)
 
   const { aiEstimate, aiLoading, aiError, parseWithAI, confirmAIEstimate, clearAIEstimate, todayLogs, deleteLog } = store
   const macros = store.getTodayMacros()
@@ -410,6 +411,18 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
     if (!aiEstimate) return
     await confirmAIEstimate(aiEstimate)
     setAiText('')
+    setPortionSize(1.0)
+  }
+
+  const handleConfirmWithPortion = async (adjusted) => {
+    if (!aiEstimate) return
+    if (portionSize === 1.0) {
+      await confirmAIEstimate(aiEstimate)
+    } else {
+      await store.confirmWithOverride(aiEstimate, adjusted)
+    }
+    setAiText('')
+    setPortionSize(1.0)
   }
 
   const handleEdit = () => {
@@ -534,25 +547,58 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
             </div>
           )}
 
-          {/* AI Estimate - Premium card */}
-          {aiEstimate && !aiLoading && (
+          {/* AI Estimate - Premium card with portion size */}
+          {aiEstimate && !aiLoading && (() => {
+            const portionSizes = [
+              { label: 'Chico', val: 0.7, emoji: '☕' },
+              { label: 'Normal', val: 1.0, emoji: '🍽️' },
+              { label: 'XL', val: 1.4, emoji: '🏔️' },
+            ]
+            const adjusted = {
+              calories: Math.round(aiEstimate.calories * portionSize),
+              protein: Math.round(aiEstimate.protein * portionSize),
+              carbs: Math.round((aiEstimate.carbs || 0) * portionSize),
+              fat: Math.round((aiEstimate.fat || 0) * portionSize),
+            }
+            return (
             <div className="bg-indigo-600 rounded-[2rem] p-6 text-white shadow-xl">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-[10px] font-black bg-white/20 px-2 py-1 rounded-full uppercase tracking-widest">Resultado AI</span>
                 <span className="text-xs">{({ high: '🟢', medium: '🟡', low: '🔴' })[aiEstimate.confidence] || '🟡'} {aiEstimate.confidence}</span>
               </div>
-              <p className="text-sm font-medium text-indigo-100 mb-4">{aiEstimate.description}</p>
+              <p className="text-sm font-medium text-indigo-100 mb-2">{aiEstimate.description}</p>
+              {aiEstimate.query_adjustment && (
+                <p className="text-[10px] text-indigo-200 bg-white/10 rounded-xl px-3 py-1.5 mb-3">💡 {aiEstimate.query_adjustment}</p>
+              )}
 
-              <div className="grid grid-cols-4 gap-2 text-center mb-4">
-                <div><p className="text-2xl font-black">{aiEstimate.calories}</p><p className="text-[10px] opacity-70">kcal</p></div>
-                <div><p className="text-2xl font-black">{aiEstimate.protein}g</p><p className="text-[10px] opacity-70">Prot</p></div>
-                <div><p className="text-2xl font-black">{aiEstimate.carbs}g</p><p className="text-[10px] opacity-70">Carbs</p></div>
-                <div><p className="text-2xl font-black">{aiEstimate.fat}g</p><p className="text-[10px] opacity-70">Fat</p></div>
+              {/* Portion size selector */}
+              <div className="mb-4">
+                <p className="text-[10px] font-bold opacity-70 uppercase mb-2">¿Qué tan grande era la porción?</p>
+                <div className="flex gap-2">
+                  {portionSizes.map(p => (
+                    <button
+                      key={p.label}
+                      onClick={() => setPortionSize(p.val)}
+                      className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${
+                        portionSize === p.val ? 'bg-white text-indigo-600' : 'bg-white/10 text-white'
+                      }`}
+                    >
+                      {p.emoji} {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 text-center mb-4 border-t border-white/10 pt-4">
+                <div><p className="text-2xl font-black">{adjusted.calories}</p><p className="text-[10px] opacity-70">kcal</p></div>
+                <div><p className="text-2xl font-black">{adjusted.protein}g</p><p className="text-[10px] opacity-70">Prot</p></div>
+                <div><p className="text-2xl font-black">{adjusted.carbs}g</p><p className="text-[10px] opacity-70">Carbs</p></div>
+                <div><p className="text-2xl font-black">{adjusted.fat}g</p><p className="text-[10px] opacity-70">Fat</p></div>
               </div>
 
               {/* Impact summary inline */}
               {targets.calories > 0 && (() => {
-                const newTotal = macros.calories + aiEstimate.calories
+                const newTotal = macros.calories + adjusted.calories
                 const pct = Math.round((newTotal / targets.calories) * 100)
                 return (
                   <div className="mb-4">
@@ -574,16 +620,16 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
                   {aiEstimate.breakdown.map((item, i) => (
                     <div key={i} className="flex justify-between text-xs bg-white/10 rounded-xl px-3 py-1.5">
                       <span className="opacity-80">{item.item}</span>
-                      <span className="font-bold">{item.calories} kcal</span>
+                      <span className="font-bold">{Math.round(item.calories * portionSize)} kcal</span>
                     </div>
                   ))}
                 </div>
               )}
 
               <div className="flex gap-2">
-                <button onClick={handleConfirm}
+                <button onClick={() => handleConfirmWithPortion(adjusted)}
                   className="flex-1 bg-white text-indigo-600 py-3 rounded-xl font-bold text-sm active:scale-95 transition">
-                  Confirmar
+                  Confirmar {portionSize !== 1 ? Math.round(portionSize * 100) + '%' : ''}
                 </button>
                 <button onClick={handleEdit}
                   className="p-3 bg-indigo-500 rounded-xl active:scale-95 transition text-sm">✏️</button>
@@ -593,7 +639,8 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
                   className="p-3 bg-indigo-500 rounded-xl active:scale-95 transition text-sm">🗑</button>
               </div>
             </div>
-          )}
+            )
+          })()}
         </div>
       ) : (
         <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 space-y-3">

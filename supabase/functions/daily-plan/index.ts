@@ -198,38 +198,53 @@ Deno.serve(async (req) => {
     // ── 3c. Determine what to generate ──
     const existingVersion = (existingPlan?.plan_version as number) || 0;
     const isNewPlan = !existingPlan;
-    const shouldGenerateMeals = timeOfDay === 'morning' || (timeOfDay === 'midday' && recalculate);
+    // Always regenerate meals on recalculate (user just logged food, budget changed)
+    const shouldGenerateMeals = isNewPlan || recalculate || timeOfDay === 'morning';
 
     // Logged meal types
     const loggedMealTypes = new Set(todayFood.map(f => f.meal_type));
+    const missingMeals = ['desayuno', 'almuerzo', 'merienda', 'cena'].filter(m => !loggedMealTypes.has(m));
 
-    // ── 3d. Meal suggestions (Claude) ──
+    // ── 3d. Meal suggestions (Claude) — 2 options per slot ──
     let mealSuggestions = existingPlan?.meal_suggestions || null;
-    if (shouldGenerateMeals || isNewPlan) {
+    if (shouldGenerateMeals && missingMeals.length > 0) {
       const foodPrefs = foodInsights.map(i => i.insight_value?.pattern).filter(Boolean).join('\n');
       const userModelText = userModelData.length > 0 ? userModelData[0].model_content : '';
-      const alreadyAte = todayFood.map(f => `${f.meal_type}: ${f.description} (${f.calories} kcal)`).join('\n') || 'Nada todavía';
+      const alreadyAte = todayFood.map(f => `${f.meal_type}: ${f.description} (${f.calories} kcal, ${f.protein}g prot)`).join('\n') || 'Nada todavía';
 
-      const mealsPrompt = `Targets de hoy: ${adjustedTargets.calories} kcal, ${adjustedTargets.protein}g prot, ${adjustedTargets.carbs}g carbs, ${adjustedTargets.fat}g fat
-Presupuesto restante: ${remainingBudget.calories} kcal, ${remainingBudget.protein}g prot
+      const mealSlotMap: Record<string, string> = { desayuno: 'breakfast', almuerzo: 'lunch', merienda: 'snack', cena: 'dinner' };
+
+      const mealsPrompt = `Target del día: ${adjustedTargets.calories} kcal, ${adjustedTargets.protein}g prot
+Ya consumió: ${consumedSoFar.calories} kcal, ${consumedSoFar.protein}g prot (${consumedSoFar.meals_logged} comidas)
+PRESUPUESTO RESTANTE: ${remainingBudget.calories} kcal, ${remainingBudget.protein}g prot
 Día: ${dayName}
+
 Ya comió hoy:
 ${alreadyAte}
 
-Comidas que faltan: ${['desayuno', 'almuerzo', 'merienda', 'cena'].filter(m => !loggedMealTypes.has(m)).join(', ')}
+Comidas que faltan: ${missingMeals.join(', ')}
+
+IMPORTANTE: Las calorías de TODAS las sugerencias restantes deben sumar aproximadamente ${remainingBudget.calories} kcal.
+${consumedSoFar.calories > adjustedTargets.calories * 0.5 ? 'COMIÓ BASTANTE — sugerí opciones livianas para las comidas restantes.' : ''}
+${consumedSoFar.protein < adjustedTargets.protein * 0.3 ? 'PROTEÍNA MUY BAJA — priorizá opciones altas en proteína.' : ''}
 
 ${foodPrefs ? 'PREFERENCIAS ALIMENTARIAS:\n' + foodPrefs : ''}
-${userModelText ? '\nPERFIL (sección alimentación):\n' + userModelText.split('**Alimentación**')[1]?.split('**')[0] || '' : ''}
 
-Respondé SOLO con JSON, sin explicación. Formato:
-{ "breakfast"?: { "name": "...", "description": "...", "estimated_calories": N, "estimated_protein": N }, "lunch"?: {...}, "snack"?: {...}, "dinner"?: {...} }
-Solo incluir las comidas que faltan.`;
+Dá 2 OPCIONES por cada comida que falta (opción A y opción B). Una más sustanciosa y una más liviana.
+
+Respondé SOLO con JSON. Formato:
+{
+  "lunch"?: { "options": [{ "name": "...", "description": "...", "estimated_calories": N, "estimated_protein": N }, { "name": "...", "description": "...", "estimated_calories": N, "estimated_protein": N }] },
+  "snack"?: { "options": [...] },
+  "dinner"?: { "options": [...] }
+}
+Usá los keys en inglés: breakfast, lunch, snack, dinner. Solo las comidas que faltan.`;
 
       try {
         const raw = await callClaude(
-          "Sos el planificador de comidas de Mati. Conocés sus preferencias reales. Sugerí comidas que realmente come (comida argentina). NO sugieras quinoa, açaí, tofu, etc. Sé específico con porciones. Respondé SOLO JSON.",
+          "Sos el planificador de comidas de Mati. Conocés sus preferencias reales. Sugerí comidas que realmente come (comida argentina, porciones reales). NO sugieras quinoa, açaí, tofu. Sé específico con porciones. Las opciones deben sumar el presupuesto restante. Respondé SOLO JSON.",
           mealsPrompt,
-          { maxTokens: 500, temperature: 0.5 }
+          { maxTokens: 800, temperature: 0.6 }
         );
         const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         mealSuggestions = JSON.parse(cleaned);
