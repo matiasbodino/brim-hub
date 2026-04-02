@@ -645,10 +645,17 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
             </button>
           </div>
 
-          {/* Error */}
+          {/* Error with retry */}
           {aiError && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-600">
-              {aiError}
+            <div className="bg-red-900/30 border border-red-500/30 rounded-2xl p-4 flex items-center justify-between">
+              <span className="text-sm text-red-400">{aiError}</span>
+              <button
+                onClick={handleAISend}
+                disabled={aiLoading}
+                className="ml-3 px-3 py-1.5 bg-red-500/20 text-red-300 text-xs font-bold rounded-xl hover:bg-red-500/30 transition"
+              >
+                Reintentar
+              </button>
             </div>
           )}
 

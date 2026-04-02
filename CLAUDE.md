@@ -1,84 +1,85 @@
 # Brim Hub — Context Document
 
 ## What is this
-Personal wellness PWA for Mati Bodino. Habit tracking, AI-powered food logging, gamified points economy with BJJ belt levels, redeemable "permitidos" (treats), 4-week cycles with weekly KPIs, AI coach chat, weekly digest, daily game plan, micro-journal, gym PRs, and progress analytics. Mobile-first, single user, no auth.
+Personal wellness PWA for Mati Bodino. "BioHacker OS" — gamified habit tracking, AI-powered nutrition, guided workouts/walks/breathing, BJJ journal, daily game plan with adaptive targets, AI coach chat, pattern analysis, and points economy with BJJ belt levels. Mobile-first dark mode, single user, no auth.
 
 ## Stack
 - **Framework:** Vite 8 + React 19
-- **Styling:** Tailwind CSS 4.2
-- **State:** Zustand 5
+- **Styling:** Tailwind CSS 4.2 (dark mode throughout)
+- **State:** Zustand 5 (16 stores)
 - **Backend:** Supabase (Postgres + Edge Functions + RLS open)
-- **AI:** Anthropic Claude (claude-sonnet-4-5) via Supabase Edge Functions
+- **AI:** Anthropic Claude (claude-sonnet-4-5) via 10 Edge Functions
 - **Charts:** Recharts 3
-- **PWA:** vite-plugin-pwa
+- **PWA:** vite-plugin-pwa (installable, custom app icon)
 - **Deploy:** Vercel (brim-hub.vercel.app)
 - **Routing:** react-router-dom v7
-- **Other:** html2canvas (share to PNG)
+- **Other:** html2canvas (share PNG), canvas-confetti (celebrations)
 
 ## Architecture
 
 ```
-PWA (Vite + React + Tailwind)
-├── /           → Dashboard (score, créditos, streak, nivel, macros, plan, digest, journal)
-├── /habits     → Habit trackers + BJJ form + food log (AI + manual)
-├── /chat       → AI coach "Brim" (streaming chat with full user context)
-├── /permitidos → Points balance + redeem catalog + history (accessible via Dashboard credit card)
-├── /progress   → Heatmap + cycles + trends + gym PRs + journal + BJJ journal + AI insights
-├── /profile    → Level, weight input, editable targets, weight goal
-└── /checkin    → Sunday weekly check-in (weight + reflection)
+PWA (Vite + React + Tailwind — dark mode)
+├── /           → Dashboard (read-only hub: vitality ring, macros, plan, habits, journal)
+├── /habits     → Diario: all interaction (logging, food, energy, weight, daily plan, journal)
+├── /chat       → AI coach "Brim" (context-aware, streaming)
+├── /workout    → Guided gym sessions (timer, sets, RPE)
+├── /walk       → Walk tracker (calorie mission, nasal breathing check)
+├── /breathe    → Guided breathing (3 techniques, up to 20min)
+├── /bjj-session → BJJ post-session (strain score, recovery suggestion)
+├── /permitidos → Points marketplace (via Dashboard credit card tap)
+├── /progress   → Analytics (dark heatmap, 6-pillar radar, trends, PRs, insights)
+├── /profile    → Level, targets, weight goal
+├── /checkin    → Sunday weekly check-in
+└── /onboarding → First-time setup (gates Dashboard via localStorage)
         │
         ▼
    Supabase (birpqzahbtfbxxtaqeth)
-   ├── habit_logs       (daily habits + BJJ metadata JSONB)
-   ├── food_logs        (food entries, manual or AI-confirmed)
-   ├── weight_logs      (weight entries)
-   ├── points_log       (earned points per habit)
-   ├── redeems          (permitido redemptions)
-   ├── energy_logs      (daily energy level 1-5)
-   ├── journal_entries  (micro-journal + mood)
-   ├── gym_prs          (personal records per exercise)
-   ├── cycles           (4-week goal cycles)
-   ├── cycle_weekly_stats (weekly KPI stats per cycle)
-   ├── chat_messages    (AI coach conversation history)
-   ├── ai_food_estimates (AI food parsing audit trail)
-   ├── weekly_digests   (AI weekly summaries)
-   ├── daily_plans      (AI daily game plan with adjusted targets)
-   ├── user_insights    (AI-discovered patterns and correlations)
-   ├── user_model       (AI-generated user profile narrative)
-   ├── user_profile     (targets + weight goal)
-   ├── app_events       (analytics events)
-   └── gym_routines     (reserved)
+   ├── 18+ tables (see DB Schema below)
         │
         ▼
    Edge Functions (Deno + Anthropic SDK)
-   ├── _shared/anthropic.ts  → callClaude() helper
-   ├── _shared/context.ts    → buildUserContext() with insights + user_model
-   ├── parse-food            → AI food macro estimation (Argentine food specialist)
-   ├── chat                  → AI coach with full user context
-   ├── weekly-digest         → Weekly narrative summary with KPIs
-   ├── generate-insights     → 90-day pattern analysis → user_insights + user_model
-   ├── daily-plan            → Proactive daily targets + meal suggestions
-   └── health                → Test endpoint
+   ├── _shared/          → anthropic.ts (callClaude), context.ts (buildUserContext + user_model + insights)
+   ├── parse-food        → AI food macro estimation (Argentine food specialist)
+   ├── parse-intent      → Natural language intent detection for CommandBar
+   ├── chef-suggest      → Smart meal suggestion based on remaining macros + active burn
+   ├── chat              → AI coach with full user context
+   ├── weekly-digest     → Weekly narrative summary with KPIs
+   ├── monthly-email     → Monthly report generation
+   ├── generate-insights → 90-day pattern analysis → user_insights + user_model
+   ├── generate-routine  → AI gym routine generation
+   ├── daily-plan        → Proactive daily targets + meal suggestions (regenerates on every food log)
+   └── health            → Test endpoint
 ```
 
 ## Key Patterns
 
 ### No Auth
-Single user app. User ID hardcoded as `MATI_ID` in `src/lib/constants.js`.
-All RLS policies are `USING (true)`.
+Single user. MATI_ID hardcoded in constants.js. All RLS = `USING (true)`.
 
 ### Constants-driven
-All targets, habits, points economy, levels, and permitidos catalog in `src/lib/constants.js`.
+All targets, habits, points, levels, permitidos, water units, gym exercises in `src/lib/constants.js`.
+
+### Dark Mode
+BottomNav and many components use dark theme (bg-[#0a0a0a], slate-900, etc.). Dashboard is mixed light/dark.
+
+### Onboarding Gate
+App.jsx checks `localStorage.getItem('brim_onboarded')`. If not set, shows Onboarding page instead of Dashboard. On completion, dispatches `'onboarding-complete'` custom event → App re-renders to Dashboard without page refresh.
+
+### Daily Reset
+`useDailyReset` hook checks date change at midnight + on app resume. Refetches all stores when day changes.
+
+### Background Sync
+`useSync` hook rehydrates from Supabase and flushes pending writes on mount.
 
 ### Points Economy
 - Habit points: water 5, steps 10, gym 15, bjj 20
 - Perfect day (all 4 habits): x2 bonus
 - 7+ day streak: x1.5 multiplier
-- Streak logic: "never miss twice" — 1+ full OR 2+ partial counts as valid day
-- Points accumulate → levels (Cinturón Blanco → Negro)
+- "Never miss twice" streak logic
+- Streak Shield: functional permitido (100 créditos) that protects streak
 - Balance = totalPoints - spentPoints → spend on permitidos
 
-### Levels
+### Levels (BJJ Belt System)
 | Level | Min Points | Badge |
 |-------|-----------|-------|
 | Cinturón Blanco | 0 | 🤍 |
@@ -87,86 +88,136 @@ All targets, habits, points economy, levels, and permitidos catalog in `src/lib/
 | Cinturón Marrón | 3500 | 🤎 |
 | Cinturón Negro | 7000 | 🖤 |
 
-### AI System (3 layers)
+### AI System (3 Layers)
 
-**Layer 1: Raw Data** — All habit/food/weight/energy logs in Supabase tables.
+**Layer 1: Raw Data** — All logs in Supabase tables.
 
-**Layer 2: Pattern Engine** — `generate-insights` Edge Function runs weekly:
-- Queries 90 days of data, calculates stats in code (completion rates by day/energy, food frequencies, weight trend, streak patterns)
-- Sends stats to Claude → generates structured insights (correlations, preferences, trends, motivation patterns)
-- Saves to `user_insights` table + generates narrative `user_model`
+**Layer 2: Pattern Engine** — `generate-insights` runs weekly:
+- 90-day data analysis → stats calculated in code
+- Claude generates structured insights (correlations, food prefs, behavior, trends, motivation)
+- Saves to `user_insights` + generates narrative `user_model`
 
-**Layer 3: Enriched Context** — Every Claude call (chat, digest, daily-plan) includes:
-- `user_model` (500-word narrative profile)
+**Layer 3: Enriched Context** — Every Claude call includes:
+- user_model (~500-word narrative profile)
 - Top 10 active insights
 - Fresh today/week data
 
-### Daily Game Plan
+### Daily Game Plan (Proactive)
 - `daily-plan` Edge Function calculates adjusted daily calorie targets based on weekly progress vs weight goal
-- Guardrails: floor 1400 kcal, ceiling base+200, compensate with extra steps if needed
-- Claude generates meal suggestions using user's actual food preferences
-- 3 daily touchpoints: morning brief, midday recalc, evening wrap
+- Guardrails: floor 1400 kcal, ceiling base+200, compensate with extra steps
+- Claude suggests meals based on actual food preferences
+- Regenerates on every food log (`regenerative` pattern)
+- Chef Bio-Analítico: smart meal suggestion considering remaining macros + active burn context
+- 3 touchpoints: morning brief, midday recalc, evening wrap
 
-### BJJ Tracking
-BJJ sessions stored as `metadata` JSONB in `habit_logs`: type (Gi/No-Gi), duration, techniques, notes.
+### Active Burn Engine
+`src/lib/activeBurn.js` — MET-based calorie estimation from logged activities (gym, BJJ, walk, steps). Feeds into Dashboard calorie ring and chef-suggest context.
 
-### Food Logging
-Dual mode: AI (text → Claude estimates macros) or Manual (form with kcal/protein/carbs/fat).
-AI estimates saved with confidence level and breakdown in `ai_food_estimates`.
+### Damage Control
+`DamageControl` component + `damageStore` — "Me pasé" flow that spreads calorie excess over 3-5 recovery days.
 
-### 4-Week Cycles
-Goal periods with per-habit weekly targets. Weekly KPI traffic lights: 🟢 ≥80%, 🟡 ≥50%, 🔴 <50%.
+### Water Units
+Effective hydration tracking: vaso (250ml), botella (500ml), termo (1L), mate (700ml effective — caffeine discounts).
+
+### Command Bar
+Global Cmd+K spotlight (CommandBar.jsx) with natural language intent via `parse-intent` Edge Function.
 
 ## File Structure
 
 ```
 src/
-├── App.jsx                         # Router: 7 routes, ToastProvider wrapper
-├── main.jsx                        # React entry
-├── index.css                       # Tailwind imports
+├── App.jsx                              # Router (12 routes), onboarding gate, CommandBar, QuickActions, SyncIndicator
+├── main.jsx
+├── index.css
 ├── components/
-│   ├── BottomNav.jsx               # 5 tabs: Hoy, Hábitos, Brim, Progreso, Perfil
-│   ├── ShareButton.jsx             # Export to PNG trigger
-│   ├── ShareCard.jsx               # Shareable card template
-│   ├── Skeleton.jsx                # Loading placeholders
-│   ├── Toast.jsx                   # Toast notification system
-│   ├── charts/TrendCharts.jsx      # Weight, habits, macros charts (Recharts)
-│   ├── chat/ChatBubble.jsx         # User/assistant message bubbles
-│   ├── chat/ChatInput.jsx          # Chat text input + send
-│   ├── chat/FoodEstimateCard.jsx   # AI food estimate display
-│   ├── digest/WeeklyDigest.jsx     # Weekly AI summary card
-│   ├── journal/MicroJournal.jsx    # Daily one-line journal + mood
-│   └── ui/BottomSheet.jsx          # Reusable bottom sheet modal
+│   ├── BottomNav.jsx                    # 5 tabs: Home, Diario, Brim, Progreso, Perfil (dark, hidden on activity pages)
+│   ├── ShareButton.jsx                  # Export to PNG
+│   ├── ShareCard.jsx                    # Shareable card template
+│   ├── Skeleton.jsx                     # Loading placeholders
+│   ├── Toast.jsx                        # Notification system
+│   ├── charts/
+│   │   ├── TrendCharts.jsx             # Weight, habits, macros (Recharts, gradients)
+│   │   └── GymCharts.jsx              # Gym-specific charts
+│   ├── chat/
+│   │   ├── ChatBubble.jsx             # User/assistant bubbles
+│   │   ├── ChatInput.jsx             # Chat input + send
+│   │   └── FoodEstimateCard.jsx       # AI food estimate display
+│   ├── dashboard/
+│   │   ├── StatusRings.jsx            # Habit status ring indicators
+│   │   └── MacroArcs.jsx             # Macro arc visualizations
+│   ├── digest/WeeklyDigest.jsx         # Weekly AI summary card
+│   ├── journal/MicroJournal.jsx        # Daily journal + mood
+│   ├── plan/
+│   │   ├── DailyPlan.jsx             # Proactive plan with meal slots + chef suggest
+│   │   ├── DamageControl.jsx          # "Me pasé" recovery spreader
+│   │   ├── PredictiveGhost.jsx        # Predictive suggestions
+│   │   └── VitalityRing.jsx          # Vitality score ring
+│   ├── report/MonthlyReport.jsx        # Monthly report card
+│   └── ui/
+│       ├── BottomSheet.jsx            # Modal from bottom
+│       ├── CommandBar.jsx             # Cmd+K spotlight
+│       ├── QuickActions.jsx           # Quick action grid + FAB
+│       └── SyncIndicator.jsx          # Background sync status
 ├── pages/
-│   ├── Dashboard.jsx               # Bento grid: score, credits, streak, macros, plan, digest, habits
-│   ├── Habits.jsx                  # Energy + weight + habits + food (AI/manual) + food list
-│   ├── Chat.jsx                    # AI coach conversation
-│   ├── Permitidos.jsx              # Points marketplace + redeem history
-│   ├── Progress.jsx                # Cycles, heatmap, trends, PRs, journal, BJJ journal, insights
-│   ├── Profile.jsx                 # Level, weight, editable targets
-│   ├── Checkin.jsx                 # Sunday check-in form
-│   └── Login.jsx                   # UNUSED
-├── stores/
-│   ├── habitStore.js               # fetchToday, upsertHabit
-│   ├── foodStore.js                # CRUD + parseWithAI, confirmAIEstimate, getTodayMacros
-│   ├── pointsStore.js              # Points engine: award, streak, perfectDay, redeem, levels
-│   ├── cycleStore.js               # 4-week cycles + weekly stats
-│   ├── targetsStore.js             # Fetch/update user targets
-│   ├── energyStore.js              # Daily energy level
-│   ├── chatStore.js                # Chat messages + sendMessage
-│   ├── digestStore.js              # Weekly digest fetch/generate
-│   ├── journalStore.js             # Micro-journal CRUD
-│   ├── gymPrStore.js               # Gym PR tracking
-│   ├── insightsStore.js            # AI insights + user model
-│   ├── planStore.js                # Daily game plan fetch/generate/recalculate
-│   └── authStore.js                # UNUSED
+│   ├── Dashboard.jsx     (475 lines)   # Read-only hub: vitality, macros, plan preview, habits, food
+│   ├── Habits.jsx        (993 lines)   # All interaction: energy, weight, habits, food AI/manual, plan, journal
+│   ├── Progress.jsx      (993 lines)   # Dark heatmap, 6-pillar radar, trends, PRs, insights, cycles, BJJ journal
+│   ├── Workout.jsx       (453 lines)   # Guided gym session (timer, sets, RPE tracking)
+│   ├── Profile.jsx       (239 lines)   # Level, targets, weight goal
+│   ├── Walk.jsx          (219 lines)   # Walk tracker with calorie mission + nasal breathing
+│   ├── BJJSession.jsx    (182 lines)   # Post-BJJ strain score + recovery suggestion
+│   ├── Breathe.jsx       (184 lines)   # Guided breathing (3 techniques, up to 20min)
+│   ├── Onboarding.jsx    (177 lines)   # First-time setup
+│   ├── Checkin.jsx       (144 lines)   # Sunday check-in
+│   ├── Permitidos.jsx    (132 lines)   # Points marketplace
+│   ├── Chat.jsx          (94 lines)    # AI coach
+│   └── Login.jsx         (72 lines)    # UNUSED
+├── stores/ (16 stores)
+│   ├── pointsStore.js    (294 lines)   # Points engine: award, streak, shields, perfectDay, redeem, levels
+│   ├── foodStore.js      (207 lines)   # CRUD + parseWithAI, confirmAIEstimate, getTodayMacros
+│   ├── cycleStore.js     (180 lines)   # 4-week cycles + weekly stats + semáforos
+│   ├── reportStore.js    (114 lines)   # Monthly reports
+│   ├── digestStore.js    (111 lines)   # Weekly digest
+│   ├── chatStore.js      (106 lines)   # Chat messages + sendMessage
+│   ├── damageStore.js    (90 lines)    # Damage control recovery plans
+│   ├── habitStore.js     (89 lines)    # fetchToday, upsertHabit
+│   ├── insightsStore.js  (72 lines)    # AI insights + user model
+│   ├── planStore.js      (67 lines)    # Daily plan fetch/generate/recalculate
+│   ├── targetsStore.js   (63 lines)    # Fetch/update targets
+│   ├── gymPrStore.js     (63 lines)    # Gym PR tracking
+│   ├── journalStore.js   (46 lines)    # Micro-journal
+│   ├── energyStore.js    (41 lines)    # Daily energy level
+│   ├── routineStore.js   (33 lines)    # AI gym routines
+│   └── authStore.js      (31 lines)    # UNUSED
 ├── hooks/
-│   └── useBJJTheme.js              # Dynamic theme colors based on belt level
+│   ├── useSync.js                      # Background rehydrate + flush
+│   ├── useDailyReset.js               # Midnight + app resume date check
+│   ├── useBJJTheme.js                 # Dynamic colors by belt level
+│   └── useAnimatedValue.js            # Animated number transitions
 └── lib/
-    ├── constants.js                # MATI_ID, TARGETS, HABITS, POINTS, LEVELS, PERMITIDOS
-    ├── supabase.js                 # Supabase client
-    ├── analytics.js                # track() function → app_events table
-    └── haptics.js                  # Haptic feedback helpers
+    ├── constants.js                    # MATI_ID, TARGETS, HABITS, POINTS, LEVELS, PERMITIDOS, WATER_UNITS, GYM_EXERCISES
+    ├── supabase.js                     # Supabase client
+    ├── analytics.js                    # track() → app_events
+    ├── haptics.js                      # Haptic feedback helpers
+    └── activeBurn.js                   # MET-based calorie burn estimation
+```
+
+## Edge Functions (10 + shared)
+```
+supabase/functions/
+├── _shared/
+│   ├── anthropic.ts      (93 lines)   # callClaude() helper
+│   └── context.ts        (218 lines)  # buildUserContext() with user_model + insights
+├── daily-plan/           (465 lines)  # Adaptive targets + meal suggestions + narratives
+├── generate-insights/    (438 lines)  # 90-day pattern analysis → insights + user model
+├── weekly-digest/        (217 lines)  # Weekly narrative summary
+├── generate-routine/     (197 lines)  # AI gym routine generation
+├── chef-suggest/         (157 lines)  # Smart meal from remaining macros + burn context
+├── monthly-email/        (156 lines)  # Monthly report
+├── parse-food/           (128 lines)  # AI food macro estimation
+├── chat/                 (121 lines)  # AI coach with full context
+├── parse-intent/         (116 lines)  # NL intent for CommandBar
+└── health/               (56 lines)   # Test endpoint
 ```
 
 ## DB Schema
@@ -201,25 +252,16 @@ streaks           (id, user_id, habit_type, current_streak, best_streak, last_co
 ## Supabase Config
 - **Project:** birpqzahbtfbxxtaqeth.supabase.co
 - **Edge Functions:** https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1/
-- **RLS:** All tables open (`USING (true)`)
-- **Auth:** Not used
-- **AI Model:** claude-sonnet-4-5 (via ANTHROPIC_API_KEY secret)
-
-## Edge Functions
-```bash
-supabase functions deploy parse-food
-supabase functions deploy chat
-supabase functions deploy weekly-digest
-supabase functions deploy generate-insights
-supabase functions deploy daily-plan
-supabase functions deploy health
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-```
+- **RLS:** All open
+- **Secret:** ANTHROPIC_API_KEY
+- **Model:** claude-sonnet-4-5
 
 ## Navigation
-- BottomNav: 5 tabs (Hoy, Hábitos, Brim, Progreso, Perfil)
-- /permitidos accessible via credit card tap in Dashboard (no dedicated tab)
-- /checkin accessible via Sunday banner in Dashboard
+- BottomNav (dark): Home, Diario, Brim, Progreso, Perfil
+- Hidden on activity pages: /workout, /walk, /bjj-session, /breathe, /checkin
+- /permitidos: via Dashboard credit card tap
+- QuickActions: FAB with grid of quick actions
+- CommandBar: Cmd+K spotlight with NL intent
 
 ## Dev Commands
 ```bash
@@ -229,13 +271,17 @@ npm run preview # Preview production build
 ```
 
 ## Conventions
-- Spanish for user-facing text, English for code/comments
-- No auth — MATI_ID hardcoded everywhere
-- Timezone: Argentina UTC-3 for date filtering
-- Mobile-first: max-w-lg centered container
-- Zustand stores: async actions, no auth dependency
-- Primary color: violet-600
-- Cards: rounded-2xl / rounded-3xl, shadow-sm, bg-white
-- Haptic feedback on completions (navigator.vibrate)
-- Toast notifications for user feedback
-- BJJ theme: dynamic colors based on current belt level
+- Spanish user-facing text, English code/comments
+- No auth — MATI_ID hardcoded
+- Timezone: Argentina UTC-3
+- Mobile-first: max-w-lg
+- Dark mode: BottomNav, activity pages, heatmap
+- Primary color: violet-600 (blue-400 in dark contexts)
+- Haptic feedback + confetti on celebrations
+- Toast notifications for feedback
+- BJJ theme: dynamic colors by belt (useBJJTheme)
+
+## Codebase Size
+- ~9,300 lines frontend (pages + stores + components + hooks + lib)
+- ~2,400 lines Edge Functions
+- Total: ~11,700 lines

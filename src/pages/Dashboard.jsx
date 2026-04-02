@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useFoodStore } from '../stores/foodStore'
 import { useHabitStore } from '../stores/habitStore'
@@ -82,7 +82,7 @@ export default function Dashboard() {
   // Background sync: rehydrate from Supabase, flush pending writes
   useSync()
 
-  useEffect(() => {
+  const refreshAll = useCallback(() => {
     fetchFood()
     fetchHabits()
     fetchAll()
@@ -92,8 +92,18 @@ export default function Dashboard() {
     fetchTodayPlan()
     fetchEnergy()
     fetchDamage()
-    track('app_open')
   }, [])
+
+  // Fetch on mount + re-fetch when user navigates back (visibilitychange)
+  useEffect(() => {
+    refreshAll()
+    track('app_open')
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshAll()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [refreshAll])
 
   const macros = getTodayMacros()
   const balance = totalPoints - spentPoints

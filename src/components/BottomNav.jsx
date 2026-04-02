@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 
 const tabs = [
   { to: '/', label: 'Home', icon: '🏠' },
-  { to: '/habits', label: 'Diario', icon: '📋' },
+  { to: '/habits', label: 'Registrar', icon: '✏️' },
   { to: '/chat', label: 'Brim', icon: '💬' },
   { to: '/progress', label: 'Progreso', icon: '📈' },
   { to: '/profile', label: 'Perfil', icon: '👤' },
