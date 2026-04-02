@@ -198,11 +198,17 @@ export default function Activity() {
       <section>
         <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-3">⚡ Registro rápido</p>
 
-        {/* Water */}
+        {/* Water + undo */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-3 mb-2">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-gray-300">💧 Agua</span>
-            <span className="text-[10px] text-gray-500">{waterVal.toFixed(1)}L / {waterTarget}L</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-500">{waterVal.toFixed(1)}L / {waterTarget}L</span>
+              {waterVal > 0 && (
+                <button onClick={() => { hapticMedium(); upsertHabit('water', Math.max(0, waterVal - 0.25), waterTarget); showToast('↩ Deshecho') }}
+                  className="text-[9px] text-red-400 font-bold bg-red-500/10 px-2 py-0.5 rounded-full active:scale-95">↩</button>
+              )}
+            </div>
           </div>
           <div className="flex gap-2 mb-2">
             <button onClick={() => { hapticMedium(); addWater(WATER_UNITS.VASO, waterTarget); showToast('💧') }}
@@ -217,11 +223,17 @@ export default function Activity() {
           </div>
         </div>
 
-        {/* Steps */}
+        {/* Steps + undo */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-3 mb-2">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-gray-300">🚶 Pasos</span>
-            <span className="text-[10px] text-gray-500">{stepsVal.toLocaleString()}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-500">{stepsVal.toLocaleString()}</span>
+              {stepsVal > 0 && (
+                <button onClick={() => { hapticMedium(); upsertHabit('steps', 0, targets.steps || 10000); showToast('↩ Borrado') }}
+                  className="text-[9px] text-red-400 font-bold bg-red-500/10 px-2 py-0.5 rounded-full active:scale-95">↩</button>
+              )}
+            </div>
           </div>
           <div className="flex gap-2">
             {[5000, 8000, 10000].map(s => (
@@ -233,9 +245,40 @@ export default function Activity() {
           </div>
         </div>
 
-        {/* Energy */}
+        {/* Gym + BJJ toggles with undo */}
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <button onClick={() => {
+            hapticMedium()
+            const done = Number(todayHabits.gym?.value || 0) >= 1
+            upsertHabit('gym', done ? 0 : 1, 1)
+            showToast(done ? '↩ Gym desmarcado' : '🏋️ Gym ✓')
+          }} className={`min-h-[44px] rounded-xl text-xs font-bold active:scale-95 transition ${
+            Number(todayHabits.gym?.value || 0) >= 1 ? 'bg-green-600 text-white' : 'bg-white/5 border border-white/10 text-gray-400'
+          }`}>
+            🏋️ {Number(todayHabits.gym?.value || 0) >= 1 ? 'Gym ✓ (tap para deshacer)' : 'Marcar Gym'}
+          </button>
+          <button onClick={() => {
+            hapticMedium()
+            const done = Number(todayHabits.bjj?.value || 0) >= 1
+            if (!done) { navigate('/bjj-session'); return }
+            upsertHabit('bjj', 0, 1)
+            showToast('↩ BJJ desmarcado')
+          }} className={`min-h-[44px] rounded-xl text-xs font-bold active:scale-95 transition ${
+            Number(todayHabits.bjj?.value || 0) >= 1 ? 'bg-orange-600 text-white' : 'bg-white/5 border border-white/10 text-gray-400'
+          }`}>
+            🥋 {Number(todayHabits.bjj?.value || 0) >= 1 ? 'BJJ ✓ (tap para deshacer)' : 'Marcar BJJ'}
+          </button>
+        </div>
+
+        {/* Energy + undo */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-3 mb-2">
-          <span className="text-xs font-bold text-gray-300 block mb-2">⚡ Energía</span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gray-300">⚡ Energía</span>
+            {todayEnergy && (
+              <button onClick={() => { hapticMedium(); saveEnergy(null); showToast('↩ Borrado') }}
+                className="text-[9px] text-red-400 font-bold bg-red-500/10 px-2 py-0.5 rounded-full active:scale-95">↩</button>
+            )}
+          </div>
           <div className="flex gap-2">
             {ENERGY_LEVELS.map(e => (
               <button key={e.val} onClick={() => { hapticMedium(); saveEnergy(e.val); showToast('⚡') }}
@@ -264,7 +307,14 @@ export default function Activity() {
           <div className="bg-white/5 border border-green-500/20 rounded-2xl p-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-300">⚖️ Peso</span>
-              <span className="text-xs font-black text-green-400">{todayWeight} kg ✓</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-green-400">{todayWeight} kg ✓</span>
+                <button onClick={async () => {
+                  hapticMedium()
+                  await supabase.from('weight_logs').delete().eq('user_id', MATI_ID).eq('date', new Date().toISOString().slice(0, 10))
+                  setTodayWeight(null); showToast('↩ Peso borrado')
+                }} className="text-[9px] text-red-400 font-bold bg-red-500/10 px-2 py-0.5 rounded-full active:scale-95">↩</button>
+              </div>
             </div>
           </div>
         )}
