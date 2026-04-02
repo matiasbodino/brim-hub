@@ -1,5 +1,6 @@
 -- Run this in Supabase SQL Editor
 -- Tables for AI Insights Engine
+--
 
 CREATE TABLE IF NOT EXISTS user_insights (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

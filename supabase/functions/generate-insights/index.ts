@@ -297,7 +297,7 @@ Reglas:
 - En español argentino
 - Respondé SOLO con el JSON array, sin explicación adicional`,
       JSON.stringify(stats),
-      { maxTokens: 2000, temperature: 0.3, model: "claude-sonnet-4-5-20241022" }
+      { maxTokens: 2000, temperature: 0.3, model: "claude-sonnet-4-20250514" }
     );
 
     // Parse insights
@@ -336,7 +336,7 @@ Reglas:
 
 Sé específico con números. No seas genérico.`,
       `ESTADÍSTICAS (90 días):\n${JSON.stringify(stats, null, 2)}\n\nINSIGHTS GENERADOS:\n${JSON.stringify(insights, null, 2)}`,
-      { maxTokens: 1000, temperature: 0.5, model: "claude-sonnet-4-5-20241022" }
+      { maxTokens: 1000, temperature: 0.5, model: "claude-sonnet-4-20250514" }
     );
 
     // Get latest model version
