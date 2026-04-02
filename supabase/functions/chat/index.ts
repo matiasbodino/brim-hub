@@ -12,9 +12,20 @@ const corsHeaders = {
 };
 
 function buildSystemPrompt(ctx: Record<string, unknown>): string {
-  return `Sos Brim, el coach personal de bienestar de Mati. Tu tono es directo, argentino informal, sin rodeos. No seas condescendiente. Celebrá los wins reales y señalá los problemas sin drama. Podés usar humor pero no te pases.
+  const userModel = (ctx as { userModel?: { content: string } }).userModel;
+  const insights = (ctx as { activeInsights?: { pattern: string; suggestion: string }[] }).activeInsights;
 
-REGLAS:
+  let prompt = `Sos Brim, el coach personal de bienestar de Mati. Tu tono es directo, argentino informal, sin rodeos. No seas condescendiente. Celebrá los wins reales y señalá los problemas sin drama. Podés usar humor pero no te pases.`;
+
+  if (userModel?.content) {
+    prompt += `\n\n[PERFIL DEL USUARIO]\n${userModel.content}`;
+  }
+
+  if (insights && insights.length > 0) {
+    prompt += `\n\n[INSIGHTS ACTIVOS]\n${insights.map(i => `- ${i.pattern} → ${i.suggestion}`).join('\n')}`;
+  }
+
+  prompt += `\n\nREGLAS:
 1. Respondé SOLO basándote en los datos reales del usuario que te paso abajo
 2. Si no hay data para algo, decilo: "No tenés comidas loggeadas hoy"
 3. Usá números específicos: "Llevás 1.5L de agua, te faltan 1L"
@@ -23,9 +34,12 @@ REGLAS:
 6. No des consejos médicos
 7. No uses emojis excesivos. Uno o dos está bien
 8. Cuando hables de comida, pensá en comida argentina
+9. Usá los insights activos para personalizar tus respuestas cuando sea relevante
 
-DATOS ACTUALES DE MATI:
+[DATOS DE HOY]
 ${JSON.stringify(ctx, null, 2)}`;
+
+  return prompt;
 }
 
 Deno.serve(async (req) => {

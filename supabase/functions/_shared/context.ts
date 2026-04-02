@@ -184,6 +184,21 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
     steps: profile?.daily_steps_target ?? 10000,
   };
 
+  // Fetch user_model and active insights
+  const [userModelData, insightsData] = await Promise.all([
+    query("user_model", `select=model_content,model_version,generated_at&user_id=eq.${enc(userId)}&order=generated_at.desc&limit=1`) as Promise<{model_content:string;model_version:number;generated_at:string}[]>,
+    query("user_insights", `select=insight_type,insight_key,insight_value,confidence&user_id=eq.${enc(userId)}&active=eq.true&order=confidence.desc&limit=10`) as Promise<{insight_type:string;insight_key:string;insight_value:Record<string,string>;confidence:number}[]>,
+  ]);
+
+  const userModel = userModelData.length > 0 ? userModelData[0] : null;
+  const activeInsights = insightsData.map(i => ({
+    type: i.insight_type,
+    key: i.insight_key,
+    pattern: i.insight_value?.pattern ?? '',
+    suggestion: i.insight_value?.suggestion ?? '',
+    confidence: i.confidence,
+  }));
+
   return {
     today,
     habits: { last7days: habitsByDate, completionPct, streak },
@@ -197,5 +212,7 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
     points: { total: totalPoints, streak },
     cycle: { name: (cycle?.name as string) ?? null, week: cycleWeek, targets: cycleTargets },
     targets,
+    userModel: userModel ? { content: userModel.model_content, version: userModel.model_version, generatedAt: userModel.generated_at } : null,
+    activeInsights,
   };
 }

@@ -56,13 +56,15 @@ Deno.serve(async (req) => {
 
     // Fetch all data for the week
     const enc = encodeURIComponent;
-    const [habits, food, weight, points, energy, cycles] = await Promise.all([
+    const [habits, food, weight, points, energy, cycles, userModelData, insightsData] = await Promise.all([
       query("habit_logs", `select=date,habit_type,value,target,completion_type&user_id=eq.${enc(MATI_ID)}&date=gte.${enc(weekStart)}&date=lte.${enc(weekEnd)}&order=date.asc`),
       query("food_logs", `select=logged_at,calories,protein,carbs,fat&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(weekStart + "T00:00:00-03:00")}&logged_at=lte.${enc(weekEnd + "T23:59:59-03:00")}`),
       query("weight_logs", `select=date,weight&user_id=eq.${enc(MATI_ID)}&date=gte.${enc(weekStart)}&date=lte.${enc(weekEnd)}&order=date.asc`),
       query("points_log", `select=points,date&user_id=eq.${enc(MATI_ID)}&date=gte.${enc(weekStart)}&date=lte.${enc(weekEnd)}`),
       query("daily_logs", `select=date,energy_level&user_id=eq.${enc(MATI_ID)}&date=gte.${enc(weekStart)}&date=lte.${enc(weekEnd)}`),
       query("cycles", `select=*&user_id=eq.${enc(MATI_ID)}&status=eq.active&limit=1`),
+      query("user_model", `select=model_content&user_id=eq.${enc(MATI_ID)}&order=generated_at.desc&limit=1`),
+      query("user_insights", `select=insight_value,confidence&user_id=eq.${enc(MATI_ID)}&active=eq.true&order=confidence.desc&limit=10`),
     ]) as [
       {date:string;habit_type:string;value:number;target:number;completion_type:string}[],
       {logged_at:string;calories:number;protein:number;carbs:number;fat:number}[],
@@ -70,6 +72,8 @@ Deno.serve(async (req) => {
       {points:number;date:string}[],
       {date:string;energy_level:number}[],
       Record<string, unknown>[],
+      {model_content:string}[],
+      {insight_value:Record<string,string>;confidence:number}[],
     ];
 
     // Calculate KPIs
@@ -160,8 +164,21 @@ FORMATO:
 
 Máximo 150 palabras.`;
 
+    // Build enriched system prompt with user_model + insights
+    let systemPrompt = "Sos Brim, el coach personal de Mati. Hablás como un amigo argentino que entrena BJJ y sabe de nutrición. Sos directo, no condescendiente, y usás datos concretos. Tu estilo es entre coach de MMA y nutricionista deportivo.";
+
+    if (userModelData.length > 0 && userModelData[0].model_content) {
+      systemPrompt += `\n\n[PERFIL DEL USUARIO]\n${userModelData[0].model_content}`;
+    }
+    if (insightsData.length > 0) {
+      const insightLines = insightsData.map(i => `- ${i.insight_value?.pattern ?? ''}`).filter(l => l.length > 2);
+      if (insightLines.length > 0) {
+        systemPrompt += `\n\n[PATRONES CONOCIDOS]\n${insightLines.join('\n')}`;
+      }
+    }
+
     const digestContent = await callClaude(
-      "Sos Brim, el coach personal de Mati. Hablás como un amigo argentino que entrena BJJ y sabe de nutrición. Sos directo, no condescendiente, y usás datos concretos. Tu estilo es entre coach de MMA y nutricionista deportivo.",
+      systemPrompt,
       prompt,
       { maxTokens: 400, temperature: 0.7 }
     );
