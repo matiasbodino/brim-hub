@@ -61,7 +61,7 @@ export const useFoodStore = create(persist((set, get) => ({
 
   deleteLog: async (id) => {
     await supabase.from('food_logs').delete().eq('id', id)
-    set({ todayLogs: get().todayLogs.filter(l => l.id !== id) })
+    set({ todayLogs: get().todayLogs.filter(l => l.id !== id), _lastFetched: 0 })
     usePlanStore.getState().recalculate()
   },
 
@@ -165,8 +165,9 @@ export const useFoodStore = create(persist((set, get) => ({
     }
 
     track('food_logged', { method: 'ai', meal_type: estimate.meal_type })
-    set({ aiEstimate: null })
-    await get().fetchToday()
+    // Force reset so next parse works cleanly
+    set({ aiEstimate: null, aiLoading: false, aiError: null, _lastFetched: 0 })
+    await get().fetchToday() // bypass stale guard since we reset _lastFetched
     usePlanStore.getState().recalculate()
     return log
   },
@@ -200,7 +201,7 @@ export const useFoodStore = create(persist((set, get) => ({
       })
     }
 
-    set({ aiEstimate: null })
+    set({ aiEstimate: null, aiLoading: false, aiError: null, _lastFetched: 0 })
     await get().fetchToday()
     usePlanStore.getState().recalculate()
     return log
