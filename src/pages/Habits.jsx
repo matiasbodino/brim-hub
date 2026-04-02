@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useHabitStore } from '../stores/habitStore'
 import { usePointsStore } from '../stores/pointsStore'
 import { useFoodStore } from '../stores/foodStore'
@@ -385,14 +386,14 @@ function TodayFoodList({ logs, onDelete }) {
   )
 }
 
-function FoodSection({ onManualSubmit, store, targets }) {
+function FoodSection({ onManualSubmit, store, targets, prefill }) {
   const defaultMeal = useMemo(() => getMealTypeByHour(), [])
-  const [mode, setMode] = useState('ai') // 'ai' | 'manual'
-  const [aiText, setAiText] = useState('')
-  const [tipo, setTipo] = useState(defaultMeal)
-  const [desc, setDesc] = useState('')
-  const [kcal, setKcal] = useState('')
-  const [prot, setProt] = useState('')
+  const [mode, setMode] = useState(prefill ? 'manual' : 'ai')
+  const [aiText, setAiText] = useState(prefill?.description || '')
+  const [tipo, setTipo] = useState(prefill?.meal_type || defaultMeal)
+  const [desc, setDesc] = useState(prefill?.description || '')
+  const [kcal, setKcal] = useState(prefill?.calories ? String(prefill.calories) : '')
+  const [prot, setProt] = useState(prefill?.protein ? String(prefill.protein) : '')
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
   const [editing, setEditing] = useState(false)
@@ -653,8 +654,20 @@ export default function Habits() {
   const [expanded, setExpanded] = useState({})
   const [activeTab, setActiveTab] = useState('tracking')
   const showToast = useToast()
+  const location = useLocation()
+  const navigate = useNavigate()
 
   useEffect(() => { fetchToday(); fetchEnergy(); fetchFood() }, [])
+
+  // Handle prefill from Daily Plan
+  useEffect(() => {
+    const prefill = location.state?.prefill
+    if (prefill) {
+      setActiveTab('food')
+      // Clear navigation state so it doesn't persist
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.state?.prefill])
 
   const isHabitDone = (type) => {
     const val = Number(todayHabits[type]?.value || 0)
@@ -801,7 +814,7 @@ export default function Habits() {
         </div>
       ) : (
         <div className="space-y-4">
-          <FoodSection onManualSubmit={handleFood} store={foodStore} targets={targets} />
+          <FoodSection onManualSubmit={handleFood} store={foodStore} targets={targets} prefill={location.state?.prefill} />
         </div>
       )}
 
