@@ -72,7 +72,7 @@ function EnergyPicker({ current, onSelect }) {
 
   return (
     <div className="relative mb-4">
-      <div className="flex justify-between items-center bg-white p-4 rounded-3xl shadow-sm border border-gray-50">
+      <div className="flex justify-between items-center bg-white/5 backdrop-blur-sm p-4 rounded-3xl border border-white/10">
         {ENERGY_LEVELS.map((l) => (
           <button
             key={l.val}
@@ -130,11 +130,11 @@ function WeightCard() {
 
   if (todayWeight && !editing) {
     return (
-      <div className="bg-violet-50/80 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] cursor-pointer" onClick={() => setEditing(true)}>
+      <div className="bg-green-500/10 backdrop-blur-sm rounded-2xl p-4 border border-green-500/20 cursor-pointer" onClick={() => setEditing(true)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xl">⚖️</span>
-            <span className="font-semibold text-gray-800">Peso</span>
+            <span className="font-semibold text-gray-200">Peso</span>
           </div>
           <span className="text-violet-600 font-bold text-sm">{todayWeight} kg ✓</span>
         </div>
@@ -143,10 +143,10 @@ function WeightCard() {
   }
 
   return (
-    <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
+    <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-xl">⚖️</span>
-        <span className="font-semibold text-gray-800">Peso</span>
+        <span className="font-semibold text-gray-200">Peso</span>
       </div>
       <div className="flex gap-2">
         <input
@@ -178,13 +178,13 @@ function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, colla
   if (done && collapsed) {
     return (
       <div
-        className="bg-white/40 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/20 opacity-50 cursor-pointer transition-all shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)]"
+        className="bg-white/5 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/10 opacity-50 cursor-pointer transition-all"
         onClick={onToggle}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-lg">{emoji}</span>
-            <span className="font-semibold text-gray-800">{label}</span>
+            <span className="font-semibold text-gray-200">{label}</span>
             <span className="text-sm text-gray-500">— {value}{unit ? ' ' + unit : ''}</span>
           </div>
           <span className="text-violet-600 font-bold text-sm">✓ +{POINTS[type]}pts</span>
@@ -195,18 +195,18 @@ function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, colla
 
   return (
     <div
-      className={`rounded-2xl p-4 border transition-all ${done ? 'bg-white/40 backdrop-blur-sm border-white/20' : 'bg-white/80 backdrop-blur-md border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]'}`}
+      className={`rounded-2xl p-4 border transition-all ${done ? 'bg-white/5 border-white/10 opacity-50' : 'bg-white/5 backdrop-blur-sm border-white/10'}`}
       onClick={done ? onToggle : undefined}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-xl">{emoji}</span>
-          <span className="font-semibold text-gray-800">{label}</span>
+          <span className="font-semibold text-gray-200">{label}</span>
         </div>
         {done && <span className="text-violet-600 font-bold text-sm">✓ +{POINTS[type]}pts</span>}
       </div>
 
-      <div className="text-2xl font-bold text-gray-900 mb-1">
+      <div className="text-2xl font-bold text-white mb-1">
         {value} <span className="text-sm font-normal text-gray-400">/ {target} {unit}</span>
       </div>
 
@@ -388,13 +388,13 @@ function BJJFormContent({ onSubmit, onCancel }) {
           value={tecnicas}
           onChange={e => setTecnicas(e.target.value)}
           placeholder="Ej: Paso de guardia De La Riva, Armbar desde Close Guard..."
-          className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm focus:ring-2 focus:ring-indigo-100 min-h-[100px] resize-none"
+          className="w-full bg-gray-900 border-gray-800 rounded-2xl p-5 text-sm focus:ring-2 focus:ring-indigo-100 min-h-[100px] resize-none"
         />
       </div>
 
       <button
         onClick={handleSave}
-        className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-transform"
+        className="w-full bg-green-500 text-black py-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-transform"
       >
         ✅ Oss! Guardar Treino
       </button>
@@ -546,11 +546,36 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
     setEditing(false)
   }
 
+  // "Same as yesterday" — last meal logged
+  const lastMeal = todayLogs.length === 0 && store.todayLogs
+    ? null // will be populated from yesterday's logs if we had them
+    : null
+
   return (
     <div className="space-y-4">
-      {/* Macros del día - mini banner */}
+      {/* "Same as yesterday" quick-log */}
+      {todayLogs.length > 0 && todayLogs.length <= 2 && (() => {
+        const last = todayLogs[todayLogs.length - 1]
+        return (
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 border-l-4 border-l-blue-500 flex justify-between items-center">
+            <div>
+              <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-wider">Repetir última</h3>
+              <p className="text-sm text-white font-medium">{last.description}</p>
+              <p className="text-[10px] text-gray-500 italic">{last.calories} kcal · {last.protein}g prot</p>
+            </div>
+            <button
+              onClick={() => onManualSubmit({ ...last, id: undefined, logged_at: undefined })}
+              className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black active:scale-95 transition flex-shrink-0"
+            >
+              LOG
+            </button>
+          </div>
+        )
+      })()}
+
+      {/* Macros del día */}
       <div className="flex items-center justify-between px-1">
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-gray-400">
           Hoy: {macros.calories} kcal · {macros.protein}g prot
         </p>
         {targets.calories > 0 && macros.calories < targets.calories && (
@@ -561,16 +586,16 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
       </div>
 
       {/* Tabs AI / Manual */}
-      <div className="flex bg-slate-200/50 p-1 rounded-2xl">
+      <div className="flex bg-white/5 p-1 rounded-2xl">
         <button onClick={() => { setMode('ai'); setEditing(false) }}
           className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            mode === 'ai' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
+            mode === 'ai' ? 'bg-white/10 shadow-sm text-blue-400' : 'text-slate-500'
           }`}>
           ✨ Carga con AI
         </button>
         <button onClick={() => setMode('manual')}
           className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            mode === 'manual' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
+            mode === 'manual' ? 'bg-white/10 shadow-sm text-blue-400' : 'text-slate-500'
           }`}>
           ✏️ Manual
         </button>
@@ -589,7 +614,7 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
       {mode === 'ai' ? (
         <div className="space-y-4">
           {/* AI input card */}
-          <div className="bg-white/80 backdrop-blur-md p-5 rounded-[2rem] border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
+          <div className="bg-white/5 backdrop-blur-sm p-5 rounded-[2rem] border border-white/10">
             <div className="flex items-center gap-2 mb-4">
               <div className="p-2 bg-indigo-100 rounded-xl">
                 <span className="text-base">✨</span>
@@ -601,13 +626,13 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
               value={aiText}
               onChange={e => setAiText(e.target.value)}
               placeholder="Ej: Dos empanadas de carne y una coca zero..."
-              className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-100 min-h-[100px] transition-all resize-none"
+              className="w-full bg-gray-900 border-gray-800 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-100 min-h-[100px] transition-all resize-none"
             />
 
             <button
               onClick={handleAISend}
               disabled={!aiText.trim() || aiLoading}
-              className="w-full mt-4 bg-slate-900 text-white py-4 rounded-2xl font-bold active:scale-95 transition-all disabled:opacity-50"
+              className="w-full mt-4 bg-green-500 text-black py-4 rounded-2xl font-bold active:scale-95 transition-all disabled:opacity-50"
             >
               {aiLoading ? 'Calculando macros...' : 'Analizar comida'}
             </button>
@@ -727,45 +752,45 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
           })()}
         </div>
       ) : (
-        <div className="bg-white/80 backdrop-blur-md p-5 rounded-[2rem] border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] space-y-3">
+        <div className="bg-white/5 backdrop-blur-sm p-5 rounded-[2rem] border border-white/10 space-y-3">
           <input type="text" value={desc} onChange={e => setDesc(e.target.value)}
             placeholder="Qué comiste..."
-            className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-100 transition-all" />
+            className="w-full bg-gray-900 border-gray-800 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-100 transition-all" />
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase">Calorías</label>
               <input type="number" value={kcal} onChange={e => setKcal(e.target.value)}
                 placeholder="500"
-                className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
+                className="w-full bg-gray-900 border-gray-800 rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
             </div>
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase">Proteína (g)</label>
               <input type="number" value={prot} onChange={e => setProt(e.target.value)}
                 placeholder="30"
-                className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
+                className="w-full bg-gray-900 border-gray-800 rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
             </div>
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase">Carbos (g)</label>
               <input type="number" value={carbs} onChange={e => setCarbs(e.target.value)}
                 placeholder="50"
-                className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
+                className="w-full bg-gray-900 border-gray-800 rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
             </div>
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase">Grasa (g)</label>
               <input type="number" value={fat} onChange={e => setFat(e.target.value)}
                 placeholder="15"
-                className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
+                className="w-full bg-gray-900 border-gray-800 rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
             </div>
           </div>
           <button onClick={handleManualSubmit} disabled={!desc.trim() || !kcal}
-            className="w-full bg-slate-900 text-white py-3.5 rounded-2xl font-bold active:scale-95 transition-all disabled:opacity-50">
+            className="w-full bg-green-500 text-black py-3.5 rounded-2xl font-bold active:scale-95 transition-all disabled:opacity-50">
             Guardar comida
           </button>
         </div>
       )}
 
       {/* Today's food list */}
-      <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-5 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
+      <div className="bg-white/5 backdrop-blur-sm rounded-[2rem] p-5 border border-white/10">
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Comidas de hoy</p>
         <TodayFoodList logs={todayLogs} onDelete={deleteLog} />
       </div>
@@ -872,7 +897,7 @@ export default function Habits() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-violet-50/30 pb-32 pt-6 max-w-lg mx-auto px-4 space-y-6">
+    <div className="min-h-screen bg-[#0a0a0a] pb-32 pt-6 max-w-lg mx-auto px-4 space-y-6">
       {/* Estado Vital */}
       <section>
         <div className="flex justify-between items-center px-1 mb-3">
@@ -891,11 +916,11 @@ export default function Habits() {
       />
 
       {/* Tabs: Actividad / Nutrición */}
-      <div className="flex bg-slate-200/50 p-1 rounded-2xl">
+      <div className="flex bg-white/5 p-1 rounded-2xl">
         <button
           onClick={() => setActiveTab('tracking')}
           className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'tracking' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
+            activeTab === 'tracking' ? 'bg-white/10 shadow-sm text-blue-400' : 'text-slate-500'
           }`}
         >
           💪 Actividad
@@ -903,7 +928,7 @@ export default function Habits() {
         <button
           onClick={() => setActiveTab('food')}
           className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'food' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
+            activeTab === 'food' ? 'bg-white/10 shadow-sm text-blue-400' : 'text-slate-500'
           }`}
         >
           🍽 Nutrición
