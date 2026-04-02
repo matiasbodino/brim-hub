@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ToastProvider } from './components/Toast'
 import BottomNav from './components/BottomNav'
 import CommandBar from './components/ui/CommandBar'
+import SyncIndicator from './components/ui/SyncIndicator'
+import { useDailyReset } from './hooks/useDailyReset'
 import Dashboard from './pages/Dashboard'
 import Habits from './pages/Habits'
 import Permitidos from './pages/Permitidos'
@@ -14,6 +16,9 @@ import Workout from './pages/Workout'
 
 export default function App() {
   const [commandOpen, setCommandOpen] = useState(false)
+
+  // Daily reset: checks date change at midnight + on app resume
+  useDailyReset()
 
   // Listen for Cmd+K event from CommandBar
   useEffect(() => {
@@ -48,6 +53,9 @@ export default function App() {
 
           {/* Global Command Bar */}
           <CommandBar isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
+
+          {/* Sync indicator */}
+          <SyncIndicator />
         </div>
       </ToastProvider>
     </BrowserRouter>

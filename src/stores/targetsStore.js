@@ -1,8 +1,9 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { supabase } from '../lib/supabase'
 import { MATI_ID, TARGETS } from '../lib/constants'
 
-export const useTargetsStore = create((set, get) => ({
+export const useTargetsStore = create(persist((set, get) => ({
   targets: { ...TARGETS },
   loading: false,
   loaded: false,
@@ -56,4 +57,7 @@ export const useTargetsStore = create((set, get) => ({
     set({ targets: { ...newTargets } })
     return true
   },
+}), {
+  name: 'brim-targets',
+  partialize: (state) => ({ targets: state.targets }),
 }))

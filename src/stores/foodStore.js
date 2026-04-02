@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { MATI_ID } from '../lib/constants'
 import { track } from '../lib/analytics'
 import { usePlanStore } from './planStore'
+import { notifySync } from '../components/ui/SyncIndicator'
 
 const EDGE_URL = 'https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcnBxemFoYnRmYnh4dGFxZXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTExODMsImV4cCI6MjA5MDA2NzE4M30.f85JKwllPo1dLRvzFphPkLL8bEMts0IYjqCnTLDrA_c'
@@ -40,6 +41,7 @@ export const useFoodStore = create(persist((set, get) => ({
     set({ todayLogs: [...get().todayLogs, data] })
     track('food_logged', { method: 'manual', meal_type: log.meal_type })
     usePlanStore.getState().recalculate()
+    notifySync()
     return data
   },
 

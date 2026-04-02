@@ -286,7 +286,9 @@ export default function DailyPlan() {
             {isFatigued ? '🧘 Recuperación' : trainingLoad?.spike ? '🔴 Recovery Mode' : isEvening ? '📊 Resumen del día' : timeOfDay === 'midday' ? '⚡ Recálculo del día' : '🎯 Tu plan para hoy'}
           </h3>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-400">v{plan.plan_version}</span>
+            <span className="text-[10px] text-slate-400">
+              {new Date().toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}
+            </span>
             <span className={`text-slate-400 text-xs transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>▼</span>
           </div>
         </div>
