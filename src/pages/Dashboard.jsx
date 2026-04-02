@@ -78,6 +78,8 @@ export default function Dashboard() {
   const { todayEnergy, fetchToday: fetchEnergy } = useEnergyStore()
   const { activePlan: damagePlan, fetchActive: fetchDamage } = useDamageStore()
   const [showDamageForm, setShowDamageForm] = useState(false)
+  const [showFullPlan, setShowFullPlan] = useState(false)
+  const [showJournal, setShowJournal] = useState(false)
 
   // Background sync: rehydrate from Supabase, flush pending writes
   useSync()
@@ -377,10 +379,31 @@ export default function Dashboard() {
         ))}
       </section>
 
-      {/* ═══ DAILY PLAN (collapsible) ═══ */}
-      <div className="mb-4">
-        <DailyPlan />
-      </div>
+      {/* ═══ DAILY INSIGHT (2-line banner, tap to expand full plan) ═══ */}
+      {todayPlan ? (
+        <div className="mb-4">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 cursor-pointer flex items-center justify-between" onClick={() => setShowFullPlan(!showFullPlan)}>
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Daily Insight</p>
+                <p className="text-xs text-gray-300 line-clamp-2 mt-0.5 leading-snug">
+                  {todayPlan.morning_brief || todayPlan.midday_adjust || todayPlan.evening_wrap || commandLine}
+                </p>
+              </div>
+              <span className={`text-gray-600 text-xs ml-2 transition-transform duration-300 ${showFullPlan ? 'rotate-180' : ''}`}>▼</span>
+            </div>
+            {showFullPlan && (
+              <div className="px-4 pb-4 border-t border-white/5 animate-fade-in">
+                <DailyPlan />
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="mb-4">
+          <DailyPlan />
+        </div>
+      )}
 
       {/* Damage Control */}
       {(showDamageForm || damagePlan) ? (
@@ -420,11 +443,25 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Digest + Journal */}
-      <div className="space-y-3">
-        <WeeklyDigest />
-        <MicroJournal />
-      </div>
+      {/* Digest */}
+      <WeeklyDigest />
+
+      {/* Journal — night prompt or tap to open */}
+      {showJournal ? (
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">📝 Journal</p>
+            <button onClick={() => setShowJournal(false)} className="text-xs text-gray-600">✕</button>
+          </div>
+          <MicroJournal />
+        </div>
+      ) : new Date().getHours() >= 21 ? (
+        <button onClick={() => setShowJournal(true)}
+          className="w-full bg-white/5 backdrop-blur-sm border border-violet-500/20 rounded-2xl p-3 text-left active:bg-white/10 transition">
+          <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">📝 ¿Cómo fue tu día?</p>
+          <p className="text-xs text-gray-500 mt-0.5">Tocá para escribir una línea antes de dormir</p>
+        </button>
+      ) : null}
 
       {/* Coach AI floating pill */}
       {commandLine && commandLine !== 'Seguí así. Cada hábito suma.' && (
