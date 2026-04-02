@@ -12,7 +12,7 @@ const ACTIONS = [
   { id: 'steps', emoji: '🚶', label: 'Pasos', action: 'navigate', to: '/habits' },
   { id: 'journal', emoji: '📝', label: 'Nota', action: 'scroll', target: 'journal' },
   { id: 'damage', emoji: '🍖', label: 'Me pasé', action: 'damage' },
-  { id: 'spotlight', emoji: '⚡', label: 'Spotlight', action: 'spotlight' },
+  { id: 'breathe', emoji: '🧘', label: 'Respirar', action: 'navigate', to: '/breathe' },
 ]
 
 export default function QuickActions({ onOpenSpotlight, onOpenDamage }) {
