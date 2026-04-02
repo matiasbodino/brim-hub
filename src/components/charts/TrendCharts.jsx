@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react'
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { MATI_ID } from '../../lib/constants'
 
+const tooltipStyle = {
+  borderRadius: '1rem',
+  border: 'none',
+  boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+  fontSize: 12,
+}
+
 export function WeightChart({ data, targetWeight }) {
-  if (!data || data.length < 2) return <p className="text-sm text-gray-400">Necesitás al menos 2 registros de peso</p>
+  if (!data || data.length < 2) return <p className="text-sm text-slate-400">Necesitás al menos 2 registros de peso</p>
 
   const chartData = data.map(w => ({
     date: new Date(w.date + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }),
@@ -13,47 +20,64 @@ export function WeightChart({ data, targetWeight }) {
 
   return (
     <ResponsiveContainer width="100%" height={200}>
-      <LineChart data={chartData}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#999' }} />
-        <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: '#999' }} width={35} />
-        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-        <Line type="monotone" dataKey="peso" stroke="#7C3AED" strokeWidth={2} dot={{ fill: '#7C3AED', r: 3 }} />
-        {targetWeight && <ReferenceLine y={targetWeight} stroke="#E5E7EB" strokeDasharray="5 5" label={{ value: 'Target', fontSize: 10, fill: '#999' }} />}
-      </LineChart>
+      <AreaChart data={chartData}>
+        <defs>
+          <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+        <YAxis domain={['dataMin - 1', 'dataMax + 1']} tick={{ fontSize: 10, fill: '#94a3b8' }} width={35} axisLine={false} tickLine={false} />
+        <Tooltip contentStyle={tooltipStyle} labelStyle={{ fontWeight: 'bold' }} />
+        <Area type="monotone" dataKey="peso" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorWeight)" dot={{ fill: '#6366f1', r: 3, strokeWidth: 0 }} />
+        {targetWeight && <ReferenceLine y={targetWeight} stroke="#e2e8f0" strokeDasharray="5 5" label={{ value: 'Target', fontSize: 10, fill: '#94a3b8' }} />}
+      </AreaChart>
     </ResponsiveContainer>
   )
 }
 
 export function HabitWeeklyChart({ data }) {
-  if (!data || data.length === 0) return <p className="text-sm text-gray-400">Sin datos suficientes</p>
+  if (!data || data.length === 0) return <p className="text-sm text-slate-400">Sin datos suficientes</p>
 
   return (
     <ResponsiveContainer width="100%" height={200}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-        <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#999' }} />
-        <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#999' }} width={30} />
-        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v) => v + '%'} />
-        <Bar dataKey="pct" fill="#7C3AED" radius={[4, 4, 0, 0]} />
+        <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+        <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#94a3b8' }} width={30} axisLine={false} tickLine={false} />
+        <Tooltip contentStyle={tooltipStyle} formatter={(v) => v + '%'} />
+        <Bar dataKey="pct" radius={[8, 8, 0, 0]}>
+          {data.map((entry, i) => (
+            <rect key={i} fill={entry.pct >= 80 ? '#6366f1' : entry.pct >= 50 ? '#a78bfa' : '#e2e8f0'} />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   )
 }
 
 export function MacroChart({ data }) {
-  if (!data || data.length < 2) return <p className="text-sm text-gray-400">Necesitás al menos 2 días de comida loggeada</p>
+  if (!data || data.length < 2) return <p className="text-sm text-slate-400">Necesitás al menos 2 días de comida loggeada</p>
 
   return (
     <ResponsiveContainer width="100%" height={200}>
-      <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#999' }} />
-        <YAxis tick={{ fontSize: 10, fill: '#999' }} width={35} />
-        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-        <Line type="monotone" dataKey="calories" stroke="#7C3AED" strokeWidth={2} dot={false} name="kcal" />
-        <Line type="monotone" dataKey="protein" stroke="#3B82F6" strokeWidth={2} dot={false} name="prot (g)" />
-      </LineChart>
+      <AreaChart data={data}>
+        <defs>
+          <linearGradient id="colorCal" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="colorProt" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} width={35} axisLine={false} tickLine={false} />
+        <Tooltip contentStyle={tooltipStyle} />
+        <Area type="monotone" dataKey="calories" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCal)" name="kcal" dot={false} />
+        <Area type="monotone" dataKey="protein" stroke="#3b82f6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorProt)" name="prot (g)" dot={false} />
+      </AreaChart>
     </ResponsiveContainer>
   )
 }
@@ -99,7 +123,7 @@ export function useTrendData() {
     ;(habits || []).forEach(h => {
       const d = new Date(h.date + 'T12:00:00')
       const weekStart = new Date(d)
-      weekStart.setDate(d.getDate() - d.getDay() + 1) // Monday
+      weekStart.setDate(d.getDate() - d.getDay() + 1)
       const key = weekStart.toISOString().slice(0, 10)
       if (!weeks[key]) weeks[key] = { total: 0, full: 0 }
       weeks[key].total++

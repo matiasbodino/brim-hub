@@ -68,66 +68,76 @@ function CycleCard({ cycle, targets, weeklyStats, onComplete }) {
   const pct = Math.min(100, Math.round((elapsed / totalDays) * 100))
   const currentWeek = Math.min(4, Math.floor(elapsed / 7) + 1)
 
+  const getColor = (full, target) => {
+    if (!target) return 'bg-slate-100'
+    const p = (full / target) * 100
+    if (p >= 80) return 'bg-emerald-400'
+    if (p >= 50) return 'bg-amber-400'
+    return 'bg-red-400'
+  }
+
   return (
-    <div className="bg-white rounded-2xl p-4 border border-violet-200">
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="font-bold text-gray-900">{cycle.name}</h2>
-        <span className="text-xs text-violet-600 font-semibold">Semana {currentWeek}/4</span>
-      </div>
-      <div className="flex justify-between text-xs text-gray-400 mb-1">
-        <span>{new Date(cycle.started_at + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
-        <span>{new Date(cycle.ends_at + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
-      </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-4">
-        <div className="h-full rounded-full bg-violet-500" style={{ width: pct + '%' }} />
+    <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="font-black text-slate-800 tracking-tight">{cycle.name}</h3>
+        <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full uppercase">
+          Semana {currentWeek} de 4
+        </span>
       </div>
 
-      {/* Weekly traffic light grid: 4 columns (weeks) x N rows (habits) */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr>
-              <th className="text-left text-gray-400 font-medium pb-2 pr-2">Hábito</th>
-              {[1, 2, 3, 4].map(w => (
-                <th key={w} className={'text-center font-medium pb-2 ' + (w === currentWeek ? 'text-violet-600' : 'text-gray-400')}>
-                  S{w}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {HABITS.map(h => {
-              const t = targets.find(t => t.habit_type === h.type)
-              const wt = t ? t.weekly_target : 0
+      {/* Grid de semáforos */}
+      <div className="grid grid-cols-5 gap-2 text-center">
+        <div className="text-[8px] font-black text-slate-300 uppercase py-2">Hábito</div>
+        {[1, 2, 3, 4].map(w => (
+          <div key={w} className={`text-[8px] font-black uppercase py-2 ${w === currentWeek ? 'text-indigo-600' : 'text-slate-300'}`}>
+            Sem {w}
+          </div>
+        ))}
+
+        {HABITS.map(h => {
+          const t = targets.find(t => t.habit_type === h.type)
+          const wt = t ? t.weekly_target : 0
+          return [
+            <div key={h.type + '-label'} className="text-[10px] font-bold text-slate-500 text-left self-center">
+              {h.emoji} {h.label}
+            </div>,
+            ...weeklyStats.map((week, wi) => {
+              const s = week.habits[h.type]
+              const full = s ? s.full : 0
+              const isFuture = wi + 1 > currentWeek
               return (
-                <tr key={h.type}>
-                  <td className="py-1.5 pr-2 text-gray-600">{h.emoji} {h.label}</td>
-                  {weeklyStats.map((week, wi) => {
-                    const s = week.habits[h.type]
-                    const tl = getWeekTrafficLight(s ? s.full : 0, wt)
-                    const isFuture = wi + 1 > currentWeek
-                    return (
-                      <td key={wi} className="text-center py-1.5">
-                        {isFuture ? (
-                          <span className="text-gray-200">·</span>
-                        ) : (
-                          <div className="flex flex-col items-center">
-                            <span>{tl.text}</span>
-                            <span className="text-gray-400 mt-0.5">{s ? s.full : 0}/{wt}</span>
-                          </div>
-                        )}
-                      </td>
-                    )
-                  })}
-                </tr>
+                <div key={h.type + '-' + wi} className="flex flex-col items-center gap-0.5">
+                  <div className={`h-6 w-6 rounded-lg shadow-sm transition-all ${
+                    isFuture ? 'bg-slate-100' : getColor(full, wt)
+                  }`} />
+                  {!isFuture && wt > 0 && (
+                    <span className="text-[8px] text-slate-400">{full}/{wt}</span>
+                  )}
+                </div>
               )
-            })}
-          </tbody>
-        </table>
+            })
+          ]
+        })}
       </div>
+
+      {/* Barra de progreso del ciclo */}
+      <div className="mt-8 pt-6 border-t border-slate-50">
+        <div className="flex justify-between items-center mb-2">
+          <p className="text-[10px] font-black text-slate-400 uppercase">Progreso del ciclo</p>
+          <p className="text-[10px] font-bold text-indigo-600">{pct}%</p>
+        </div>
+        <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-full bg-indigo-600 rounded-full transition-all duration-1000" style={{ width: pct + '%' }} />
+        </div>
+        <div className="flex justify-between text-[10px] text-slate-400 mt-1.5">
+          <span>{new Date(cycle.started_at + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+          <span>{new Date(cycle.ends_at + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+        </div>
+      </div>
+
       <button
         onClick={onComplete}
-        className="w-full mt-4 py-2 text-xs text-gray-400 border border-gray-200 rounded-xl active:bg-gray-50 transition"
+        className="w-full mt-6 py-3 text-xs text-slate-400 font-bold border border-slate-200 rounded-2xl active:bg-slate-50 transition"
       >
         Cerrar ciclo
       </button>
