@@ -550,9 +550,9 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
           {/* AI Estimate - Premium card with portion size */}
           {aiEstimate && !aiLoading && (() => {
             const portionSizes = [
-              { label: 'Chico', val: 0.7, emoji: '☕' },
-              { label: 'Normal', val: 1.0, emoji: '🍽️' },
-              { label: 'XL', val: 1.4, emoji: '🏔️' },
+              { label: 'Chico (0.7x)', val: 0.7, emoji: '☕' },
+              { label: 'Normal (1.0x)', val: 1.0, emoji: '🍽️' },
+              { label: 'XL (1.3x)', val: 1.3, emoji: '🏔️' },
             ]
             const adjusted = {
               calories: Math.round(aiEstimate.calories * portionSize),
@@ -568,7 +568,10 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
               </div>
               <p className="text-sm font-medium text-indigo-100 mb-2">{aiEstimate.description}</p>
               {aiEstimate.query_adjustment && (
-                <p className="text-[10px] text-indigo-200 bg-white/10 rounded-xl px-3 py-1.5 mb-3">💡 {aiEstimate.query_adjustment}</p>
+                <div className="flex items-start gap-2 bg-white/10 rounded-xl px-3 py-2 mb-3">
+                  <span className="text-sm mt-0.5">ℹ️</span>
+                  <p className="text-[10px] text-indigo-200 leading-relaxed">{aiEstimate.query_adjustment}</p>
+                </div>
               )}
 
               {/* Portion size selector */}
