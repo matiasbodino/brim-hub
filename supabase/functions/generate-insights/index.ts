@@ -66,6 +66,8 @@ interface Stats {
   streakStats: { avgLength: number; maxLength: number; breakDays: Record<string, number> };
   loggingPatterns: { avgMealsPerDay: number; daysWithoutLogs: number; missingDays: string[] };
   energyByDayOfWeek: Record<string, number>;
+  energyVsProtein: { highProteinDays: { avgEnergy: number; count: number }; lowProteinDays: { avgEnergy: number; count: number }; correlation: string };
+  weightVsCalories: { weightGoingUp: boolean; caloriesOnTarget: boolean; suspectedUnderreport: boolean; avgLoggedCal: number; weightDelta: number; details: string } | null;
   totalActiveDays: number;
   totalDaysInRange: number;
 }
@@ -235,6 +237,65 @@ function calculateStats(
     energyByDayOfWeek[day] = Math.round(v.total / v.count * 10) / 10;
   }
 
+  // ── energyVsProtein — do high-protein days have higher perceived energy? ──
+  const foodByDate: Record<string, { calories: number; protein: number }> = {};
+  for (const f of food) {
+    const d = f.logged_at.slice(0, 10);
+    if (!foodByDate[d]) foodByDate[d] = { calories: 0, protein: 0 };
+    foodByDate[d].calories += f.calories || 0;
+    foodByDate[d].protein += Number(f.protein || 0);
+  }
+
+  const proteinThreshold = 100; // grams
+  const highProtDays: number[] = [];
+  const lowProtDays: number[] = [];
+  for (const e of energy) {
+    const dayFood = foodByDate[e.date];
+    if (!dayFood) continue;
+    if (dayFood.protein >= proteinThreshold) {
+      highProtDays.push(e.energy_level);
+    } else {
+      lowProtDays.push(e.energy_level);
+    }
+  }
+  const avgHighProt = highProtDays.length > 0 ? Math.round(highProtDays.reduce((a, v) => a + v, 0) / highProtDays.length * 10) / 10 : 0;
+  const avgLowProt = lowProtDays.length > 0 ? Math.round(lowProtDays.reduce((a, v) => a + v, 0) / lowProtDays.length * 10) / 10 : 0;
+  const protCorrelation = highProtDays.length >= 3 && lowProtDays.length >= 3
+    ? (avgHighProt > avgLowProt + 0.5 ? 'positive' : avgLowProt > avgHighProt + 0.5 ? 'negative' : 'neutral')
+    : 'insufficient_data';
+
+  const energyVsProtein = {
+    highProteinDays: { avgEnergy: avgHighProt, count: highProtDays.length },
+    lowProteinDays: { avgEnergy: avgLowProt, count: lowProtDays.length },
+    correlation: protCorrelation,
+  };
+
+  // ── weightVsCalories — is weight going up while logged calories look on-target? ──
+  let weightVsCalories: Stats['weightVsCalories'] = null;
+  const sortedWeights = [...weights].sort((a, b) => a.date.localeCompare(b.date));
+  if (sortedWeights.length >= 3 && Object.keys(foodByDate).length >= 7) {
+    const recentWeights = sortedWeights.slice(-5);
+    const wDelta = recentWeights[recentWeights.length - 1].weight - recentWeights[0].weight;
+    const weightGoingUp = wDelta > 0.3; // more than 300g up
+
+    const foodDaysArr = Object.values(foodByDate);
+    const avgLoggedCal = foodDaysArr.length > 0 ? Math.round(foodDaysArr.reduce((a, d) => a + d.calories, 0) / foodDaysArr.length) : 0;
+    const caloriesOnTarget = avgLoggedCal <= 2200 && avgLoggedCal >= 1600; // within reasonable range
+
+    const suspectedUnderreport = weightGoingUp && caloriesOnTarget;
+
+    let details: string;
+    if (suspectedUnderreport) {
+      details = `Peso subió ${wDelta.toFixed(1)}kg pero las calorías loggeadas promedian ${avgLoggedCal} kcal/día (dentro del target). Posible subestimación de porciones o aderezos no loggeados.`;
+    } else if (weightGoingUp && !caloriesOnTarget) {
+      details = `Peso subió ${wDelta.toFixed(1)}kg y las calorías promedian ${avgLoggedCal} kcal/día — el exceso calórico explica la suba.`;
+    } else {
+      details = `Peso ${wDelta >= 0 ? 'estable' : 'bajando'} (${wDelta.toFixed(1)}kg), calorías promedio ${avgLoggedCal} kcal/día.`;
+    }
+
+    weightVsCalories = { weightGoingUp, caloriesOnTarget, suspectedUnderreport, avgLoggedCal, weightDelta: Number(wDelta.toFixed(1)), details };
+  }
+
   return {
     habitsByDayOfWeek: habitsByDow,
     habitsByEnergyLevel: habitsByEnergy,
@@ -244,6 +305,8 @@ function calculateStats(
     streakStats: { avgLength, maxLength, breakDays },
     loggingPatterns: { avgMealsPerDay, daysWithoutLogs: missingDays.length, missingDays: missingDays.slice(-10) },
     energyByDayOfWeek,
+    energyVsProtein,
+    weightVsCalories,
     totalActiveDays: activeDatesSet.size,
     totalDaysInRange,
   };
@@ -292,7 +355,12 @@ Reglas:
 - Solo insights con evidencia real (no inventes patrones)
 - Mínimo 5 ocurrencias para considerar un patrón válido
 - Las sugerencias deben ser específicas al usuario, no genéricas
-- Buscar: correlaciones entre variables, patrones temporales, preferencias alimentarias reales, tendencias de peso, qué motiva/desmotiva
+- PRIORIZAR estos análisis:
+  1. energyVsProtein: si hay correlación positiva, generar insight tipo 'correlation' con key 'high_protein_boosts_energy'
+  2. weightVsCalories: si suspectedUnderreport=true, generar insight tipo 'trend' con key 'calorie_underreporting_suspected' — ser directo: "Los números dicen que estás en target pero el peso sube; revisemos las porciones"
+  3. Correlaciones energía ↔ hábitos por energyLevel (habitsByEnergyLevel)
+  4. Patrones temporales (qué día rinde más, qué día rompe racha)
+  5. Preferencias alimentarias reales (topFoods)
 - Máximo 15 insights
 - En español argentino
 - Respondé SOLO con el JSON array, sin explicación adicional`,
