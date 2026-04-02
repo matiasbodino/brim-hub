@@ -1,3 +1,5 @@
+import { getTodayBurn } from '../../lib/activeBurn'
+
 // Vitality Score = Hydration 25% + Nutrition 25% + Movement 30% + Energy 20%
 
 function calculateVitality({ todayHabits, macros, targets, todayEnergy }) {
@@ -80,8 +82,73 @@ export default function VitalityRing({ todayHabits, macros, targets, todayEnergy
       {/* Brim message */}
       <p className="text-xs text-slate-500 text-center italic max-w-[280px] mb-4">"{msg}"</p>
 
+      {/* Calorie Ring — consumed vs dynamic target */}
+      {(() => {
+        const burn = getTodayBurn(todayHabits)
+        const baseTarget = targets.calories || 2100
+        const dynamicTarget = baseTarget + burn.total
+        const consumed = macros.calories || 0
+        const remaining = Math.max(0, dynamicTarget - consumed)
+        const calPct = dynamicTarget > 0 ? Math.min(100, Math.round((consumed / dynamicTarget) * 100)) : 0
+        const burnPct = dynamicTarget > 0 ? Math.round((burn.total / dynamicTarget) * 100) : 0
+
+        const r = 40
+        const circ = 2 * Math.PI * r
+        const consumedOffset = circ - (calPct / 100) * circ
+        // Bonus zone: the portion of the ring that represents burn calories
+        const bonusStart = baseTarget / dynamicTarget * 100
+        const bonusOffset = circ - (bonusStart / 100) * circ
+
+        const ringColor = calPct > 100 ? '#ef4444' : calPct > 85 ? '#f59e0b' : '#6366f1'
+
+        return (
+          <div className="mt-4 pt-3 border-t border-white/10">
+            <div className="flex items-center gap-4">
+              {/* Mini calorie ring */}
+              <div className="relative w-24 h-24 flex-shrink-0">
+                <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                  {/* Base track */}
+                  <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="7" />
+                  {/* Burn bonus zone (lighter shade) */}
+                  {burn.total > 0 && (
+                    <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(16,185,129,0.3)" strokeWidth="7"
+                      strokeDasharray={circ} strokeDashoffset={bonusOffset} strokeLinecap="round" />
+                  )}
+                  {/* Consumed */}
+                  <circle cx="50" cy="50" r={r} fill="none" stroke={ringColor} strokeWidth="7"
+                    strokeDasharray={circ} strokeDashoffset={consumedOffset}
+                    strokeLinecap="round" className="transition-all duration-1000" />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-sm font-black" style={{ color: ringColor }}>{remaining}</span>
+                  <span className="text-[7px] font-bold opacity-50 uppercase">kcal left</span>
+                </div>
+              </div>
+
+              {/* Text */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold opacity-80">
+                  {consumed} / {dynamicTarget} kcal
+                </p>
+                <p className="text-[10px] opacity-50 mt-0.5">
+                  {remaining > 0
+                    ? `Te quedan ${remaining} kcal para tu déficit ideal`
+                    : `Pasaste el target por ${consumed - dynamicTarget} kcal`
+                  }
+                </p>
+                {burn.total > 0 && (
+                  <p className="text-[10px] opacity-40 mt-1">
+                    🔥 +{burn.total} kcal extras por entrenamiento
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Mini breakdown */}
-      <div className="flex gap-4 text-center">
+      <div className="flex gap-4 text-center mt-3 pt-3 border-t border-white/10">
         {[
           { label: 'Agua', val: v.hydration, emoji: '💧' },
           { label: 'Nutri', val: v.nutrition, emoji: '🍽' },
