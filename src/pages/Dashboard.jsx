@@ -11,33 +11,41 @@ import WeeklyDigest from '../components/digest/WeeklyDigest'
 import MicroJournal from '../components/journal/MicroJournal'
 import { track } from '../lib/analytics'
 
-function MacroBar({ label, current, target, color }) {
+function MacroRing({ label, current, target, color, textColor }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
   return (
-    <div className="flex-1">
-      <div className="flex justify-between text-xs mb-1">
-        <span className="text-gray-500">{label}</span>
-        <span className="font-semibold text-gray-700">{current}/{target}</span>
+    <div className="flex-1 text-center">
+      <div className="relative w-14 h-14 mx-auto mb-1">
+        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+          <circle cx="18" cy="18" r="15.5" fill="none" stroke="#f1f5f9" strokeWidth="3" />
+          <circle cx="18" cy="18" r="15.5" fill="none" stroke={color} strokeWidth="3"
+            strokeDasharray={`${pct} 100`} strokeLinecap="round" className="transition-all duration-1000" />
+        </svg>
+        <span className={`absolute inset-0 flex items-center justify-center text-xs font-bold ${textColor}`}>{pct}%</span>
       </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: pct + '%' }} />
-      </div>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{label}</p>
+      <p className="text-xs font-semibold text-slate-600">{current}/{target}</p>
     </div>
   )
 }
 
-function HabitCheck({ label, done, emoji, cue, identity }) {
+function HabitRow({ label, done, emoji, cue, identity }) {
   return (
-    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${done ? 'bg-violet-50 border-violet-200' : 'bg-gray-50 border-gray-200'}`}>
-      <span className="text-lg">{emoji}</span>
+    <div className={`flex items-center p-4 rounded-3xl border transition-all duration-300 ${
+      done
+        ? 'bg-slate-100 border-transparent opacity-60 scale-[0.98]'
+        : 'bg-white border-slate-100 shadow-sm'
+    }`}>
+      <span className="text-3xl mr-4">{emoji}</span>
       <div className="flex-1 min-w-0">
-        <span className={`text-sm font-medium ${done ? 'text-violet-700' : 'text-gray-400'}`}>{label}</span>
-        {done
-          ? <div className="text-xs text-violet-400 mt-0.5 truncate">{identity}</div>
-          : <div className="text-xs text-zinc-400 mt-0.5 truncate">{cue}</div>
-        }
+        <h4 className="font-bold text-slate-800 leading-tight">{label}</h4>
+        <p className="text-[10px] text-slate-400 font-medium truncate">
+          {done ? identity : cue}
+        </p>
       </div>
-      {done && <span className="ml-auto text-violet-600 text-sm font-bold flex-shrink-0">✓</span>}
+      {done && (
+        <span className="ml-auto w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold flex-shrink-0">✓</span>
+      )}
     </div>
   )
 }
@@ -86,16 +94,17 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="px-4 py-5 pb-24 space-y-4">
+    <div className="min-h-screen bg-slate-50 pb-28 px-4 pt-6 max-w-lg mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <header className="flex justify-between items-end mb-8 px-1">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Hoy</h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Brim Hub</p>
+          <h1 className="text-3xl font-bold text-slate-900">Hola, Mati</h1>
+          <p className="text-xs text-slate-400 mt-0.5">
             {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <ShareButton cardProps={{
             score,
             streak,
@@ -112,15 +121,15 @@ export default function Dashboard() {
           }} />
           <div className="text-right">
             <div className="text-2xl">{level.badge}</div>
-            <div className="text-xs text-gray-500">{level.name}</div>
+            <div className="text-[10px] text-slate-400 font-medium">{level.name}</div>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Sunday check-in banner */}
       {isSunday && (
-        <Link to="/checkin">
-          <div className="bg-violet-950 border border-violet-700 rounded-2xl p-4 flex items-center justify-between">
+        <Link to="/checkin" className="block mb-6">
+          <div className="bg-violet-950 border border-violet-700 rounded-3xl p-5 flex items-center justify-between">
             <div>
               <p className="text-violet-300 text-sm font-medium">Domingo 📋</p>
               <p className="text-white font-semibold">Hacé tu check-in semanal</p>
@@ -131,10 +140,71 @@ export default function Dashboard() {
         </Link>
       )}
 
+      {/* Bento Grid de Stats */}
+      <div className="grid grid-cols-2 gap-4 mb-8">
+        {/* Card Principal: Score */}
+        <div className="col-span-2 bg-indigo-600 rounded-[2.5rem] p-6 text-white shadow-xl shadow-indigo-200 relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-1">Daily Completion</p>
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-6xl font-black">{score}%</h2>
+              <span className="text-2xl">🏆</span>
+            </div>
+            <div className="mt-4 flex items-center gap-2">
+              <div className="h-2 flex-1 bg-indigo-400/30 rounded-full overflow-hidden">
+                <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${score}%` }} />
+              </div>
+              <span className="text-xs text-indigo-200 font-semibold">{completedHabits}/{HABITS.length}</span>
+            </div>
+          </div>
+          <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+        </div>
+
+        {/* Card de Créditos */}
+        <Link to="/permitidos" className="block">
+          <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-[2rem] p-5 text-white shadow-lg shadow-orange-100 h-full">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-lg">💰</span>
+              <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-full uppercase">Balance</span>
+            </div>
+            <p className="text-3xl font-black">{balance}</p>
+            <p className="text-[10px] opacity-90 mt-1 font-medium">créditos disponibles</p>
+          </div>
+        </Link>
+
+        {/* Card de Racha */}
+        <div className="bg-gradient-to-br from-emerald-400 to-teal-600 rounded-[2rem] p-5 text-white shadow-lg shadow-emerald-100">
+          <div className="flex justify-between items-start mb-2">
+            <span className="text-lg">🔥</span>
+            <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-full uppercase">Streak</span>
+          </div>
+          <p className="text-3xl font-black">{streak} días</p>
+          <p className="text-[10px] opacity-90 mt-1 font-medium">Never miss twice!</p>
+        </div>
+      </div>
+
+      {/* Level progress */}
+      {nextLevel && (
+        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm mb-6">
+          <div className="flex justify-between text-xs mb-2">
+            <span className="text-slate-400 font-medium">{level.badge} {level.name}</span>
+            <span className="font-bold text-slate-600">{totalPoints} / {nextLevel.min} pts</span>
+          </div>
+          <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-1000" style={{
+              width: Math.min(100, Math.round(((totalPoints - level.min) / (nextLevel.min - level.min)) * 100)) + '%'
+            }} />
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1.5 text-right">
+            {nextLevel.badge} {nextLevel.name} en {nextLevel.min - totalPoints} pts
+          </p>
+        </div>
+      )}
+
       {/* Active cycle card */}
       {activeCycle && currentWeekStats && (
-        <Link to="/progress">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4">
+        <Link to="/progress" className="block mb-6">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-5">
             <div className="flex justify-between items-center mb-3">
               <div>
                 <p className="text-xs text-zinc-500 uppercase tracking-widest">
@@ -165,80 +235,54 @@ export default function Dashboard() {
         </Link>
       )}
 
-      {/* Score + Points + Streak */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-violet-600 rounded-2xl p-4 text-center text-white">
-          <div className="text-2xl font-bold">{score}%</div>
-          <div className="text-xs text-violet-200">score</div>
-        </div>
-        <div className="bg-amber-500 rounded-2xl p-4 text-center text-white">
-          <div className="text-2xl font-bold">{balance}</div>
-          <div className="text-xs text-amber-100">créditos</div>
-        </div>
-        <div className="bg-emerald-500 rounded-2xl p-4 text-center text-white">
-          <div className="text-2xl font-bold">{streak}</div>
-          <div className="text-xs text-emerald-100">racha 🔥</div>
-        </div>
-      </div>
-
-      {/* Level progress */}
-      {nextLevel && (
-        <div className="bg-white rounded-2xl p-4 border border-gray-100">
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-gray-500">{level.badge} → {nextLevel.badge}</span>
-            <span className="font-semibold text-gray-700">{totalPoints} / {nextLevel.min} pts</span>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full rounded-full bg-violet-400" style={{
-              width: Math.min(100, Math.round(((totalPoints - level.min) / (nextLevel.min - level.min)) * 100)) + '%'
-            }} />
-          </div>
-        </div>
-      )}
-
       {/* Weekly Digest */}
       <WeeklyDigest />
 
-      {/* Macros */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-3">
-        <h2 className="text-sm font-semibold text-gray-700">Macros del día</h2>
-        <MacroBar label="Calorías" current={macros.calories} target={targets.calories} color="bg-violet-500" />
-        <MacroBar label="Proteína" current={Math.round(macros.protein)} target={targets.protein} color="bg-blue-500" />
-        <MacroBar label="Carbs" current={Math.round(macros.carbs)} target={targets.carbs} color="bg-amber-500" />
-        <MacroBar label="Grasa" current={Math.round(macros.fat)} target={targets.fat} color="bg-red-400" />
+      {/* Macros - Ring Style */}
+      <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm mt-6 mb-6">
+        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 px-1">Macros del día</h2>
+        <div className="flex gap-2">
+          <MacroRing label="Kcal" current={macros.calories} target={targets.calories} color="#8b5cf6" textColor="text-violet-600" />
+          <MacroRing label="Prot" current={Math.round(macros.protein)} target={targets.protein} color="#3b82f6" textColor="text-blue-600" />
+          <MacroRing label="Carbs" current={Math.round(macros.carbs)} target={targets.carbs} color="#f59e0b" textColor="text-amber-600" />
+          <MacroRing label="Grasa" current={Math.round(macros.fat)} target={targets.fat} color="#ef4444" textColor="text-red-500" />
+        </div>
       </div>
 
+      {/* Micro-Journal */}
       <MicroJournal />
 
       {/* Habits */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-2">
-        <h2 className="text-sm font-semibold text-gray-700 mb-2">Hábitos</h2>
-        {HABITS.map(h => (
-          <HabitCheck
-            key={h.type}
-            label={h.label}
-            emoji={h.emoji}
-            cue={h.cue}
-            identity={h.identity}
-            done={todayHabits[h.type] && Number(todayHabits[h.type].value) >= h.target}
-          />
-        ))}
-      </div>
+      <section className="mt-6 space-y-4">
+        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Hábitos de Hoy</h3>
+        <div className="grid gap-3">
+          {HABITS.map(h => (
+            <HabitRow
+              key={h.type}
+              label={h.label}
+              emoji={h.emoji}
+              cue={h.cue}
+              identity={h.identity}
+              done={todayHabits[h.type] && Number(todayHabits[h.type].value) >= h.target}
+            />
+          ))}
+        </div>
+      </section>
 
       {/* Food logs */}
       {todayLogs.length > 0 && (
-        <div className="bg-white rounded-2xl p-4 border border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-700 mb-2">Comidas de hoy</h2>
-          <div className="space-y-2">
+        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm mt-6">
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Comidas de hoy</h2>
+          <div className="space-y-1">
             {todayLogs.map(log => (
-              <div key={log.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+              <div key={log.id} className="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-700 truncate">{log.description}</p>
-                  <p className="text-xs text-gray-400">{log.meal_type} · {log.calories} kcal · {log.protein}g prot</p>
+                  <p className="text-sm font-medium text-slate-700 truncate">{log.description}</p>
+                  <p className="text-xs text-slate-400">{log.meal_type} · {log.calories} kcal · {log.protein}g prot</p>
                 </div>
                 <button
                   onClick={() => { if (confirm('¿Borrar "' + log.description + '"?')) deleteLog(log.id) }}
-                  className="ml-2 text-gray-300 hover:text-red-400 text-sm flex-shrink-0 p-1"
+                  className="ml-2 text-slate-300 hover:text-red-400 text-sm flex-shrink-0 p-1.5 rounded-xl hover:bg-red-50 transition-colors"
                 >
                   ✕
                 </button>

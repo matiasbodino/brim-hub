@@ -11,13 +11,13 @@ import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import BottomSheet from '../components/ui/BottomSheet'
 
-const ENERGY_LABELS = {
-  1: { emoji: '😴', label: 'Sin energía' },
-  2: { emoji: '😕', label: 'Flojo' },
-  3: { emoji: '😐', label: 'Normal' },
-  4: { emoji: '😊', label: 'Bien' },
-  5: { emoji: '🔥', label: 'En llamas' },
-}
+const ENERGY_LEVELS = [
+  { val: 1, emoji: '😴', color: 'bg-red-100 text-red-600', label: 'Agotado' },
+  { val: 2, emoji: '😕', color: 'bg-orange-100 text-orange-600', label: 'Bajo' },
+  { val: 3, emoji: '😐', color: 'bg-yellow-100 text-yellow-600', label: 'Ok' },
+  { val: 4, emoji: '😊', color: 'bg-green-100 text-green-600', label: 'Bien' },
+  { val: 5, emoji: '🔥', color: 'bg-emerald-100 text-emerald-600', label: 'Explosivo' },
+]
 
 const MEAL_EMOJIS = {
   desayuno: '☕',
@@ -62,40 +62,31 @@ function ProgressDots({ todayHabits, todayEnergy, todayFoodLogs, targets }) {
 function EnergyPicker({ current, onSelect }) {
   const [toast, setToast] = useState(false)
 
-  const handleSelect = (level) => {
-    onSelect(level)
+  const handleSelect = (val) => {
+    if (window.navigator.vibrate) window.navigator.vibrate(15)
+    onSelect(val)
     setToast(true)
     setTimeout(() => setToast(false), 1500)
   }
 
   return (
-    <div className="bg-zinc-900 rounded-2xl p-4 mb-4 relative">
-      <p className="text-xs text-zinc-500 uppercase tracking-widest mb-3">
-        Energía de hoy
-      </p>
-      <div className="flex justify-between">
-        {[1, 2, 3, 4, 5].map(level => (
+    <div className="relative mb-4">
+      <div className="flex justify-between items-center bg-white p-4 rounded-3xl shadow-sm border border-gray-50">
+        {ENERGY_LEVELS.map((l) => (
           <button
-            key={level}
-            onClick={() => handleSelect(level)}
-            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${
-              current === level
-                ? 'bg-purple-100 text-white scale-125'
-                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+            key={l.val}
+            onClick={() => handleSelect(l.val)}
+            className={`flex flex-col items-center p-2 rounded-2xl transition-all duration-300 ${
+              current === l.val ? `${l.color} scale-110 shadow-md` : 'opacity-40 grayscale'
             }`}
           >
-            <span className="text-xl">{ENERGY_LABELS[level].emoji}</span>
-            <span className="text-xs">{level}</span>
+            <span className="text-2xl">{l.emoji}</span>
+            <span className="text-[10px] font-bold mt-1 uppercase tracking-tighter">{l.label}</span>
           </button>
         ))}
       </div>
-      {current && (
-        <p className="text-center text-zinc-400 text-sm mt-3">
-          {ENERGY_LABELS[current].label}
-        </p>
-      )}
       {toast && (
-        <div className="absolute top-3 right-4 text-xs text-green-400 font-medium animate-pulse">
+        <div className="absolute -bottom-6 left-0 right-0 text-center text-xs text-green-500 font-medium animate-pulse">
           Energía guardada ✓
         </div>
       )}
@@ -512,6 +503,8 @@ function FoodSection({ onManualSubmit, store, targets }) {
                 onEdit={handleEdit}
                 onRetry={handleRetry}
                 onCancel={clearAIEstimate}
+                currentMacros={macros}
+                targets={targets}
               />
             )}
           </>
@@ -563,7 +556,31 @@ function FoodSection({ onManualSubmit, store, targets }) {
   )
 }
 
-function FoodEstimateCardInline({ estimate, onConfirm, onEdit, onRetry, onCancel }) {
+function ImpactSummary({ estimate, currentMacros, targets }) {
+  if (!targets.calories || targets.calories <= 0) return null
+  const newTotal = currentMacros.calories + estimate.calories
+  const percentage = Math.round((newTotal / targets.calories) * 100)
+
+  return (
+    <div className="mt-3 p-3 bg-violet-50 rounded-xl border border-violet-100">
+      <div className="flex justify-between text-xs font-bold text-violet-700 uppercase mb-1">
+        <span>Impacto en tu día</span>
+        <span>{percentage}% de tu target</span>
+      </div>
+      <div className="w-full bg-violet-200 h-1.5 rounded-full overflow-hidden">
+        <div
+          className="bg-violet-600 h-full transition-all duration-1000"
+          style={{ width: `${Math.min(percentage, 100)}%` }}
+        />
+      </div>
+      <p className="text-[10px] text-violet-500 mt-2 italic">
+        Con esto quedarías en {newTotal} / {targets.calories} kcal
+      </p>
+    </div>
+  )
+}
+
+function FoodEstimateCardInline({ estimate, onConfirm, onEdit, onRetry, onCancel, currentMacros, targets }) {
   const [showBreakdown, setShowBreakdown] = useState(false)
   const conf = { high: '🟢', medium: '🟡', low: '🔴' }
 
@@ -612,7 +629,12 @@ function FoodEstimateCardInline({ estimate, onConfirm, onEdit, onRetry, onCancel
           )}
         </div>
       )}
-      <div className="flex gap-2 px-3 py-2 border-t border-gray-100">
+      {currentMacros && targets && (
+        <div className="px-3">
+          <ImpactSummary estimate={estimate} currentMacros={currentMacros} targets={targets} />
+        </div>
+      )}
+      <div className="flex gap-2 px-3 py-2 border-t border-gray-100 mt-2">
         <button onClick={onConfirm}
           className="flex-1 py-2 text-sm font-semibold rounded-xl bg-violet-600 text-white active:scale-95">✅ Confirmar</button>
         <button onClick={onEdit}

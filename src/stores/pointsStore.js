@@ -37,14 +37,14 @@ export const usePointsStore = create((set, get) => ({
     get().calcHabitStreaks()
   },
 
-  // Calculate consecutive days: valid = 1+ full OR 2+ partials ("never miss twice")
+  // "Never Miss Twice" streak: 1 missed day is forgiven, 2+ consecutive misses break the streak
   calcStreak: async () => {
     const { data } = await supabase
       .from('habit_logs')
       .select('date, value, target, completion_type')
       .eq('user_id', MATI_ID)
       .order('date', { ascending: false })
-      .limit(100)
+      .limit(200)
     if (!data || data.length === 0) return 0
 
     const byDate = {}
@@ -55,20 +55,19 @@ export const usePointsStore = create((set, get) => ({
     })
 
     let streak = 0
+    let missedDays = 0
     const d = new Date()
     d.setHours(0, 0, 0, 0)
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 200; i++) {
       const key = d.toISOString().slice(0, 10)
       const day = byDate[key]
-      const isValidDay = day && (
-        day.full_count >= HABITS.length ||
-        day.full_count >= 1 ||
-        day.partial_count >= 2
-      )
+      const isValidDay = day && (day.full_count >= 1 || day.partial_count >= 2)
       if (isValidDay) {
         streak++
-      } else if (i > 0) {
-        break
+        missedDays = 0
+      } else {
+        missedDays++
+        if (missedDays >= 2) break // Never miss twice: 2 consecutive misses end the streak
       }
       d.setDate(d.getDate() - 1)
     }
