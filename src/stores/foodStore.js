@@ -16,8 +16,11 @@ export const useFoodStore = create(persist((set, get) => ({
   aiLoading: false,
   aiError: null,
 
+  _lastFetched: 0,
+
   fetchToday: async () => {
-    set({ loading: true })
+    if (Date.now() - get()._lastFetched < 30000) return // stale-while-revalidate: 30s
+    set({ loading: true, _lastFetched: Date.now() })
     const today = new Date().toISOString().slice(0, 10)
     const start = new Date(today + 'T00:00:00-03:00').toISOString()
     const end = new Date(today + 'T23:59:59-03:00').toISOString()

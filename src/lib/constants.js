@@ -98,6 +98,28 @@ export const GYM_EXERCISES = [
   'Farmer carry',
 ]
 
+export const BJJ_TECHNIQUES = [
+  { name: 'Closed Guard', category: 'guard', emoji: '🛡️' },
+  { name: 'Half Guard', category: 'guard', emoji: '🛡️' },
+  { name: 'Butterfly Guard', category: 'guard', emoji: '🦋' },
+  { name: 'De La Riva', category: 'guard', emoji: '🛡️' },
+  { name: 'Spider Guard', category: 'guard', emoji: '🕷️' },
+  { name: 'Toreando', category: 'pass', emoji: '💨' },
+  { name: 'Knee Slice', category: 'pass', emoji: '🔪' },
+  { name: 'Over-Under', category: 'pass', emoji: '🔄' },
+  { name: 'Leg Drag', category: 'pass', emoji: '🦵' },
+  { name: 'Armbar', category: 'sub', emoji: '💪' },
+  { name: 'Triangle', category: 'sub', emoji: '🔺' },
+  { name: 'Guillotine', category: 'sub', emoji: '⚔️' },
+  { name: 'Kimura', category: 'sub', emoji: '🔒' },
+  { name: 'RNC', category: 'sub', emoji: '😵' },
+  { name: 'Bow & Arrow', category: 'sub', emoji: '🏹' },
+  { name: 'Scissor Sweep', category: 'sweep', emoji: '✂️' },
+  { name: 'Hip Bump', category: 'sweep', emoji: '🫸' },
+  { name: 'Single Leg', category: 'takedown', emoji: '🦵' },
+  { name: 'Double Leg', category: 'takedown', emoji: '🤼' },
+]
+
 // Get current level from total points
 export function getLevel(totalPoints) {
   let current = LEVELS[0]

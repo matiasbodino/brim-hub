@@ -12,11 +12,13 @@ export const usePointsStore = create(persist((set, get) => ({
   habitStreaks: {},
   shieldsCount: 0,
   loading: false,
+  _lastFetched: 0,
 
   get balance() { return get().totalPoints - get().spentPoints },
 
   fetchAll: async () => {
-    set({ loading: true })
+    if (Date.now() - get()._lastFetched < 30000) return
+    set({ loading: true, _lastFetched: Date.now() })
     // Fetch points earned
     const { data: pointsData } = await supabase
       .from('points_log')

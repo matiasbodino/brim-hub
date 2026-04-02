@@ -4,7 +4,7 @@ import { useHabitStore } from '../stores/habitStore'
 import { usePointsStore } from '../stores/pointsStore'
 import { useToast } from '../components/Toast'
 import { hapticLight, hapticMedium, hapticHeartbeat } from '../lib/haptics'
-import { POINTS } from '../lib/constants'
+import { POINTS, BJJ_TECHNIQUES } from '../lib/constants'
 import { track } from '../lib/analytics'
 import { supabase } from '../lib/supabase'
 import { MATI_ID } from '../lib/constants'
@@ -25,14 +25,20 @@ export default function BJJSession() {
   const { awardPoints } = usePointsStore()
 
   const meta = location.state?.meta || {}
-  const [selectedStrain, setSelectedStrain] = useState(2) // default: Intenso
+  const [selectedStrain, setSelectedStrain] = useState(2)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [selectedTechniques, setSelectedTechniques] = useState([])
+  const [extraNotes, setExtraNotes] = useState('')
 
   const strain = STRAIN_LEVELS[selectedStrain]
   const duration = meta.duracion || 90
   const tipo = meta.tipo || 'Gi'
-  const tecnicas = meta.tecnicas || ''
+
+  const toggleTechnique = (name) => {
+    hapticLight()
+    setSelectedTechniques(prev => prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name])
+  }
   const kcalBurned = burnFromBJJ(duration)
 
   // Strain score: RPE * duration / 10
@@ -54,7 +60,8 @@ export default function BJJSession() {
     await upsertHabit('bjj', 1, 1, {
       tipo,
       duracion: duration,
-      tecnicas,
+      tecnicas: selectedTechniques,
+      notas: extraNotes,
       rpe: strain.rpe,
       strain_score: Number(strainScore),
     })
@@ -68,7 +75,7 @@ export default function BJJSession() {
       date: new Date().toISOString().slice(0, 10),
       routine_name: `BJJ ${tipo}`,
       focus: 'bjj',
-      exercises: { bjj: { tipo, duracion: duration, tecnicas } },
+      exercises: { bjj: { tipo, duracion: duration, tecnicas: selectedTechniques, notas: extraNotes } },
       performance: [{ exercise: 'BJJ', category: 'bjj', actual: { duration, rpe: strain.rpe } }],
       rpe: strain.rpe,
       total_volume: kcalBurned,
@@ -161,13 +168,37 @@ export default function BJJSession() {
         </div>
       </div>
 
-      {/* Técnicas (if any) */}
-      {tecnicas && (
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-4 rounded-2xl mb-6">
-          <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1">Técnicas trabajadas</p>
-          <p className="text-xs text-gray-300">{tecnicas}</p>
-        </div>
-      )}
+      {/* Técnicas (tag selector) */}
+      <div className="bg-white/5 border border-white/10 p-4 rounded-2xl mb-4">
+        <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-3">Técnicas trabajadas</p>
+        {['guard', 'pass', 'sub', 'sweep', 'takedown'].map(cat => {
+          const techs = BJJ_TECHNIQUES.filter(t => t.category === cat)
+          const catLabel = { guard: 'Guardia', pass: 'Pasadas', sub: 'Submissions', sweep: 'Sweeps', takedown: 'Takedowns' }
+          return (
+            <div key={cat} className="mb-2">
+              <p className="text-[8px] text-gray-600 font-bold uppercase mb-1">{catLabel[cat]}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {techs.map(t => (
+                  <button key={t.name} onClick={() => toggleTechnique(t.name)}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-full transition-all active:scale-95 ${
+                      selectedTechniques.includes(t.name)
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-gray-800 text-gray-400 border border-gray-700'
+                    }`}>
+                    {t.emoji} {t.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+        <textarea
+          value={extraNotes}
+          onChange={e => setExtraNotes(e.target.value)}
+          placeholder="Otras notas (opcional)..."
+          className="w-full bg-gray-900 border-gray-800 rounded-xl px-3 py-2 text-xs text-gray-300 mt-3 resize-none h-16 focus:outline-none focus:border-gray-600"
+        />
+      </div>
 
       {/* Save button */}
       <button

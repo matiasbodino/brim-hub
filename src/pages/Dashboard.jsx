@@ -8,7 +8,7 @@ import { HABITS } from '../lib/constants'
 import { useTargetsStore } from '../stores/targetsStore'
 import ShareButton from '../components/ShareButton'
 import WeeklyDigest from '../components/digest/WeeklyDigest'
-// MicroJournal moved to /habits
+import { useJournalStore } from '../stores/journalStore'
 import { track } from '../lib/analytics'
 import { useBJJTheme } from '../hooks/useBJJTheme'
 import { useInsightsStore } from '../stores/insightsStore'
@@ -76,6 +76,7 @@ export default function Dashboard() {
   const { todayPlan, fetchTodayPlan, generatePlan } = usePlanStore()
   const { todayEnergy, fetchToday: fetchEnergy } = useEnergyStore()
   const { activePlan: damagePlan, fetchActive: fetchDamage } = useDamageStore()
+  const { todayEntry: journalEntry, fetchToday: fetchJournal } = useJournalStore()
   const [showJournal, setShowJournal] = useState(false)
   const [showMore, setShowMore] = useState(false)
 
@@ -92,6 +93,7 @@ export default function Dashboard() {
     fetchTodayPlan()
     fetchEnergy()
     fetchDamage()
+    fetchJournal()
   }, [])
 
   // Fetch on mount + re-fetch when user navigates back (visibilitychange)
@@ -368,7 +370,13 @@ export default function Dashboard() {
       </Link>
 
       {/* ═══ FOOD LOG PREVIEW (read-only) ═══ */}
-      {todayLogs.length > 0 && (
+      {todayLogs.length === 0 ? (
+        <Link to="/habits" className="block mb-4">
+          <div className="text-center py-6 px-4 bg-white/5 border border-white/5 rounded-2xl">
+            <p className="text-gray-500 text-sm">No logueaste comida todavía. Abrí Registrar para empezar 🍽️</p>
+          </div>
+        </Link>
+      ) : (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-3 mb-4">
           <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">Comidas de hoy</p>
           {todayLogs.slice(-3).map(log => (
@@ -381,7 +389,12 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ═══ DAILY INSIGHT (read-only 2-line banner) ═══ */}
+      {/* ═══ DAILY INSIGHT ═══ */}
+      {!todayPlan && macros.calories === 0 && (
+        <div className="text-center py-4 px-4 mb-4">
+          <p className="text-gray-600 text-xs">Tu plan del día se genera cuando logueás tu primera comida</p>
+        </div>
+      )}
       {todayPlan && (todayPlan.morning_brief || todayPlan.midday_adjust || todayPlan.evening_wrap) && (
         <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-4">
           <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Daily Insight</p>
@@ -390,6 +403,30 @@ export default function Dashboard() {
           </p>
         </div>
       )}
+
+      {/* ═══ JOURNAL (always visible, read-only) ═══ */}
+      <Link to="/habits" className="block mb-4">
+        <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-4">
+          {journalEntry ? (
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{journalEntry.mood ? ['', '😫', '😕', '😐', '😊', '🔥'][journalEntry.mood] : '📝'}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Journal de hoy</p>
+                <p className="text-xs text-gray-300 truncate mt-0.5">{journalEntry.content}</p>
+              </div>
+              <span className="text-gray-600 text-xs">→</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-xl">📝</span>
+              <div className="flex-1">
+                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Journal</p>
+                <p className="text-xs text-gray-400 mt-0.5">¿Cómo estuvo tu día? Registrá cómo te sentís →</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </Link>
 
       {/* Damage Control (read-only progress if active) */}
       {damagePlan && (

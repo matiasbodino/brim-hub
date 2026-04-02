@@ -11,6 +11,7 @@ import { hapticLight, hapticMedium, hapticHeartbeat } from '../lib/haptics'
 import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import BottomSheet from '../components/ui/BottomSheet'
+import MicroJournal from '../components/journal/MicroJournal'
 
 const ENERGY_LEVELS = [
   { val: 1, emoji: '😴', color: 'bg-red-100 text-red-600', label: 'Agotado' },
@@ -982,6 +983,12 @@ export default function Habits() {
           <FoodSection onManualSubmit={handleFood} store={foodStore} targets={targets} prefill={location.state?.prefill} />
         </div>
       )}
+
+      {/* ═══ JOURNAL ═══ */}
+      <div id="journal" className="bg-white/5 border border-white/10 rounded-2xl p-4">
+        <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-3">📝 Journal</p>
+        <MicroJournal />
+      </div>
 
       {/* BJJ Bottom Sheet */}
       <BottomSheet isOpen={showBJJ} onClose={() => setShowBJJ(false)} title="🥋 Sesión de BJJ">

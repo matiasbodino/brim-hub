@@ -10,9 +10,11 @@ export const useHabitStore = create(
     (set, get) => ({
       todayHabits: {},
       loading: false,
+      _lastFetched: 0,
 
       fetchToday: async () => {
-        set({ loading: true })
+        if (Date.now() - get()._lastFetched < 30000) return
+        set({ loading: true, _lastFetched: Date.now() })
         const today = new Date().toISOString().slice(0, 10)
         const { data, error } = await supabase
           .from('habit_logs')

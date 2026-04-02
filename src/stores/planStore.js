@@ -9,8 +9,11 @@ export const usePlanStore = create((set, get) => ({
   todayPlan: null,
   loading: false,
   error: null,
+  _lastFetched: 0,
 
   fetchTodayPlan: async () => {
+    if (Date.now() - get()._lastFetched < 30000) return
+    set({ _lastFetched: Date.now() })
     const today = new Date().toISOString().slice(0, 10)
     const { data } = await supabase
       .from('daily_plans')
