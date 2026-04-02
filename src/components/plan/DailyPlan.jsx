@@ -279,31 +279,33 @@ export default function DailyPlan() {
         </div>
       )}
 
-      {/* Header — tap to toggle */}
-      <div className="flex items-center justify-between mb-3 cursor-pointer" onClick={() => setExpanded(!expanded)}>
-        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
-          {isFatigued ? '🧘 Recuperación' : trainingLoad?.spike ? '🔴 Recovery Mode' : isEvening ? '📊 Resumen del día' : timeOfDay === 'midday' ? '⚡ Recálculo del día' : '🎯 Tu plan para hoy'}
-        </h3>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-400">v{plan.plan_version}</span>
-          <span className={`text-slate-400 text-xs transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>▼</span>
+      {/* Collapsible header zone — tap anywhere here to toggle */}
+      <div className="cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
+            {isFatigued ? '🧘 Recuperación' : trainingLoad?.spike ? '🔴 Recovery Mode' : isEvening ? '📊 Resumen del día' : timeOfDay === 'midday' ? '⚡ Recálculo del día' : '🎯 Tu plan para hoy'}
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-400">v{plan.plan_version}</span>
+            <span className={`text-slate-400 text-xs transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>▼</span>
+          </div>
         </div>
+
+        {/* Narrative — truncated when collapsed, full when expanded */}
+        {narrative && (
+          <p className={`text-sm text-slate-700 leading-relaxed ${expanded ? 'mb-3' : 'mb-1 line-clamp-2'}`}>{narrative}</p>
+        )}
+
+        {/* Collapsed summary */}
+        {!expanded && (
+          <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+            <span>{consumed.calories}/{targets.calories} kcal</span>
+            <span>·</span>
+            <span>{consumed.protein}/{targets.protein}g prot</span>
+            {calPct > 0 && <span>· {calPct}%</span>}
+          </div>
+        )}
       </div>
-
-      {/* Narrative — always visible as preview */}
-      {narrative && (
-        <p className="text-sm text-slate-700 leading-relaxed mb-3">{narrative}</p>
-      )}
-
-      {/* Collapsed summary when closed */}
-      {!expanded && (
-        <div className="flex items-center gap-3 text-xs text-slate-400">
-          <span>{consumed.calories}/{targets.calories} kcal</span>
-          <span>·</span>
-          <span>{consumed.protein}/{targets.protein}g prot</span>
-          {calPct > 0 && <span>· {calPct}%</span>}
-        </div>
-      )}
 
       {expanded && <>
       {/* Targets + Progress */}
