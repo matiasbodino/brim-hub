@@ -21,9 +21,17 @@ import Onboarding from './pages/Onboarding'
 
 export default function App() {
   const [commandOpen, setCommandOpen] = useState(false)
+  const [isOnboarded, setIsOnboarded] = useState(() => !!localStorage.getItem('brim_onboarded'))
 
   // Daily reset: checks date change at midnight + on app resume
   useDailyReset()
+
+  // Listen for onboarding completion
+  useEffect(() => {
+    const handler = () => setIsOnboarded(true)
+    window.addEventListener('onboarding-complete', handler)
+    return () => window.removeEventListener('onboarding-complete', handler)
+  }, [])
 
   // Listen for Cmd+K event from CommandBar
   useEffect(() => {
@@ -37,7 +45,7 @@ export default function App() {
       <ToastProvider>
         <div className="max-w-lg mx-auto w-full">
           <Routes>
-            <Route path="/" element={localStorage.getItem('brim_onboarded') ? <Dashboard /> : <Onboarding />} />
+            <Route path="/" element={isOnboarded ? <Dashboard /> : <Onboarding />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/habits" element={<Habits />} />
             <Route path="/permitidos" element={<Permitidos />} />

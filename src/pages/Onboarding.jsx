@@ -53,6 +53,8 @@ export default function Onboarding() {
     localStorage.setItem('brim_level', level)
 
     setSaving(false)
+    // Force App to re-evaluate route by dispatching custom event
+    window.dispatchEvent(new Event('onboarding-complete'))
     navigate('/')
   }
 
