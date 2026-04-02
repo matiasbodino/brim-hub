@@ -14,6 +14,7 @@ import { useBJJTheme } from '../hooks/useBJJTheme'
 import { useInsightsStore } from '../stores/insightsStore'
 import { usePlanStore } from '../stores/planStore'
 import DailyPlan from '../components/plan/DailyPlan'
+import PredictiveGhost from '../components/plan/PredictiveGhost'
 
 function MacroRing({ label, current, target, color, textColor }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
@@ -294,8 +295,13 @@ export default function Dashboard() {
       {/* Micro-Journal */}
       <MicroJournal />
 
+      {/* Predictive Ghost */}
+      <div className="mt-6">
+        <PredictiveGhost todayHabits={todayHabits} />
+      </div>
+
       {/* Habits */}
-      <section className="mt-6 space-y-4">
+      <section className="mt-4 space-y-4">
         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Hábitos de Hoy</h3>
         <div className="grid gap-3">
           {HABITS.map(h => (
