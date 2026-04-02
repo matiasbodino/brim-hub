@@ -169,7 +169,7 @@ function WeightCard() {
   )
 }
 
-function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, collapsed, onToggle }) {
+function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, collapsed, onToggle, waterBreakdown, onAddMate }) {
   const [stepsInput, setStepsInput] = useState('')
   const pct = target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0
   const done = value >= target
@@ -210,44 +210,73 @@ function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, colla
         {value} <span className="text-sm font-normal text-gray-400">/ {target} {unit}</span>
       </div>
 
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
-        <div className={`h-full rounded-full transition-all animate-water-fill ${
-          type === 'water' ? (done ? 'bg-blue-500' : 'bg-blue-300') : (done ? 'bg-violet-500' : 'bg-violet-300')
-        }`} style={{ width: pct + '%' }} />
-      </div>
+      {/* Progress bar — water uses custom stacked bar below */}
+      {type !== 'water' && (
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+          <div className={`h-full rounded-full transition-all ${done ? 'bg-violet-500' : 'bg-violet-300'}`} style={{ width: pct + '%' }} />
+        </div>
+      )}
 
       <div className="flex gap-2 flex-wrap">
         {type === 'water' && (() => {
           const remaining = Math.max(0, target - value)
           const vasosLeft = Math.ceil(remaining / WATER_UNITS.VASO)
+          const wb = waterBreakdown || { pure: 0, mate: 0, total: value, isMateOnly: false }
+          const purePct = target > 0 ? Math.min(100, Math.round((wb.pure / target) * 100)) : 0
+          const matePct = target > 0 ? Math.min(100 - purePct, Math.round((wb.mate / target) * 100)) : 0
+
           const handleWater = (e, amount) => {
             e.stopPropagation()
             if (window.navigator.vibrate) window.navigator.vibrate(10)
-            onUpdate(value + amount)
+            useHabitStore.getState().addWater(amount, target)
           }
           return (
             <>
+              {/* Stacked progress: pure water (blue) + mate (green) */}
+              {(wb.pure > 0 || wb.mate > 0) && (
+                <div className="w-full mb-2">
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden flex">
+                    <div className="h-full bg-blue-400 transition-all animate-water-fill" style={{ width: purePct + '%' }} />
+                    <div className="h-full bg-emerald-400 transition-all animate-water-fill" style={{ width: matePct + '%' }} />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <div className="flex gap-3 text-[10px] text-slate-400">
+                      {wb.pure > 0 && <span><span className="inline-block w-2 h-2 rounded-full bg-blue-400 mr-1" />Agua {wb.pure.toFixed(1)}L</span>}
+                      {wb.mate > 0 && <span><span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1" />Mate {wb.mate.toFixed(1)}L</span>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {remaining > 0 && (
                 <p className="text-[10px] text-blue-500 font-bold w-full mb-1">
                   Te faltan {vasosLeft} vasos para el target ({remaining.toFixed(2)}L)
                 </p>
               )}
+
+              {/* Mate-only warning */}
+              {wb.isMateOnly && value >= target && (
+                <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-2 py-1 w-full mb-1">
+                  🧉 Llegaste al target con mate. Mandale un par de vasos de agua pura para limpiar el sistema. Oss!
+                </p>
+              )}
+
               <div className="flex gap-2 w-full">
                 {value > 0 && (
                   <button onClick={(e) => { e.stopPropagation(); onUpdate(Math.max(0, value - WATER_UNITS.VASO)) }}
                     className="py-2 px-3 text-sm font-semibold rounded-xl border border-red-200 text-red-400 active:bg-red-50">−</button>
                 )}
                 <button onClick={(e) => handleWater(e, WATER_UNITS.VASO)}
-                  className="flex-1 py-2.5 text-sm font-bold rounded-xl border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
+                  className="flex-1 py-2.5 text-[11px] font-bold rounded-xl border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
                   💧 Vaso
                 </button>
                 <button onClick={(e) => handleWater(e, WATER_UNITS.BOTELLA)}
-                  className="flex-1 py-2.5 text-sm font-bold rounded-xl border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
+                  className="flex-1 py-2.5 text-[11px] font-bold rounded-xl border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
                   🍾 Botella
                 </button>
-                <button onClick={(e) => handleWater(e, WATER_UNITS.TERMO)}
-                  className="flex-1 py-2.5 text-sm font-bold rounded-xl border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
-                  🧉 Termo
+                <button onClick={(e) => { e.stopPropagation(); if (onAddMate) onAddMate() }}
+                  className="flex-1 py-2.5 text-[11px] font-bold rounded-xl border border-emerald-200 text-emerald-600 active:bg-emerald-50 active:scale-95 transition-all">
+                  🧉 Mate
                 </button>
               </div>
             </>
@@ -899,6 +928,8 @@ export default function Habits() {
                       onUpdate={(val) => handleUpdate(h.type, val)}
                       collapsed={isCollapsed(h.type)}
                       onToggle={() => toggleExpanded(h.type)}
+                      waterBreakdown={h.type === 'water' ? useHabitStore.getState().getWaterBreakdown() : null}
+                      onAddMate={h.type === 'water' ? () => { useHabitStore.getState().addMate(1, targets.water || 2.5); haptic(10) } : null}
                     />
                   ))}
                 </div>

@@ -11,7 +11,9 @@ HÁBITOS DISPONIBLES:
 - water (agua): unidad = litros. CONVERSIONES:
   "vaso" / "vasito" = 0.250L
   "botella" / "botellita" = 0.500L
-  "termo" / "mate" / "litro" = 1.0L
+  "termo de agua" / "litro" = 1.0L
+  "mate" / "termo de mate" / "unos mates" = tipo especial MATE (coeficiente 0.7 — 1L de mate = 700ml hidratación)
+  IMPORTANTE: Si dice "mate" o "termo de mate", el action debe ser "add_mate" (NO "add_water")
   "500ml" = 0.5L, "200ml" = 0.2L (cualquier valor en ml dividir por 1000)
   "2 vasos" = 0.5L, "3 botellas" = 1.5L (multiplicar unidad por cantidad)
   El target diario es 2.5L (10 vasos)
@@ -30,7 +32,8 @@ PERMITIDOS (canjeables con puntos):
 - dia_libre (😴, 50 pts) — "Día libre total"
 
 REGLAS:
-- Si el usuario menciona agua/ml/vasos/litros → type: "HABIT", action: "add_water"
+- Si el usuario menciona agua/ml/vasos/litros/botella → type: "HABIT", action: "add_water"
+- Si el usuario menciona mate/mates/matecito → type: "HABIT", action: "add_mate", payload: { termos: N }
 - Si menciona pasos/caminé → type: "HABIT", action: "set_steps"
 - Si menciona gym/gimnasio → type: "HABIT", action: "toggle_gym"
 - Si menciona bjj/jiu-jitsu/rodar/tatami → type: "HABIT", action: "toggle_bjj"

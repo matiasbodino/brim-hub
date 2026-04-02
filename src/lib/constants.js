@@ -1,11 +1,12 @@
 // Mati's hardcoded user ID (no auth, personal app)
 export const MATI_ID = 'c17e4105-4861-43c8-bf13-0d32f7818418'
 
-// Water units (L)
+// Water units (L) — effective hydration
 export const WATER_UNITS = {
-  VASO: 0.25,     // 250ml
-  BOTELLA: 0.5,   // 500ml
-  TERMO: 1.0,     // 1L (mate/entrenamiento)
+  VASO: 0.25,     // 250ml agua pura
+  BOTELLA: 0.5,   // 500ml agua pura
+  TERMO: 1.0,     // 1L agua pura
+  MATE: 0.7,      // 1L mate = 700ml hidratación efectiva (cafeína descuenta)
 }
 
 // Daily targets (editable in Profile later)

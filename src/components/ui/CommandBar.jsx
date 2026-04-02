@@ -3,6 +3,7 @@ import { useHabitStore } from '../../stores/habitStore'
 import { useFoodStore } from '../../stores/foodStore'
 import { usePointsStore } from '../../stores/pointsStore'
 import { useTargetsStore } from '../../stores/targetsStore'
+import { WATER_UNITS } from '../../lib/constants'
 
 const EDGE_URL = 'https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcnBxemFoYnRmYnh4dGFxZXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTExODMsImV4cCI6MjA5MDA2NzE4M30.f85JKwllPo1dLRvzFphPkLL8bEMts0IYjqCnTLDrA_c'
@@ -73,9 +74,11 @@ export default function CommandBar({ isOpen, onClose }) {
       // Execute based on intent type
       if (intent.type === 'HABIT') {
         if (intent.action === 'add_water') {
-          const current = Number(todayHabits.water?.value || 0)
           const amount = intent.payload?.amount || 0.5
-          await upsertHabit('water', current + amount, targets.water || 2.5)
+          await useHabitStore.getState().addWater(amount, targets.water || 2.5)
+        } else if (intent.action === 'add_mate') {
+          const termos = intent.payload?.termos || 1
+          await useHabitStore.getState().addMate(termos, targets.water || 2.5)
         } else if (intent.action === 'set_steps') {
           await upsertHabit('steps', intent.payload?.amount || 0, targets.steps || 10000)
         } else if (intent.action === 'toggle_gym') {
