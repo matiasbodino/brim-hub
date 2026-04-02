@@ -382,28 +382,41 @@ Usá los keys en inglés: breakfast, lunch, snack, dinner. Solo las comidas que 
     const habitsStatus = todayHabits.map(h => `${h.habit_type}: ${h.value}/${h.target} (${h.completion_type})`).join(', ') || 'Sin hábitos todavía';
     const energyLevel = todayEnergy.length > 0 ? todayEnergy[0].energy_level : null;
 
-    if (timeOfDay === 'morning' && (isNewPlan || !morningBrief)) {
+    // Brief regenerates on: new plan, any recalculate, or missing narrative for current time
+    const shouldRegenBrief = isNewPlan || recalculate;
+
+    if (timeOfDay === 'morning' && (shouldRegenBrief || !morningBrief)) {
+      // Focus the brief on what's LEFT to do, not what was already done
+      const protPct = adjustedTargets.protein > 0 ? Math.round((consumedSoFar.protein / adjustedTargets.protein) * 100) : 0;
+      const calPctDone = adjustedTargets.calories > 0 ? Math.round((consumedSoFar.calories / adjustedTargets.calories) * 100) : 0;
       morningBrief = await callClaude(
-        "Sos Brim, coach de Mati. Tono directo, argentino, 3-4 oraciones.",
-        `Escribí un brief para arrancar el día.
+        "Sos Brim, coach de Mati. Tono directo, argentino, 3-4 oraciones. Enfocate en lo que FALTA, no en lo que ya hizo.",
+        `Estado actual del día (actualizá el brief según estos datos):
 Semana: ${weekProgress.pct}% del budget calórico (${weekProgress.status})
 Target hoy: ${adjustedTargets.calories} kcal — ${adjustedTargets.reason}
-Agua hoy: ${adjustedTargets.water}L ${hadAlcoholYesterday ? '(+1L por alcohol de ayer — DÍA DE LIMPIEZA)' : ''}
+Consumido hasta ahora: ${consumedSoFar.calories} kcal (${calPctDone}%), ${consumedSoFar.protein}g prot (${protPct}%), ${consumedSoFar.meals_logged} comidas
+Agua hoy: ${adjustedTargets.water}L
 Energía: ${energyLevel ? energyLevel + '/5' : 'sin registrar'}
 Día: ${dayName}
 Hábitos: ${habitsStatus}
-${hadAlcoholYesterday ? 'IMPORTANTE: Ayer tomó alcohol. Enfocá el brief en recuperación: agua, comida liviana, descanso. Mencioná que si tiene que rodar/entrenar necesita tomar mucha agua.' : ''}
-${isFatigued ? 'IMPORTANTE: Energía baja ≤2 por ' + lowEnergyDays + ' días seguidos. Hoy es DÍA DE RECUPERACIÓN ACTIVA. NO empujar al gym. El brief debe decir: "Hoy es día de recuperación. Bajamos calorías, subimos agua y prioridad: 8hs de sueño. Mañana volvemos con todo." El bienestar es consistencia, no intensidad infinita.' : ''}
-${loadSpike ? 'IMPORTANTE: Carga de entrenamiento alta — los últimos 3 días fueron ' + Math.round((last3DaysLoad / weeklyAvgLoad - 1) * 100) + '% más que el promedio. El cuerpo necesita reconstruir. Mencioná: "Los datos dicen que le diste duro. Hoy bajamos la intensidad para volver más fuerte mañana."' : ''}`,
+${protPct >= 80 ? 'PROTEÍNA YA ESTÁ CUBIERTA — no hace falta sugerir más carne. Enfocate en hidratación y descanso.' : protPct < 30 ? 'PROTEÍNA MUY BAJA — metele prioridad a la prota en las próximas comidas.' : ''}
+${calPctDone >= 80 ? 'CALORÍAS CASI COMPLETAS — sugerí solo comidas livianas o directamente nada más.' : ''}
+${hadAlcoholYesterday ? 'Ayer tomó alcohol. Enfocá en recuperación: agua, comida liviana.' : ''}
+${isFatigued ? 'Energía baja ≤2 varios días. DÍA DE RECUPERACIÓN ACTIVA.' : ''}
+${loadSpike ? 'Carga de entrenamiento alta. Bajamos intensidad.' : ''}`,
         { maxTokens: 200, temperature: 0.7 }
       );
-    } else if (timeOfDay === 'midday' && recalculate) {
+    } else if ((timeOfDay === 'midday') && (shouldRegenBrief || !middayAdjust)) {
+      const protPctMid = adjustedTargets.protein > 0 ? Math.round((consumedSoFar.protein / adjustedTargets.protein) * 100) : 0;
+      const calPctMid = adjustedTargets.calories > 0 ? Math.round((consumedSoFar.calories / adjustedTargets.calories) * 100) : 0;
       middayAdjust = await callClaude(
-        "Sos Brim, coach de Mati. Tono directo, argentino, 2-3 oraciones.",
-        `Recálculo post-almuerzo.
-Consumido hoy: ${consumedSoFar.calories} kcal, ${consumedSoFar.protein}g prot (${consumedSoFar.meals_logged} comidas)
-Presupuesto restante: ${remainingBudget.calories} kcal, ${remainingBudget.protein}g prot
-Proteína ${consumedSoFar.protein < adjustedTargets.protein * 0.5 ? 'viene BAJA' : 'viene bien'}
+        "Sos Brim, coach de Mati. Tono directo, argentino, 2-3 oraciones. Enfocate en lo que FALTA.",
+        `Recálculo del día.
+Consumido: ${consumedSoFar.calories} kcal (${calPctMid}%), ${consumedSoFar.protein}g prot (${protPctMid}%), ${consumedSoFar.meals_logged} comidas
+Restante: ${remainingBudget.calories} kcal, ${remainingBudget.protein}g prot
+${protPctMid >= 80 ? 'PROTEÍNA CUBIERTA — no sugieras más carne. Enfocate en agua, verduras o descanso.' : protPctMid < 30 ? 'PROTEÍNA MUY BAJA — priorizá proteína en las próximas comidas.' : 'Proteína viene bien.'}
+${calPctMid >= 80 ? 'CALORÍAS CASI COMPLETAS — solo sugerí algo liviano si tiene hambre.' : ''}
+Hábitos: ${habitsStatus}
 Semana: ${weekProgress.pct}% del budget`,
         { maxTokens: 150, temperature: 0.7 }
       );

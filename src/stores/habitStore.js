@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { supabase } from '../lib/supabase'
 import { MATI_ID, WATER_UNITS } from '../lib/constants'
 import { notifySync } from '../components/ui/SyncIndicator'
+import { usePlanStore } from './planStore'
 
 export const useHabitStore = create(
   persist(
@@ -49,6 +50,7 @@ export const useHabitStore = create(
         if (error) throw error
         set({ todayHabits: { ...get().todayHabits, [type]: data } })
         notifySync()
+        usePlanStore.getState().recalculate()
       },
 
       // Water helper — adds pure water

@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { supabase } from '../lib/supabase'
 import { MATI_ID } from '../lib/constants'
 import { notifySync } from '../components/ui/SyncIndicator'
+import { usePlanStore } from './planStore'
 
 export const useEnergyStore = create(
   persist(
@@ -29,6 +30,7 @@ export const useEnergyStore = create(
           .from('daily_logs')
           .upsert({ user_id: MATI_ID, date: today, energy_level: level }, { onConflict: 'user_id,date' })
         notifySync()
+        usePlanStore.getState().recalculate()
       },
     }),
     {
