@@ -9,6 +9,10 @@ import { useTargetsStore } from '../stores/targetsStore'
 import ShareButton from '../components/ShareButton'
 import WeeklyDigest from '../components/digest/WeeklyDigest'
 import { useJournalStore } from '../stores/journalStore'
+import { useRoutineStore } from '../stores/routineStore'
+import BottomSheet from '../components/ui/BottomSheet'
+import { hapticLight, hapticMedium } from '../lib/haptics'
+import { WATER_UNITS } from '../lib/constants'
 import { track } from '../lib/analytics'
 import { useBJJTheme } from '../hooks/useBJJTheme'
 import { useInsightsStore } from '../stores/insightsStore'
@@ -77,6 +81,12 @@ export default function Dashboard() {
   const { todayEnergy, fetchToday: fetchEnergy } = useEnergyStore()
   const { activePlan: damagePlan, fetchActive: fetchDamage } = useDamageStore()
   const { todayEntry: journalEntry, fetchToday: fetchJournal } = useJournalStore()
+  const { routine } = useRoutineStore()
+
+  // Bottom sheet states
+  const [waterSheet, setWaterSheet] = useState(false)
+  const [stepsSheet, setStepsSheet] = useState(false)
+  const [insightSheet, setInsightSheet] = useState(false)
   const [showJournal, setShowJournal] = useState(false)
   const [showMore, setShowMore] = useState(false)
 
@@ -339,107 +349,198 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ═══ NEXT ACTION (read-only suggestion → tap goes to /habits) ═══ */}
-      <Link to={commandLine.includes('caminata') ? '/walk' : '/habits'}
-        className="bg-white/5 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-4 mb-4 flex items-center gap-3 active:bg-white/10 transition block">
-        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-          <span className="text-lg">{mealWindow.emoji}</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Próximo paso</p>
-          <p className="text-xs text-gray-300 leading-snug line-clamp-2 mt-0.5">{commandLine}</p>
-        </div>
-        <span className="text-gray-600 text-xs flex-shrink-0">→</span>
-      </Link>
-
-      {/* ═══ HABITS SUMMARY (read-only, tap → /habits) ═══ */}
-      <Link to="/habits" className="block mb-4">
-        <div className="grid grid-cols-4 gap-2">
-          {HABITS.map(h => {
-            const val = Number(todayHabits[h.type]?.value || 0)
-            const done = val >= h.target
-            return (
-              <div key={h.type} className={`bg-white/5 border border-white/10 rounded-2xl p-3 text-center transition ${done ? 'opacity-40' : ''}`}>
-                <span className="text-lg block">{h.emoji}</span>
-                <p className="text-[8px] text-gray-500 font-bold uppercase mt-1">{h.label}</p>
-                {done && <span className="text-emerald-500 text-[10px] font-black">✓</span>}
-              </div>
-            )
-          })}
-        </div>
-      </Link>
-
-      {/* ═══ FOOD LOG PREVIEW (read-only) ═══ */}
-      {todayLogs.length === 0 ? (
-        <Link to="/habits" className="block mb-4">
-          <div className="text-center py-6 px-4 bg-white/5 border border-white/5 rounded-2xl">
-            <p className="text-gray-500 text-sm">No logueaste comida todavía. Abrí Registrar para empezar 🍽️</p>
-          </div>
+      {/* ═══ AI QUICK ACTIONS (Brain First) ═══ */}
+      <div className="flex gap-2 mb-4">
+        <Link to="/habits" state={{ tab: 'food' }}
+          className="flex-1 bg-white/5 border border-green-500/20 rounded-2xl p-3 text-center active:bg-green-500/10 transition">
+          <span className="text-lg block">🍽</span>
+          <p className="text-[8px] text-green-400 font-black uppercase mt-1">Analizar comida</p>
         </Link>
-      ) : (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-3 mb-4">
-          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">Comidas de hoy</p>
-          {todayLogs.slice(-3).map(log => (
-            <div key={log.id} className="flex justify-between py-1.5 border-b border-white/5 last:border-0">
-              <span className="text-[10px] text-gray-400 truncate flex-1">{log.description}</span>
-              <span className="text-[10px] text-gray-500 ml-2">{log.calories} kcal</span>
-            </div>
-          ))}
-          {todayLogs.length > 3 && <p className="text-[9px] text-gray-600 mt-1">+{todayLogs.length - 3} más</p>}
-        </div>
+        <Link to="/walk"
+          className="flex-1 bg-white/5 border border-blue-500/20 rounded-2xl p-3 text-center active:bg-blue-500/10 transition">
+          <span className="text-lg block">🚶</span>
+          <p className="text-[8px] text-blue-400 font-black uppercase mt-1">Caminata</p>
+        </Link>
+        <Link to="/progress"
+          className="flex-1 bg-white/5 border border-violet-500/20 rounded-2xl p-3 text-center active:bg-violet-500/10 transition">
+          <span className="text-lg block">🏋️</span>
+          <p className="text-[8px] text-violet-400 font-black uppercase mt-1">Generar Rutina</p>
+        </Link>
+      </div>
+
+      {/* ═══ GYM WIDGET (dynamic — shows if routine exists) ═══ */}
+      {routine && (
+        <Link to="/workout" state={{ routine }}
+          className="bg-white/5 border border-orange-500/20 rounded-2xl p-4 mb-4 flex items-center gap-3 active:bg-orange-500/10 transition block">
+          <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+            <span className="text-lg">🏋️</span>
+          </div>
+          <div className="flex-1">
+            <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest">Rutina lista</p>
+            <p className="text-xs text-gray-300">{routine.routine_name}</p>
+          </div>
+          <span className="bg-orange-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-black">START</span>
+        </Link>
       )}
 
-      {/* ═══ DAILY INSIGHT ═══ */}
-      {!todayPlan && macros.calories === 0 && (
-        <div className="text-center py-4 px-4 mb-4">
-          <p className="text-gray-600 text-xs">Tu plan del día se genera cuando logueás tu primera comida</p>
-        </div>
-      )}
+      {/* ═══ HABIT WIDGETS (tap → bottom sheet, not navigation) ═══ */}
+      <div className="grid grid-cols-4 gap-2 mb-4">
+        {HABITS.map(h => {
+          const val = Number(todayHabits[h.type]?.value || 0)
+          const done = val >= h.target
+          const handleTap = () => {
+            hapticLight()
+            if (h.type === 'water') setWaterSheet(true)
+            else if (h.type === 'steps') setStepsSheet(true)
+            else if (h.type === 'gym') { /* navigate to workout or habits */ }
+            else if (h.type === 'bjj') { /* navigate to bjj session */ }
+          }
+          return (
+            <button key={h.type} onClick={handleTap}
+              className={`bg-white/5 border border-white/10 rounded-2xl p-3 text-center transition active:scale-95 ${done ? 'opacity-40' : ''}`}>
+              <span className="text-lg block">{h.emoji}</span>
+              <p className="text-[8px] text-gray-500 font-bold uppercase mt-1">{h.label}</p>
+              {done ? <span className="text-emerald-500 text-[10px] font-black">✓</span>
+                : h.type === 'water' ? <span className="text-[10px] text-blue-400 font-black">{val.toFixed(1)}L</span>
+                : h.type === 'steps' ? <span className="text-[10px] text-gray-400 font-black">{val > 0 ? (val/1000).toFixed(1) + 'k' : '0'}</span>
+                : null}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ═══ FOOD LOG + INSIGHT (combined) ═══ */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-3 mb-4">
+        {todayLogs.length === 0 ? (
+          <Link to="/habits" className="block text-center py-4">
+            <p className="text-gray-500 text-sm">No logueaste comida todavía 🍽️</p>
+            <p className="text-[10px] text-blue-400 font-bold mt-1">Tocá para registrar →</p>
+          </Link>
+        ) : (
+          <>
+            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">Comidas de hoy</p>
+            {todayLogs.slice(-3).map(log => (
+              <div key={log.id} className="flex justify-between py-1.5 border-b border-white/5 last:border-0">
+                <span className="text-[10px] text-gray-400 truncate flex-1">{log.description}</span>
+                <span className="text-[10px] text-gray-500 ml-2">{log.calories} kcal</span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* ═══ DAILY INSIGHT (tap to expand) ═══ */}
       {todayPlan && (todayPlan.morning_brief || todayPlan.midday_adjust || todayPlan.evening_wrap) && (
-        <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-4">
-          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Daily Insight</p>
+        <button onClick={() => setInsightSheet(true)}
+          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-4 text-left active:bg-white/10 transition">
+          <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Daily Insight ▾</p>
           <p className="text-xs text-gray-400 line-clamp-2 mt-0.5 leading-snug">
             {todayPlan.morning_brief || todayPlan.midday_adjust || todayPlan.evening_wrap}
           </p>
-        </div>
+        </button>
       )}
 
-      {/* ═══ JOURNAL (always visible, read-only) ═══ */}
+      {/* Journal card */}
       <Link to="/habits" className="block mb-4">
-        <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-4">
-          {journalEntry ? (
-            <div className="flex items-center gap-3">
-              <span className="text-xl">{journalEntry.mood ? ['', '😫', '😕', '😐', '😊', '🔥'][journalEntry.mood] : '📝'}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Journal de hoy</p>
-                <p className="text-xs text-gray-300 truncate mt-0.5">{journalEntry.content}</p>
-              </div>
-              <span className="text-gray-600 text-xs">→</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <span className="text-xl">📝</span>
-              <div className="flex-1">
-                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Journal</p>
-                <p className="text-xs text-gray-400 mt-0.5">¿Cómo estuvo tu día? Registrá cómo te sentís →</p>
-              </div>
-            </div>
-          )}
+        <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-3">
+          <div className="flex items-center gap-3">
+            <span className="text-lg">{journalEntry ? (journalEntry.mood ? ['', '😫', '😕', '😐', '😊', '🔥'][journalEntry.mood] : '📝') : '📝'}</span>
+            <p className="text-xs text-gray-400 flex-1 truncate">{journalEntry?.content || '¿Cómo estuvo tu día?'}</p>
+            <span className="text-gray-600 text-xs">→</span>
+          </div>
         </div>
       </Link>
 
-      {/* Damage Control (read-only progress if active) */}
+      {/* Damage Control */}
       {damagePlan && (
         <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 mb-4">
           <div className="flex items-center justify-between mb-1">
             <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest">🔄 Compensación</p>
-            <span className="text-[9px] text-gray-600">{damagePlan.days_completed}/{damagePlan.spread_days} días</span>
+            <span className="text-[9px] text-gray-600">{damagePlan.days_completed}/{damagePlan.spread_days}</span>
           </div>
           <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
             <div className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 rounded-full transition-all" style={{ width: Math.round((damagePlan.days_completed / damagePlan.spread_days) * 100) + '%' }} />
           </div>
         </div>
       )}
+
+      {/* ═══ BOTTOM SHEETS ═══ */}
+
+      {/* Water Sheet */}
+      <BottomSheet isOpen={waterSheet} onClose={() => setWaterSheet(false)} title="💧 Agregar agua">
+        <div className="space-y-3">
+          <div className="text-center mb-4">
+            <p className="text-3xl font-black text-white">{Number(todayHabits.water?.value || 0).toFixed(1)}L</p>
+            <p className="text-xs text-gray-500">de {targets.water || 2.5}L</p>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: '💧 Vaso', amount: WATER_UNITS.VASO },
+              { label: '🍾 Botella', amount: WATER_UNITS.BOTELLA },
+              { label: '🧉 Mate', amount: WATER_UNITS.MATE, isMate: true },
+            ].map(w => (
+              <button key={w.label} onClick={async () => {
+                hapticMedium()
+                if (w.isMate) await useHabitStore.getState().addMate(1, targets.water || 2.5)
+                else await useHabitStore.getState().addWater(w.amount, targets.water || 2.5)
+                setWaterSheet(false)
+              }} className="bg-white/5 border border-white/10 rounded-2xl py-4 text-center active:scale-95 transition">
+                <span className="text-2xl block">{w.label.split(' ')[0]}</span>
+                <p className="text-[10px] text-gray-400 mt-1">{w.label.split(' ')[1]}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </BottomSheet>
+
+      {/* Steps Sheet */}
+      <BottomSheet isOpen={stepsSheet} onClose={() => setStepsSheet(false)} title="🚶 Registrar pasos">
+        <div className="space-y-4">
+          <div className="text-center mb-2">
+            <p className="text-3xl font-black text-white">{Number(todayHabits.steps?.value || 0).toLocaleString()}</p>
+            <p className="text-xs text-gray-500">pasos hoy</p>
+          </div>
+          {[1000, 3000, 5000, 8000, 10000].map(s => (
+            <button key={s} onClick={async () => {
+              hapticMedium()
+              await useHabitStore.getState().upsertHabit('steps', s, targets.steps || 10000)
+              setStepsSheet(false)
+            }} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 text-center active:scale-95 transition">
+              <span className="text-sm font-black text-white">{s.toLocaleString()} pasos</span>
+            </button>
+          ))}
+        </div>
+      </BottomSheet>
+
+      {/* Insight Sheet */}
+      <BottomSheet isOpen={insightSheet} onClose={() => setInsightSheet(false)} title="🧠 Daily Insight">
+        <div className="space-y-4">
+          {todayPlan?.morning_brief && (
+            <div>
+              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Brief matutino</p>
+              <p className="text-sm text-gray-300 leading-relaxed">{todayPlan.morning_brief}</p>
+            </div>
+          )}
+          {todayPlan?.midday_adjust && (
+            <div>
+              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Recálculo</p>
+              <p className="text-sm text-gray-300 leading-relaxed">{todayPlan.midday_adjust}</p>
+            </div>
+          )}
+          {todayPlan?.evening_wrap && (
+            <div>
+              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Cierre</p>
+              <p className="text-sm text-gray-300 leading-relaxed">{todayPlan.evening_wrap}</p>
+            </div>
+          )}
+          {todayPlan?.adjusted_targets && (
+            <div className="bg-white/5 rounded-xl p-3">
+              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Targets ajustados</p>
+              <p className="text-xs text-gray-400">{todayPlan.adjusted_targets.reason}</p>
+            </div>
+          )}
+        </div>
+      </BottomSheet>
 
       {/* ═══ VER MÁS (secondary content) ═══ */}
       <button
