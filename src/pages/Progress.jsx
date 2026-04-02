@@ -6,6 +6,11 @@ import { useCycleStore } from '../stores/cycleStore'
 import { useGymPrStore } from '../stores/gymPrStore'
 import { useJournalStore } from '../stores/journalStore'
 import { useInsightsStore } from '../stores/insightsStore'
+import { useHabitStore } from '../stores/habitStore'
+import { useFoodStore } from '../stores/foodStore'
+import { useEnergyStore } from '../stores/energyStore'
+import { useTargetsStore } from '../stores/targetsStore'
+import { usePointsStore } from '../stores/pointsStore'
 import { useRoutineStore } from '../stores/routineStore'
 import MonthlyReport from '../components/report/MonthlyReport'
 import { WeightChart, HabitWeeklyChart, MacroChart, useTrendData } from '../components/charts/TrendCharts'
@@ -22,18 +27,19 @@ function Heatmap({ data }) {
   }
 
   const getColor = (score) => {
-    if (score === -1) return 'bg-zinc-800'
-    if (score === 0) return 'bg-gray-100'
-    if (score < 50) return 'bg-red-300'
-    if (score < 80) return 'bg-amber-300'
-    return 'bg-emerald-400'
+    if (score === -1) return 'bg-gray-800'
+    if (score === 0) return 'bg-gray-800/50'
+    if (score < 33) return 'bg-emerald-900'
+    if (score < 66) return 'bg-emerald-700'
+    if (score < 90) return 'bg-emerald-500'
+    return 'bg-emerald-400 shadow-sm shadow-emerald-400/30'
   }
 
   return (
     <div>
       <div className="grid grid-cols-7 gap-1.5">
         {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(d => (
-          <div key={d} className="text-center text-xs text-gray-400 font-medium">{d}</div>
+          <div key={d} className="text-center text-[9px] text-gray-600 font-bold">{d}</div>
         ))}
         {Array.from({ length: (days[0]?.day + 6) % 7 }).map((_, i) => (
           <div key={'pad-' + i} />
@@ -41,19 +47,104 @@ function Heatmap({ data }) {
         {days.map(d => (
           <div
             key={d.date}
-            className={`aspect-square rounded-md ${getColor(d.score)}`}
+            className={`aspect-square rounded-lg ${getColor(d.score)} transition-all`}
             title={d.date + ': ' + d.score + '%'}
           />
         ))}
       </div>
-      <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
-        <span>Menos</span>
-        <div className="w-3 h-3 rounded bg-gray-100" />
-        <div className="w-3 h-3 rounded bg-red-300" />
-        <div className="w-3 h-3 rounded bg-amber-300" />
+      <div className="flex items-center gap-1.5 mt-3 justify-center">
+        <span className="text-[9px] text-gray-600">Menos</span>
+        <div className="w-3 h-3 rounded bg-gray-800/50" />
+        <div className="w-3 h-3 rounded bg-emerald-900" />
+        <div className="w-3 h-3 rounded bg-emerald-700" />
+        <div className="w-3 h-3 rounded bg-emerald-500" />
         <div className="w-3 h-3 rounded bg-emerald-400" />
-        <span>Más</span>
+        <span className="text-[9px] text-gray-600">Más</span>
       </div>
+    </div>
+  )
+}
+
+function BioRadar({ todayHabits, macros, targets, todayEnergy }) {
+  const pillars = [
+    { label: 'Nutrición', pct: macros.calories > 0 ? Math.min(100, Math.round((macros.calories / (targets.calories || 2100)) * 100)) : 0 },
+    { label: 'Pasos', pct: Math.min(100, Math.round((Number(todayHabits.steps?.value || 0) / (targets.steps || 10000)) * 100)) },
+    { label: 'BJJ', pct: Number(todayHabits.bjj?.value || 0) >= 1 ? 100 : 0 },
+    { label: 'Gym', pct: Number(todayHabits.gym?.value || 0) >= 1 ? 100 : 0 },
+    { label: 'Agua', pct: Math.min(100, Math.round((Number(todayHabits.water?.value || 0) / (targets.water || 2.5)) * 100)) },
+    { label: 'Energía', pct: todayEnergy ? Math.round((todayEnergy / 5) * 100) : 0 },
+  ]
+
+  const n = pillars.length
+  const cx = 70, cy = 70, r = 55
+  const points = pillars.map((p, i) => {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2
+    const pr = r * (p.pct / 100)
+    return { x: cx + pr * Math.cos(angle), y: cy + pr * Math.sin(angle), label: p.label, pct: p.pct, lx: cx + (r + 12) * Math.cos(angle), ly: cy + (r + 12) * Math.sin(angle) }
+  })
+  const polyPoints = points.map(p => `${p.x},${p.y}`).join(' ')
+
+  return (
+    <div>
+      <svg viewBox="0 0 140 140" className="w-full max-w-[220px] mx-auto">
+        {/* Grid rings */}
+        {[0.25, 0.5, 0.75, 1].map(scale => (
+          <polygon key={scale} points={Array.from({ length: n }).map((_, i) => {
+            const a = (Math.PI * 2 * i / n) - Math.PI / 2
+            return `${cx + r * scale * Math.cos(a)},${cy + r * scale * Math.sin(a)}`
+          }).join(' ')} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" />
+        ))}
+        {/* Axis lines */}
+        {points.map((p, i) => (
+          <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos((Math.PI * 2 * i / n) - Math.PI / 2)} y2={cy + r * Math.sin((Math.PI * 2 * i / n) - Math.PI / 2)} stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" />
+        ))}
+        {/* Filled area */}
+        <polygon points={polyPoints} fill="rgba(34,197,94,0.15)" stroke="#22c55e" strokeWidth="1.5" />
+        {/* Dots */}
+        {points.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="3" fill={p.pct >= 80 ? '#22c55e' : p.pct >= 40 ? '#f59e0b' : '#ef4444'} />
+        ))}
+        {/* Labels */}
+        {points.map((p, i) => (
+          <text key={i} x={p.lx} y={p.ly} textAnchor="middle" dominantBaseline="central" fill="#6b7280" fontSize="6" fontWeight="bold">{p.label}</text>
+        ))}
+      </svg>
+    </div>
+  )
+}
+
+function Trophies({ streak, totalPoints, habits, todayHabits }) {
+  const trophies = []
+  if (streak >= 3) trophies.push({ icon: '🔥', label: `${streak} días racha`, active: true })
+  if (streak >= 7) trophies.push({ icon: '⚡', label: '7+ días', active: true })
+  if (totalPoints >= 100) trophies.push({ icon: '💰', label: '100+ pts', active: true })
+  if (totalPoints >= 500) trophies.push({ icon: '💎', label: '500+ pts', active: true })
+
+  const waterDone = Number(todayHabits.water?.value || 0) >= 2.5
+  const allHabitsDone = habits.every(h => Number(todayHabits[h.type]?.value || 0) >= h.target)
+  if (allHabitsDone) trophies.push({ icon: '🏆', label: 'Día perfecto', active: true })
+  if (waterDone) trophies.push({ icon: '💧', label: 'Agua ✓', active: true })
+
+  // Placeholder locked trophies
+  if (trophies.length < 6) {
+    const locked = [
+      { icon: '🦍', label: '10 PRs' },
+      { icon: '🥋', label: '50 BJJ' },
+      { icon: '🚶', label: '100k pasos' },
+    ]
+    locked.slice(0, 6 - trophies.length).forEach(t => trophies.push({ ...t, active: false }))
+  }
+
+  return (
+    <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+      {trophies.map((t, i) => (
+        <div key={i} className={`flex-shrink-0 w-16 text-center ${t.active ? '' : 'opacity-30'}`}>
+          <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center text-xl ${t.active ? 'bg-amber-500/20 border border-amber-500/30' : 'bg-gray-800 border border-gray-700'}`}>
+            {t.icon}
+          </div>
+          <p className="text-[8px] text-gray-500 font-bold mt-1 leading-tight">{t.label}</p>
+        </div>
+      ))}
     </div>
   )
 }
@@ -224,6 +315,12 @@ export default function Progress() {
   const [showWeightChart, setShowWeightChart] = useState(false)
   const [showHabitChart, setShowHabitChart] = useState(false)
   const [showMacroChart, setShowMacroChart] = useState(false)
+  const { todayHabits } = useHabitStore()
+  const { getTodayMacros } = useFoodStore()
+  const { todayEnergy } = useEnergyStore()
+  const { targets } = useTargetsStore()
+  const { totalPoints, streak } = usePointsStore()
+  const dashMacros = getTodayMacros()
 
   const { activeCycle, cycleTargets, weeklyStats, pastCycles, loading: cycleLoading, fetchActive, fetchPast, createCycle, completeCycle } = useCycleStore()
   const { prs, fetchPRs, addPR, deletePR, getMaxPR, getExercises } = useGymPrStore()
@@ -310,7 +407,19 @@ export default function Progress() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] px-4 py-5 pb-24 space-y-4 max-w-lg mx-auto">
-      <h1 className="text-xl font-bold text-white">Progreso</h1>
+      <h1 className="text-xl font-black text-white tracking-tight">Progreso</h1>
+
+      {/* ═══ TROPHIES ═══ */}
+      <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+        <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-3">Logros</p>
+        <Trophies streak={streak} totalPoints={totalPoints} habits={HABITS} todayHabits={todayHabits} />
+      </div>
+
+      {/* ═══ BIO-BALANCE RADAR ═══ */}
+      <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+        <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">Bio-Balance (6 Pilares)</p>
+        <BioRadar todayHabits={todayHabits} macros={dashMacros} targets={targets} todayEnergy={todayEnergy} />
+      </div>
 
       {/* Active Cycle */}
       {activeCycle ? (
@@ -445,19 +554,39 @@ export default function Progress() {
         </>
       )}
 
-      {/* Weight trend */}
+      {/* Weight trend + baseline */}
       <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
         <h2 className="text-sm font-semibold text-gray-300 mb-3">Peso</h2>
         {weightHistory.length === 0 ? (
-          <p className="text-sm text-slate-400 italic">El gráfico de peso está esperando tus datos para decirte la verdad... no le tengas miedo ⚖️</p>
+          <p className="text-sm text-gray-500 italic">El gráfico de peso está esperando tus datos... no le tengas miedo ⚖️</p>
         ) : (
           <div className="space-y-2">
+            {/* Baseline comparison */}
+            {weightHistory.length >= 3 && (() => {
+              const recent = weightHistory.slice(-3)
+              const avg = Math.round(recent.reduce((a, w) => a + w.weight, 0) / recent.length * 10) / 10
+              const current = weightHistory[weightHistory.length - 1].weight
+              const diff = (current - avg).toFixed(1)
+              const pct = ((current - avg) / avg * 100).toFixed(1)
+              return (
+                <div className="bg-white/5 rounded-xl p-3 mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-400">Actual vs promedio 3 días</p>
+                    <p className="text-lg font-black text-white">{current} kg</p>
+                  </div>
+                  <div className={`text-right ${Number(diff) <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <p className="text-lg font-black">{Number(diff) > 0 ? '↑' : '↓'} {Math.abs(Number(pct))}%</p>
+                    <p className="text-[10px]">{Number(diff) > 0 ? '+' : ''}{diff} kg vs prom</p>
+                  </div>
+                </div>
+              )
+            })()}
             {weightHistory.slice(-5).map(w => (
               <div key={w.date} className="flex justify-between text-sm">
                 <span className="text-gray-500">
                   {new Date(w.date + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
                 </span>
-                <span className="font-bold text-gray-800">{w.weight} kg</span>
+                <span className="font-bold text-gray-300">{w.weight} kg</span>
               </div>
             ))}
             {weightHistory.length >= 2 && (
