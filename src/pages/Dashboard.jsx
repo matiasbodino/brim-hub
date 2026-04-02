@@ -10,6 +10,7 @@ import ShareButton from '../components/ShareButton'
 import WeeklyDigest from '../components/digest/WeeklyDigest'
 import MicroJournal from '../components/journal/MicroJournal'
 import { track } from '../lib/analytics'
+import { useBJJTheme } from '../hooks/useBJJTheme'
 
 function MacroRing({ label, current, target, color, textColor }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
@@ -68,6 +69,7 @@ export default function Dashboard() {
 
   const macros = getTodayMacros()
   const balance = totalPoints - spentPoints
+  const { colors: themeColors } = useBJJTheme()
   const { current: level, next: nextLevel } = getLevel()
 
   const completedHabits = HABITS.filter(h => {
@@ -142,19 +144,25 @@ export default function Dashboard() {
 
       {/* Bento Grid de Stats */}
       <div className="grid grid-cols-2 gap-4 mb-8">
-        {/* Card Principal: Score */}
-        <div className="col-span-2 bg-indigo-600 rounded-[2.5rem] p-6 text-white shadow-xl shadow-indigo-200 relative overflow-hidden">
+        {/* Card Principal: Score — themed by BJJ belt */}
+        <div
+          className="col-span-2 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden"
+          style={{ backgroundColor: themeColors.primary, color: themeColors.text }}
+        >
           <div className="relative z-10">
-            <p className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-1">Daily Completion</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-bold uppercase tracking-wider opacity-70">Daily Completion</p>
+              <span className="text-xs font-black opacity-60">{level.badge} {level.name}</span>
+            </div>
             <div className="flex items-baseline gap-2">
               <h2 className="text-6xl font-black">{score}%</h2>
               <span className="text-2xl">🏆</span>
             </div>
             <div className="mt-4 flex items-center gap-2">
-              <div className="h-2 flex-1 bg-indigo-400/30 rounded-full overflow-hidden">
+              <div className="h-2 flex-1 rounded-full overflow-hidden" style={{ backgroundColor: themeColors.accent + '40' }}>
                 <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: `${score}%` }} />
               </div>
-              <span className="text-xs text-indigo-200 font-semibold">{completedHabits}/{HABITS.length}</span>
+              <span className="text-xs font-semibold opacity-70">{completedHabits}/{HABITS.length}</span>
             </div>
           </div>
           <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />

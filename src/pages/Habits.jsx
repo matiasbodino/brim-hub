@@ -272,42 +272,71 @@ function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, colla
 
 function BJJFormContent({ onSubmit, onCancel }) {
   const [tipo, setTipo] = useState('Gi')
-  const [duracion, setDuracion] = useState(60)
+  const [duracion, setDuracion] = useState(90)
   const [tecnicas, setTecnicas] = useState('')
-  const [notas, setNotas] = useState('')
+
+  const handleSave = () => {
+    if (window.navigator.vibrate) window.navigator.vibrate([10, 50, 10])
+    onSubmit({ tipo, duracion, tecnicas, notas: '' })
+  }
 
   return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
+    <div className="space-y-8">
+      {/* Gi / No-Gi Toggle */}
+      <div className="flex bg-slate-100 p-1.5 rounded-[2rem]">
         {['Gi', 'No-Gi'].map(t => (
-          <button key={t} onClick={() => setTipo(t)}
-            className={`flex-1 py-2 text-sm font-semibold rounded-xl transition ${
-              tipo === t ? 'bg-violet-600 text-white' : 'border border-gray-200 text-gray-600'
-            }`}>{t}</button>
+          <button
+            key={t}
+            onClick={() => setTipo(t)}
+            className={`flex-1 py-4 rounded-[1.5rem] font-bold text-sm transition-all ${
+              tipo === t ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500'
+            }`}
+          >
+            {t === 'Gi' ? '🥋 Gi' : '🤼 No-Gi'}
+          </button>
         ))}
       </div>
-      <div>
-        <label className="text-xs text-gray-500">Duración (min)</label>
-        <input type="number" value={duracion} onChange={e => setDuracion(Number(e.target.value))}
-          className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
+
+      {/* Duración */}
+      <div className="space-y-4">
+        <div className="flex justify-between text-xs font-black text-slate-400 uppercase tracking-widest">
+          <div className="flex items-center gap-1">🕐 Duración</div>
+          <span className="text-indigo-600">{duracion} min</span>
+        </div>
+        <div className="flex justify-between gap-2">
+          {[60, 90, 120].map(m => (
+            <button
+              key={m}
+              onClick={() => setDuracion(m)}
+              className={`flex-1 py-3 rounded-2xl border-2 font-bold transition-all ${
+                duracion === m ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-100 text-slate-400'
+              }`}
+            >
+              {m}'
+            </button>
+          ))}
+        </div>
       </div>
-      <div>
-        <label className="text-xs text-gray-500">Técnicas trabajadas</label>
-        <input type="text" value={tecnicas} onChange={e => setTecnicas(e.target.value)}
-          placeholder="Guard pass, sweep, armbar..."
-          className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
+
+      {/* Técnica */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-1 text-xs font-black text-slate-400 uppercase tracking-widest">
+          📖 Técnica del día
+        </div>
+        <textarea
+          value={tecnicas}
+          onChange={e => setTecnicas(e.target.value)}
+          placeholder="Ej: Paso de guardia De La Riva, Armbar desde Close Guard..."
+          className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm focus:ring-2 focus:ring-indigo-100 min-h-[100px] resize-none"
+        />
       </div>
-      <div>
-        <label className="text-xs text-gray-500">Notas</label>
-        <textarea value={notas} onChange={e => setNotas(e.target.value)}
-          placeholder="Cómo te sentiste, con quién roleaste..."
-          className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1 h-20 resize-none" />
-      </div>
-      <div className="flex gap-2">
-        <button onClick={onCancel} className="flex-1 py-2 text-sm font-semibold rounded-xl border border-gray-200">Cancelar</button>
-        <button onClick={() => onSubmit({ tipo, duracion, tecnicas, notas })}
-          className="flex-1 py-2 text-sm font-semibold rounded-xl bg-violet-600 text-white">Guardar</button>
-      </div>
+
+      <button
+        onClick={handleSave}
+        className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-transform"
+      >
+        ✅ Oss! Guardar Treino
+      </button>
     </div>
   )
 }
