@@ -11,6 +11,7 @@ import WeeklyDigest from '../components/digest/WeeklyDigest'
 import MicroJournal from '../components/journal/MicroJournal'
 import { track } from '../lib/analytics'
 import { useBJJTheme } from '../hooks/useBJJTheme'
+import { useInsightsStore } from '../stores/insightsStore'
 
 function MacroRing({ label, current, target, color, textColor }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
@@ -58,12 +59,15 @@ export default function Dashboard() {
   const { activeCycle, weeklyStats, fetchActive } = useCycleStore()
   const { targets, fetchTargets } = useTargetsStore()
 
+  const { userModel, lastGenerated, fetchUserModel } = useInsightsStore()
+
   useEffect(() => {
     fetchFood()
     fetchHabits()
     fetchAll()
     fetchActive()
     fetchTargets()
+    fetchUserModel()
     track('app_open')
   }, [])
 
@@ -245,6 +249,27 @@ export default function Dashboard() {
 
       {/* Weekly Digest */}
       <WeeklyDigest />
+
+      {/* AI Indicator */}
+      <Link to="/progress" className="block">
+        {userModel ? (
+          <div className="bg-violet-50 rounded-xl p-3 flex items-center justify-between">
+            <span className="text-xs font-medium text-violet-600">
+              🧠 AI actualizada · {(() => {
+                if (!lastGenerated) return ''
+                const diff = Math.round((Date.now() - new Date(lastGenerated).getTime()) / 86400000)
+                return diff === 0 ? 'hoy' : diff === 1 ? 'ayer' : `hace ${diff} días`
+              })()}
+            </span>
+            <span className="text-violet-400 text-xs">→</span>
+          </div>
+        ) : (
+          <div className="bg-violet-50 rounded-xl p-3 flex items-center justify-between">
+            <span className="text-xs font-medium text-violet-600">🧠 Activá tu AI personalizada</span>
+            <span className="text-violet-400 text-xs">→</span>
+          </div>
+        )}
+      </Link>
 
       {/* Macros - Ring Style */}
       <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm mt-6 mb-6">

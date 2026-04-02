@@ -4,6 +4,7 @@ import { MATI_ID, HABITS, GYM_EXERCISES } from '../lib/constants'
 import { useCycleStore } from '../stores/cycleStore'
 import { useGymPrStore } from '../stores/gymPrStore'
 import { useJournalStore } from '../stores/journalStore'
+import { useInsightsStore } from '../stores/insightsStore'
 import { WeightChart, HabitWeeklyChart, MacroChart, useTrendData } from '../components/charts/TrendCharts'
 
 function Heatmap({ data }) {
@@ -223,12 +224,17 @@ export default function Progress() {
   const { activeCycle, cycleTargets, weeklyStats, pastCycles, loading: cycleLoading, fetchActive, fetchPast, createCycle, completeCycle } = useCycleStore()
   const { prs, fetchPRs, addPR, deletePR, getMaxPR, getExercises } = useGymPrStore()
   var { monthEntries, fetchMonth } = useJournalStore()
+  const { insights, userModel, generating, lastGenerated, fetchInsights, fetchUserModel, generateInsights, dismissInsight } = useInsightsStore()
+  const [showInsights, setShowInsights] = useState(false)
+  const [showUserModel, setShowUserModel] = useState(false)
 
   useEffect(() => {
     loadData()
     fetchActive()
     fetchPast()
     fetchPRs()
+    fetchInsights()
+    fetchUserModel()
     var ym = new Date().toISOString().slice(0, 7)
     fetchMonth(ym)
   }, [])
@@ -316,6 +322,90 @@ export default function Progress() {
       <div className="bg-white rounded-2xl p-4 border border-gray-100">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Últimos 28 días</h2>
         <Heatmap data={heatmapData} />
+      </div>
+
+      {/* AI Insights */}
+      <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm">
+        <div className="flex items-center justify-between mb-3 cursor-pointer" onClick={() => setShowInsights(!showInsights)}>
+          <div className="flex items-center gap-2">
+            <span className="text-base">🧠</span>
+            <h2 className="text-sm font-bold text-slate-800">Lo que la AI aprendió de vos</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            {lastGenerated && (
+              <span className="text-[10px] text-slate-400">
+                {(() => {
+                  const diff = Math.round((Date.now() - new Date(lastGenerated).getTime()) / 86400000)
+                  return diff === 0 ? 'Hoy' : diff === 1 ? 'Ayer' : `Hace ${diff} días`
+                })()}
+              </span>
+            )}
+            <span className={`text-slate-400 transition-transform duration-300 text-xs ${showInsights ? 'rotate-180' : ''}`}>▼</span>
+          </div>
+        </div>
+
+        {showInsights && (
+          <div className="space-y-3 animate-fade-in">
+            {/* User Model expandible */}
+            {userModel && (
+              <div className="bg-slate-900 rounded-2xl p-4 text-white">
+                <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowUserModel(!showUserModel)}>
+                  <span className="text-xs font-bold text-indigo-300 uppercase tracking-widest">📋 Tu perfil AI v{userModel.model_version}</span>
+                  <span className={`text-slate-400 text-xs transition-transform duration-300 ${showUserModel ? 'rotate-180' : ''}`}>▼</span>
+                </div>
+                {showUserModel && (
+                  <div className="mt-3 text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                    {userModel.model_content}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Insight cards */}
+            {insights.length > 0 ? (
+              insights.map(insight => {
+                const typeEmoji = { correlation: '🔗', food_preference: '🍽', behavior_pattern: '📅', trend: '📈', motivation: '💪' }
+                const conf = insight.confidence
+                const confColor = conf >= 0.8 ? 'bg-green-500' : conf >= 0.6 ? 'bg-yellow-500' : 'bg-orange-500'
+                return (
+                  <div key={insight.id} className="bg-white rounded-2xl p-4 border border-slate-100 relative animate-fade-in">
+                    <button
+                      onClick={() => dismissInsight(insight.id)}
+                      className="absolute top-3 right-3 text-slate-300 hover:text-red-400 text-xs p-1"
+                    >✕</button>
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl">{typeEmoji[insight.insight_type] || '🔍'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800">{insight.insight_value?.pattern}</p>
+                        <p className="text-xs text-slate-500 mt-1">{insight.insight_value?.suggestion}</p>
+                        <div className="flex items-center gap-3 mt-2">
+                          <div className="flex items-center gap-1.5">
+                            <div className={`h-1 w-12 rounded-full ${confColor}`} />
+                            <span className="text-[10px] text-slate-400">{Math.round(conf * 100)}%</span>
+                          </div>
+                          {insight.evidence_count > 0 && (
+                            <span className="text-[10px] text-slate-400">basado en {insight.evidence_count} datos</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            ) : (
+              <p className="text-xs text-slate-400 text-center py-2">No hay insights todavía</p>
+            )}
+
+            {/* Generate / Regenerate button */}
+            <button
+              onClick={generateInsights}
+              disabled={generating}
+              className="w-full py-3 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-2xl active:scale-95 transition disabled:opacity-50"
+            >
+              {generating ? 'Analizando 90 días...' : insights.length > 0 ? '🔄 Regenerar análisis' : '✨ Generar análisis'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Trends */}
