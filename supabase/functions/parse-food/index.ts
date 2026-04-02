@@ -97,6 +97,11 @@ Deno.serve(async (req) => {
     }
 
     // Validate required fields
+    // Detect alcohol in input or parsed response
+    const allText = (text + ' ' + (parsed.description || '') + ' ' + JSON.stringify(parsed.breakdown || [])).toLowerCase();
+    const alcoholKeywords = ['birra', 'cerveza', 'fernet', 'vino', 'alcohol', 'whisky', 'vodka', 'gin', 'ron', 'aperol', 'spritz', 'trago', 'copa', 'pinta'];
+    const containsAlcohol = alcoholKeywords.some(k => allText.includes(k));
+
     const result = {
       meal_type: parsed.meal_type || meal_type || "snack",
       description: parsed.description || text.trim(),
@@ -107,6 +112,7 @@ Deno.serve(async (req) => {
       confidence: parsed.confidence || "medium",
       breakdown: Array.isArray(parsed.breakdown) ? parsed.breakdown : [],
       query_adjustment: parsed.query_adjustment || null,
+      contains_alcohol: containsAlcohol,
     };
 
     return new Response(

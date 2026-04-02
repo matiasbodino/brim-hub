@@ -136,8 +136,15 @@ Deno.serve(async (req) => {
     const timeOfDay = getTimeOfDay();
     const dayName = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][new Date(today + 'T12:00:00').getDay()];
 
+    // Yesterday for alcohol detection
+    const yesterday = (() => {
+      const d = new Date(today + 'T12:00:00');
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().slice(0, 10);
+    })();
+
     // ── 3a. Parallel data fetch ──
-    const [profile, weekFood, todayFood, todayHabits, todayEnergy, userModelData, foodInsights, existingPlan] = await Promise.all([
+    const [profile, weekFood, todayFood, todayHabits, todayEnergy, userModelData, foodInsights, existingPlan, yesterdayFood] = await Promise.all([
       querySingle("user_profile", `select=daily_calorie_target,daily_protein_target,daily_carbs_target,daily_fat_target,daily_water_target,daily_steps_target,weight_goal,weight_goal_date,weekly_weight_target&id=eq.${enc(MATI_ID)}`),
       query("food_logs", `select=calories,protein,carbs,fat,logged_at&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(monday + "T00:00:00-03:00")}&logged_at=lte.${enc(today + "T23:59:59-03:00")}`) as Promise<{calories:number;protein:number;carbs:number;fat:number;logged_at:string}[]>,
       query("food_logs", `select=calories,protein,carbs,fat,meal_type,description,logged_at&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(today + "T00:00:00-03:00")}&logged_at=lte.${enc(today + "T23:59:59-03:00")}`) as Promise<{calories:number;protein:number;carbs:number;fat:number;meal_type:string;description:string;logged_at:string}[]>,
@@ -146,6 +153,7 @@ Deno.serve(async (req) => {
       query("user_model", `select=model_content&user_id=eq.${enc(MATI_ID)}&order=generated_at.desc&limit=1`) as Promise<{model_content:string}[]>,
       query("user_insights", `select=insight_value&user_id=eq.${enc(MATI_ID)}&insight_type=eq.food_preference&active=eq.true`) as Promise<{insight_value:Record<string,string>}[]>,
       querySingle("daily_plans", `select=*&user_id=eq.${enc(MATI_ID)}&date=eq.${enc(today)}`),
+      query("food_logs", `select=description&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(yesterday + "T00:00:00-03:00")}&logged_at=lte.${enc(yesterday + "T23:59:59-03:00")}`) as Promise<{description:string}[]>,
     ]);
 
     // ── 3b. Calculate adjusted targets ──
@@ -168,6 +176,19 @@ Deno.serve(async (req) => {
       baseCalories, baseProtein, weeklyWeightTarget,
       weekConsumedCalories, weekDaysElapsed, baseSteps,
     });
+
+    // ── Alcohol detection: yesterday's food → "Día de limpieza" ──
+    const alcoholKeywords = ['birra', 'cerveza', 'fernet', 'vino', 'alcohol', 'whisky', 'vodka', 'gin', 'ron', 'aperol', 'spritz', 'trago', 'copa', 'pinta'];
+    const yesterdayText = (yesterdayFood || []).map(f => (f.description || '').toLowerCase()).join(' ');
+    const hadAlcoholYesterday = alcoholKeywords.some(k => yesterdayText.includes(k));
+
+    if (hadAlcoholYesterday) {
+      adjustedTargets.water = 3.5;
+      adjustedTargets.cleanup_day = true;
+      if (!adjustedTargets.reason.includes('limpieza')) {
+        adjustedTargets.reason += ' 🧹 Día de limpieza: ayer hubo alcohol, agua a 3.5L.';
+      }
+    }
 
     // ── 3f. consumed_so_far + remaining_budget ──
     const consumedSoFar = {
@@ -268,9 +289,11 @@ Usá los keys en inglés: breakfast, lunch, snack, dinner. Solo las comidas que 
         `Escribí un brief para arrancar el día.
 Semana: ${weekProgress.pct}% del budget calórico (${weekProgress.status})
 Target hoy: ${adjustedTargets.calories} kcal — ${adjustedTargets.reason}
+Agua hoy: ${adjustedTargets.water}L ${hadAlcoholYesterday ? '(+1L por alcohol de ayer — DÍA DE LIMPIEZA)' : ''}
 Energía: ${energyLevel ? energyLevel + '/5' : 'sin registrar'}
 Día: ${dayName}
-Hábitos: ${habitsStatus}`,
+Hábitos: ${habitsStatus}
+${hadAlcoholYesterday ? 'IMPORTANTE: Ayer tomó alcohol. Enfocá el brief en recuperación: agua, comida liviana, descanso. Mencioná que si tiene que rodar/entrenar necesita hidratarse bien.' : ''}`,
         { maxTokens: 200, temperature: 0.7 }
       );
     } else if (timeOfDay === 'midday' && recalculate) {
