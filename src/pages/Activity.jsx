@@ -60,9 +60,27 @@ export default function Activity() {
   const handleConfirmAI = async () => {
     if (!aiEstimate) return
     hapticMedium()
-    await confirmAIEstimate({ ...aiEstimate, rawInput: aiText })
-    setAiText('')
-    showToast('🍽 Registrado')
+    try {
+      // Ensure meal_type is never null
+      const estimate = {
+        ...aiEstimate,
+        rawInput: aiText,
+        meal_type: aiEstimate.meal_type || getMealTypeByHour(),
+      }
+      await confirmAIEstimate(estimate)
+      setAiText('')
+      showToast('🍽 Registrado')
+    } catch (err) {
+      showToast('Error al guardar: ' + (err?.message || 'intentá de nuevo'))
+    }
+  }
+
+  function getMealTypeByHour() {
+    const h = new Date().getHours()
+    if (h >= 6 && h < 11) return 'desayuno'
+    if (h >= 11 && h < 16) return 'almuerzo'
+    if (h >= 16 && h < 19) return 'merienda'
+    return 'cena'
   }
 
   return (

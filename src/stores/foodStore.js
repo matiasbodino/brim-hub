@@ -37,12 +37,34 @@ export const useFoodStore = create(persist((set, get) => ({
   },
 
   addLog: async (log) => {
+    // Ensure required fields
+    const cleanLog = {
+      ...log,
+      user_id: MATI_ID,
+      meal_type: log.meal_type || 'snack',
+      description: log.description || 'Comida',
+      calories: Number(log.calories) || 0,
+      protein: Number(log.protein) || 0,
+      carbs: Number(log.carbs) || 0,
+      fat: Number(log.fat) || 0,
+      confirmed: log.confirmed !== false,
+    }
+    // Remove fields that shouldn't go to Supabase
+    delete cleanLog.id
+    delete cleanLog.logged_at
+    delete cleanLog._skeleton
+    delete cleanLog.rawInput
+    delete cleanLog.confidence
+    delete cleanLog.breakdown
+    delete cleanLog.query_adjustment
+    delete cleanLog.contains_alcohol
+
     const { data, error } = await supabase
       .from('food_logs')
-      .insert({ ...log, user_id: MATI_ID })
+      .insert(cleanLog)
       .select()
       .single()
-    if (error) throw error
+    if (error) throw new Error(error.message || 'Error guardando comida')
     set({ todayLogs: [...get().todayLogs, data] })
     track('food_logged', { method: 'manual', meal_type: log.meal_type })
     usePlanStore.getState().recalculate()
