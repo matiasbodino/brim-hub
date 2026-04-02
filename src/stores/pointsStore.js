@@ -1,9 +1,10 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { supabase } from '../lib/supabase'
 import { MATI_ID, POINTS, HABITS, DEFAULT_PERMITIDOS, getLevel } from '../lib/constants'
 import { track } from '../lib/analytics'
 
-export const usePointsStore = create((set, get) => ({
+export const usePointsStore = create(persist((set, get) => ({
   totalPoints: 0,
   spentPoints: 0,
   redeemHistory: [],
@@ -238,4 +239,7 @@ export const usePointsStore = create((set, get) => ({
   },
 
   getLevel: () => getLevel(get().totalPoints),
+}), {
+  name: 'brim-points',
+  partialize: (state) => ({ totalPoints: state.totalPoints, spentPoints: state.spentPoints, streak: state.streak }),
 }))

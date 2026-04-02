@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { supabase } from '../lib/supabase'
 import { MATI_ID } from '../lib/constants'
 import { track } from '../lib/analytics'
@@ -7,7 +8,7 @@ import { usePlanStore } from './planStore'
 const EDGE_URL = 'https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcnBxemFoYnRmYnh4dGFxZXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTExODMsImV4cCI6MjA5MDA2NzE4M30.f85JKwllPo1dLRvzFphPkLL8bEMts0IYjqCnTLDrA_c'
 
-export const useFoodStore = create((set, get) => ({
+export const useFoodStore = create(persist((set, get) => ({
   todayLogs: [],
   loading: false,
   aiEstimate: null,   // current AI estimate pending confirmation
@@ -198,4 +199,7 @@ export const useFoodStore = create((set, get) => ({
   },
 
   clearAIEstimate: () => set({ aiEstimate: null, aiError: null }),
+}), {
+  name: 'brim-food',
+  partialize: (state) => ({ todayLogs: state.todayLogs }),
 }))

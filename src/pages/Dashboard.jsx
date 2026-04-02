@@ -13,6 +13,7 @@ import { track } from '../lib/analytics'
 import { useBJJTheme } from '../hooks/useBJJTheme'
 import { useInsightsStore } from '../stores/insightsStore'
 import { usePlanStore } from '../stores/planStore'
+import { useSync } from '../hooks/useSync'
 import DailyPlan from '../components/plan/DailyPlan'
 import PredictiveGhost from '../components/plan/PredictiveGhost'
 
@@ -64,6 +65,9 @@ export default function Dashboard() {
 
   const { userModel, lastGenerated, fetchUserModel } = useInsightsStore()
   const { todayPlan, fetchTodayPlan, generatePlan } = usePlanStore()
+
+  // Background sync: rehydrate from Supabase, flush pending writes
+  useSync()
 
   useEffect(() => {
     fetchFood()
