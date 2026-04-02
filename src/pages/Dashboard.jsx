@@ -159,7 +159,8 @@ export default function Dashboard() {
     // Priority 2: Near-meal transition
     if (mealWindow.nearMeal && isSnack) {
       const nextMeal = mealWindow.slot === 'snack_am' ? 'almorzar' : 'cenar'
-      return `Falta poco para ${nextMeal}. Mejor esperá y clavá ${calForThisMeal + 300} kcal en la comida principal.`
+      const minLeft = mealWindow.slot === 'snack_am' ? (12 - h) * 60 - new Date().getMinutes() : (19 - h) * 60 - new Date().getMinutes()
+      return `🍱 ${nextMeal === 'almorzar' ? 'Almuerzo' : 'Cena'} en el horizonte (~${minLeft} min). Objetivo: ${Math.min(calForThisMeal + 300, mealWindow.slot === 'snack_am' ? 800 : 700)} kcal con foco en proteína para llegar a tu meta.`
     }
 
     // Priority 3: Food suggestion based on window
@@ -221,28 +222,36 @@ export default function Dashboard() {
 
         {/* Calorie Wallet */}
         <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-4 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
-          <div className="flex items-center gap-4">
-            {/* Main: kcal remaining */}
-            <div className="flex-shrink-0">
-              <p className={`text-3xl font-black ${calOver ? 'text-red-500' : 'text-slate-800'}`}>{calOver ? '-' + (macros.calories - (targets.calories || 2100)) : calRemaining}</p>
-              <p className="text-[10px] text-slate-400 font-bold">{calOver ? 'kcal EXCESO' : 'kcal DISPONIBLES'}</p>
-              <p className="text-[8px] text-slate-300">Vas {macros.calories} de {targets.calories || 2100}</p>
-            </div>
-            {/* Mini indicators */}
-            <div className="flex-1 grid grid-cols-3 gap-2">
-              <div className="text-center">
-                <p className={`text-sm font-black ${protOver ? 'text-red-500' : protRemaining < 20 ? 'text-emerald-600' : 'text-slate-700'}`}>{protRemaining}g</p>
-                <p className="text-[8px] text-slate-400 font-bold uppercase">Prot</p>
-              </div>
-              <div className="text-center">
-                <p className={`text-sm font-black ${macros.carbs > (targets.carbs || 210) ? 'text-red-500' : 'text-slate-700'}`}>{carbsRemaining}g</p>
-                <p className="text-[8px] text-slate-400 font-bold uppercase">Carbs</p>
-              </div>
-              <div className="text-center">
-                <p className={`text-sm font-black ${macros.fat > (targets.fat || 70) ? 'text-red-500' : 'text-slate-700'}`}>{fatRemaining}g</p>
-                <p className="text-[8px] text-slate-400 font-bold uppercase">Grasa</p>
-              </div>
-            </div>
+          {/* Main: kcal */}
+          <div className="flex items-baseline gap-2 mb-3">
+            <p className={`text-3xl font-black ${calOver ? 'text-red-500' : 'text-slate-800'}`}>
+              {calOver ? '-' + (macros.calories - (targets.calories || 2100)) : calRemaining}
+            </p>
+            <p className="text-xs text-slate-400 font-bold">{calOver ? 'kcal EXCESO' : 'kcal DISPONIBLES'}</p>
+          </div>
+          <p className="text-[10px] text-slate-400 mb-3">Vas {macros.calories} de {targets.calories || 2100} kcal</p>
+
+          {/* Macro bars: consumed / target + progress */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Prot', current: Math.round(macros.protein), target: targets.protein || 150, color: 'bg-blue-500', unit: 'g' },
+              { label: 'Carbs', current: Math.round(macros.carbs), target: targets.carbs || 210, color: 'bg-amber-500', unit: 'g' },
+              { label: 'Grasa', current: Math.round(macros.fat), target: targets.fat || 70, color: 'bg-red-400', unit: 'g' },
+            ].map(m => {
+              const pct = m.target > 0 ? Math.min(100, Math.round((m.current / m.target) * 100)) : 0
+              const over = m.current > m.target
+              return (
+                <div key={m.label}>
+                  <p className={`text-xs font-black ${over ? 'text-red-500' : 'text-slate-700'}`}>
+                    {m.current} / {m.target}{m.unit}
+                  </p>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase">{m.label}</p>
+                  <div className="h-1 bg-slate-100 rounded-full overflow-hidden mt-1">
+                    <div className={`h-full rounded-full transition-all duration-500 ${over ? 'bg-red-500' : m.color}`} style={{ width: pct + '%' }} />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       </header>
