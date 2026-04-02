@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useHabitStore } from '../../stores/habitStore'
 import { useFoodStore } from '../../stores/foodStore'
 import { usePointsStore } from '../../stores/pointsStore'
@@ -7,7 +6,6 @@ import { useTargetsStore } from '../../stores/targetsStore'
 import { useEnergyStore } from '../../stores/energyStore'
 import { usePlanStore } from '../../stores/planStore'
 import { useDamageStore } from '../../stores/damageStore'
-import { WATER_UNITS } from '../../lib/constants'
 
 const EDGE_URL = 'https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcnBxemFoYnRmYnh4dGFxZXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTExODMsImV4cCI6MjA5MDA2NzE4M30.f85JKwllPo1dLRvzFphPkLL8bEMts0IYjqCnTLDrA_c'
@@ -18,6 +16,7 @@ async function callParseIntent(text) {
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ANON_KEY },
     body: JSON.stringify({ text }),
   })
+  if (!res.ok) throw new Error('Error de conexión')
   return res.json()
 }
 
@@ -27,9 +26,6 @@ export default function CommandBar({ isOpen, onClose }) {
   const [message, setMessage] = useState('')
   const inputRef = useRef(null)
 
-  const { todayHabits, upsertHabit } = useHabitStore()
-  const { parseWithAI, confirmAIEstimate } = useFoodStore()
-  const { processIntentRedeem } = usePointsStore()
   const { targets } = useTargetsStore()
 
   // Cmd+K shortcut
@@ -58,98 +54,104 @@ export default function CommandBar({ isOpen, onClose }) {
   // Auto-close after success
   useEffect(() => {
     if (status === 'success') {
-      const t = setTimeout(() => onClose(), 1500)
+      const t = setTimeout(() => onClose(), 2000)
       return () => clearTimeout(t)
     }
   }, [status])
 
-  const handleSubmit = async () => {
-    if (!input.trim() || status === 'processing') return
+  const handleSubmit = useCallback(async (textOverride) => {
+    const text = (textOverride || input).trim()
+    if (!text || status === 'processing') return
     setStatus('processing')
 
     try {
-      const intent = await callParseIntent(input.trim())
+      const intent = await callParseIntent(text)
       if (intent.error) {
-        setMessage(intent.error)
+        setMessage('No entendí eso. Probá con algo como "500ml agua" o "café con leche".')
         setStatus('error')
         return
       }
+
+      let successMsg = intent.confirmation_msg || 'Anotado, Mati. Ya lo sumé a tus números.'
 
       // Execute based on intent type
       if (intent.type === 'HABIT') {
         if (intent.action === 'add_water') {
           const amount = intent.payload?.amount || 0.5
           await useHabitStore.getState().addWater(amount, targets.water || 2.5)
+          successMsg = intent.confirmation_msg || `+${amount}L de agua. ${(Number(useHabitStore.getState().todayHabits.water?.value || 0)).toFixed(1)}L total.`
         } else if (intent.action === 'add_mate') {
           const termos = intent.payload?.termos || 1
           await useHabitStore.getState().addMate(termos, targets.water || 2.5)
+          successMsg = intent.confirmation_msg || `Mate sumado (${(termos * 0.7).toFixed(1)}L efectivos).`
         } else if (intent.action === 'set_steps') {
-          await upsertHabit('steps', intent.payload?.amount || 0, targets.steps || 10000)
+          const amount = intent.payload?.amount || 0
+          await useHabitStore.getState().upsertHabit('steps', amount, targets.steps || 10000)
+          successMsg = intent.confirmation_msg || `${amount.toLocaleString()} pasos registrados.`
         } else if (intent.action === 'toggle_gym') {
-          await upsertHabit('gym', 1, 1)
+          await useHabitStore.getState().upsertHabit('gym', 1, 1)
+          successMsg = intent.confirmation_msg || 'Gym marcado. La disciplina paga.'
         } else if (intent.action === 'toggle_bjj') {
-          await upsertHabit('bjj', 1, 1)
+          await useHabitStore.getState().upsertHabit('bjj', 1, 1)
+          successMsg = intent.confirmation_msg || 'BJJ marcado. Oss!'
+        } else {
+          setMessage('Hábito no reconocido: ' + intent.action)
+          setStatus('error')
+          return
         }
       } else if (intent.type === 'FOOD') {
-        const estimate = await parseWithAI(intent.payload?.description || input.trim(), null)
+        const desc = intent.payload?.description || text
+        const estimate = await useFoodStore.getState().parseWithAI(desc, null)
         if (estimate) {
-          await confirmAIEstimate({ ...estimate, rawInput: input.trim() })
+          await useFoodStore.getState().confirmAIEstimate({ ...estimate, rawInput: text })
+          successMsg = intent.confirmation_msg || `${estimate.description} · ${estimate.calories} kcal registrado.`
+        } else {
+          setMessage('No pude estimar esa comida. Probá ser más específico.')
+          setStatus('error')
+          return
         }
       } else if (intent.type === 'REDEEM') {
-        const result = await processIntentRedeem(intent.payload?.item_id || input.trim())
+        const result = await usePointsStore.getState().processIntentRedeem(intent.payload?.item_id || text)
         if (!result.success) {
           setMessage(result.msg)
           setStatus('error')
           return
         }
-        if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
-        setMessage(result.msg)
-        setStatus('success')
-        return
+        successMsg = result.msg
       } else if (intent.type === 'MOOD') {
         const energy = intent.payload?.energy || 3
         await useEnergyStore.getState().saveEnergy(energy)
-
         if (energy <= 2 && intent.payload?.suggest_plan_adjust) {
-          // Recalculate plan for recovery
           await usePlanStore.getState().recalculate()
-          if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
-          setMessage(intent.confirmation_msg || `Energía ${energy}/5 registrada. Plan ajustado para recuperar.`)
-          setStatus('success')
-          return
         }
-
-        if (energy >= 4 && intent.payload?.suggest_workout) {
-          // Generate a routine suggestion
-          if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
-          setMessage(intent.confirmation_msg || `Energía ${energy}/5. Estás arriba, aprovechá.`)
-          setStatus('success')
-          return
-        }
-
-        if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
-        setMessage(intent.confirmation_msg || `Energía ${energy}/5 registrada.`)
-        setStatus('success')
-        return
+        successMsg = intent.confirmation_msg || `Energía ${energy}/5 registrada.`
       } else if (intent.type === 'DAMAGE') {
         const excess = intent.payload?.excess_kcal || 1000
         const reason = intent.payload?.reason || 'Exceso'
         const res = await useDamageStore.getState().createPlan(excess, reason)
         usePlanStore.getState().recalculate()
-        if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
-        setMessage(intent.confirmation_msg || res.message)
-        setStatus('success')
+        successMsg = intent.confirmation_msg || res.message
+      } else if (intent.type === 'CHAT') {
+        successMsg = intent.confirmation_msg || 'Anotado.'
+      } else {
+        setMessage('No sé qué hacer con eso. Probá "500ml agua", "gym" o "me siento cansado".')
+        setStatus('error')
         return
       }
-      // CHAT type — just show the confirmation, no action needed
 
       if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
-      setMessage(intent.confirmation_msg || 'Hecho')
+      setMessage(successMsg)
       setStatus('success')
     } catch (err) {
-      setMessage(String(err?.message || err))
+      setMessage('Error de conexión. Revisá tu internet y probá de nuevo.')
       setStatus('error')
     }
+  }, [input, status, targets])
+
+  // Quick hint: set text AND submit immediately
+  const handleHint = (hint) => {
+    setInput(hint)
+    handleSubmit(hint)
   }
 
   if (!isOpen) return null
@@ -163,10 +165,11 @@ export default function CommandBar({ isOpen, onClose }) {
       <div className="relative z-10 flex flex-col items-center justify-start pt-[18vh] px-6 max-w-lg mx-auto">
         {status === 'success' ? (
           <div className="text-center animate-fade-in">
-            <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-xl shadow-emerald-200 scale-100 animate-[scale-in_0.3s_ease-out]">
+            <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-xl shadow-emerald-200 animate-[scale-in_0.3s_ease-out]">
               <span className="text-4xl text-white">✓</span>
             </div>
             <p className="text-base font-black text-slate-800">{message}</p>
+            <p className="text-xs text-slate-400 mt-2">Anotado, Mati.</p>
           </div>
         ) : status === 'error' ? (
           <div className="text-center animate-fade-in">
@@ -174,7 +177,7 @@ export default function CommandBar({ isOpen, onClose }) {
               <span className="text-4xl text-white">✕</span>
             </div>
             <p className="text-sm font-bold text-slate-800">{message}</p>
-            <button onClick={() => setStatus('idle')} className="text-xs text-violet-600 font-bold mt-4">Reintentar</button>
+            <button onClick={() => setStatus('idle')} className="text-xs text-violet-600 font-bold mt-4 bg-violet-50 px-4 py-2 rounded-full">Reintentar</button>
           </div>
         ) : (
           <>
@@ -198,13 +201,13 @@ export default function CommandBar({ isOpen, onClose }) {
               )}
             </div>
 
-            {/* Quick hints */}
+            {/* Quick hints — tap = instant submit */}
             <div className="flex flex-wrap gap-2 mt-5 justify-center">
               {['500ml agua', 'café con leche', '8000 pasos', 'gym', 'estoy detonado', 'me siento un crack'].map(hint => (
                 <button
                   key={hint}
-                  onClick={() => { setInput(hint) }}
-                  className="text-[10px] font-bold text-slate-400 bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/30 active:bg-white/90 transition"
+                  onClick={() => handleHint(hint)}
+                  className="text-[10px] font-bold text-slate-400 bg-white/60 backdrop-blur-sm px-3 min-h-[36px] rounded-full border border-white/30 active:bg-white/90 transition"
                 >
                   {hint}
                 </button>
@@ -212,7 +215,7 @@ export default function CommandBar({ isOpen, onClose }) {
             </div>
 
             <button onClick={onClose} className="mt-10 text-xs text-slate-300 font-medium">
-              ESC para cerrar
+              Tocá afuera para cerrar
             </button>
           </>
         )}
