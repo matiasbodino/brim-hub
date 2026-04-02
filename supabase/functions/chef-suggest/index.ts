@@ -79,7 +79,8 @@ REGLAS:
 - NO sugieras: quinoa, açaí, tofu, kale, smoothie bowls
 - SÍ sugerí: pollo, carne, huevo, arroz, fideos, verduras, queso, pan, yogur
 - Si es NOCHE: que sea liviana, fácil de digerir, no muy pesada
-- Si es POST-GYM/BJJ: priorizá proteína, puede ser más calórica
+- Si es POST-GYM/BJJ con gasto alto (>600kcal): SUBIR carbohidratos complejos para reponer glucógeno (arroz, papa, fideos). El 'why' debe mencionar: "Como hoy quemaste mucho, le subimos a los carbs para que mañana no estés detonado"
+- Si es POST-GYM/BJJ con gasto normal: priorizá proteína
 - Si es MERIENDA: algo rápido y práctico
 - El nombre debe ser creativo pero argentino (nada de "Bowl de..." o "Smoothie de...")
 - Las instrucciones deben ser breves (3-5 pasos, tipo receta de WhatsApp)

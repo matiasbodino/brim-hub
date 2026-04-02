@@ -4,6 +4,9 @@ import { usePlanStore } from '../../stores/planStore'
 import { useFoodStore } from '../../stores/foodStore'
 import { MATI_ID } from '../../lib/constants'
 
+import { useHabitStore } from '../../stores/habitStore'
+import { getTodayBurn } from '../../lib/activeBurn'
+
 const EDGE_URL = 'https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcnBxemFoYnRmYnh4dGFxZXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTExODMsImV4cCI6MjA5MDA2NzE4M30.f85JKwllPo1dLRvzFphPkLL8bEMts0IYjqCnTLDrA_c'
 
@@ -36,11 +39,18 @@ function SmartSuggestion({ remaining, onLog }) {
   const handleGenerate = async () => {
     setLoading(true)
     try {
+      const todayHabits = useHabitStore.getState().todayHabits
+      const burn = getTodayBurn(todayHabits)
+      const context = burn.total > 600
+        ? `post-entrenamiento (quemó ${burn.total} kcal hoy: ${burn.breakdown.map(b => b.source).join(' + ')})`
+        : burn.total > 300 ? `día activo (${burn.total} kcal quemadas)` : ''
+
       const res = await fetch(EDGE_URL + '/chef-suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ANON_KEY },
         body: JSON.stringify({
           remaining_macros: remaining,
+          context,
         }),
       })
       const data = await res.json()

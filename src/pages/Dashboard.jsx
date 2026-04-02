@@ -18,6 +18,7 @@ import { useSync } from '../hooks/useSync'
 import VitalityRing from '../components/plan/VitalityRing'
 import DailyPlan from '../components/plan/DailyPlan'
 import PredictiveGhost from '../components/plan/PredictiveGhost'
+import { getTodayBurn } from '../lib/activeBurn'
 
 function MacroRing({ label, current, target, color, textColor }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
@@ -177,6 +178,26 @@ export default function Dashboard() {
               <span className="text-xs font-bold opacity-50">{completedHabits}/{HABITS.length} hábitos</span>
             </div>
             <VitalityRing todayHabits={todayHabits} macros={macros} targets={targets} todayEnergy={todayEnergy} />
+            {/* Active Burn */}
+            {(() => {
+              const burn = getTodayBurn(todayHabits)
+              if (burn.total === 0) return null
+              return (
+                <div className="mt-4 pt-3 border-t border-white/10">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-bold opacity-60 uppercase">Gasto activo hoy</span>
+                    <span className="text-sm font-black">🔥 {burn.total} kcal</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {burn.breakdown.map(b => (
+                      <span key={b.source} className="text-[10px] opacity-50 bg-white/10 px-2 py-0.5 rounded-full">
+                        {b.emoji} {b.burn} kcal
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
           <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
         </div>
