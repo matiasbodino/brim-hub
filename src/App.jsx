@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ToastProvider } from './components/Toast'
 import BottomNav from './components/BottomNav'
 import CommandBar from './components/ui/CommandBar'
+import QuickActions from './components/ui/QuickActions'
 import SyncIndicator from './components/ui/SyncIndicator'
 import { useDailyReset } from './hooks/useDailyReset'
 import Dashboard from './pages/Dashboard'
@@ -43,13 +44,11 @@ export default function App() {
           </Routes>
           <BottomNav />
 
-          {/* Floating Action Button */}
-          <button
-            onClick={() => setCommandOpen(true)}
-            className="fixed bottom-20 right-4 w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-400/30 flex items-center justify-center text-2xl font-light active:scale-90 transition-transform z-50"
-          >
-            +
-          </button>
+          {/* Quick Actions Grid + FAB */}
+          <QuickActions
+            onOpenSpotlight={() => setCommandOpen(true)}
+            onOpenDamage={() => {}}
+          />
 
           {/* Global Command Bar */}
           <CommandBar isOpen={commandOpen} onClose={() => setCommandOpen(false)} />

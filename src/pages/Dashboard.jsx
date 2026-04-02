@@ -18,6 +18,8 @@ import { useSync } from '../hooks/useSync'
 import VitalityRing from '../components/plan/VitalityRing'
 import DailyPlan from '../components/plan/DailyPlan'
 import PredictiveGhost from '../components/plan/PredictiveGhost'
+import StatusRings from '../components/dashboard/StatusRings'
+import MacroArcs from '../components/dashboard/MacroArcs'
 import { getTodayBurn } from '../lib/activeBurn'
 import DamageControl, { DamageControlButton } from '../components/plan/DamageControl'
 import { useDamageStore } from '../stores/damageStore'
@@ -197,64 +199,48 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-violet-50/30 pb-28 px-4 pt-5 max-w-lg mx-auto">
 
-      {/* ═══ 1. HEADER + CALORIE WALLET ═══ */}
-      <header className="mb-4">
-        <div className="flex justify-between items-start mb-3 px-1">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900">Hola, Mati</h1>
-            <p className="text-[10px] text-slate-400">
-              {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <ShareButton cardProps={{
-              score, streak, level, credits: balance,
-              cycleName: activeCycle?.name ?? null,
-              cycleWeek: currentWeekIndex !== null ? currentWeekIndex + 1 : null,
-              habits: HABITS.map(h => ({ label: h.label, emoji: h.emoji, done: todayHabits[h.type] && Number(todayHabits[h.type].value) >= h.target })),
-              date: new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }),
-            }} />
-            <div className="text-center">
-              <div className="text-lg">{level.badge}</div>
-            </div>
-          </div>
+      {/* ═══ 1. HEADER ═══ */}
+      <header className="flex justify-between items-start mb-4 px-1">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Hola, Mati</h1>
+          <p className="text-[10px] text-slate-400 tracking-wide">
+            {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
         </div>
-
-        {/* Calorie Wallet */}
-        <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-4 border border-white/20 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)]">
-          {/* Main: kcal */}
-          <div className="flex items-baseline gap-2 mb-3">
-            <p className={`text-3xl font-black ${calOver ? 'text-red-500' : 'text-slate-800'}`}>
-              {calOver ? '-' + (macros.calories - (targets.calories || 2100)) : calRemaining}
-            </p>
-            <p className="text-xs text-slate-400 font-bold">{calOver ? 'kcal EXCESO' : 'kcal DISPONIBLES'}</p>
-          </div>
-          <p className="text-[10px] text-slate-400 mb-3">Vas {macros.calories} de {targets.calories || 2100} kcal</p>
-
-          {/* Macro bars: consumed / target + progress */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: 'Prot', current: Math.round(macros.protein), target: targets.protein || 150, color: 'bg-blue-500', unit: 'g' },
-              { label: 'Carbs', current: Math.round(macros.carbs), target: targets.carbs || 210, color: 'bg-amber-500', unit: 'g' },
-              { label: 'Grasa', current: Math.round(macros.fat), target: targets.fat || 70, color: 'bg-red-400', unit: 'g' },
-            ].map(m => {
-              const pct = m.target > 0 ? Math.min(100, Math.round((m.current / m.target) * 100)) : 0
-              const over = m.current > m.target
-              return (
-                <div key={m.label}>
-                  <p className={`text-xs font-black ${over ? 'text-red-500' : 'text-slate-700'}`}>
-                    {m.current} / {m.target}{m.unit}
-                  </p>
-                  <p className="text-[8px] text-slate-400 font-bold uppercase">{m.label}</p>
-                  <div className="h-1 bg-slate-100 rounded-full overflow-hidden mt-1">
-                    <div className={`h-full rounded-full transition-all duration-500 ${over ? 'bg-red-500' : m.color}`} style={{ width: pct + '%' }} />
-                  </div>
-                </div>
-              )
-            })}
+        <div className="flex items-center gap-2">
+          <ShareButton cardProps={{
+            score, streak, level, credits: balance,
+            cycleName: activeCycle?.name ?? null,
+            cycleWeek: currentWeekIndex !== null ? currentWeekIndex + 1 : null,
+            habits: HABITS.map(h => ({ label: h.label, emoji: h.emoji, done: todayHabits[h.type] && Number(todayHabits[h.type].value) >= h.target })),
+            date: new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }),
+          }} />
+          <div className="text-center">
+            <div className="text-lg">{level.badge}</div>
           </div>
         </div>
       </header>
+
+      {/* ═══ STATUS RINGS (The Status Trio) ═══ */}
+      <div className="mb-4">
+        <StatusRings macros={macros} targets={targets} todayHabits={todayHabits} todayEnergy={todayEnergy} />
+      </div>
+
+      {/* ═══ CALORIE WALLET (compact) ═══ */}
+      <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] px-5 py-3 border border-white/30 shadow-[0_4px_30px_-5px_rgba(0,0,0,0.06)] mb-4">
+        <div className="flex items-baseline gap-2">
+          <p className={`text-2xl font-black tracking-tight ${calOver ? 'text-red-500' : 'text-slate-800'}`}>
+            {calOver ? '-' + (macros.calories - (targets.calories || 2100)) : calRemaining}
+          </p>
+          <p className="text-[10px] text-slate-400 font-bold tracking-wider">{calOver ? 'KCAL EXCESO' : 'KCAL DISPONIBLES'}</p>
+        </div>
+        <p className="text-[9px] text-slate-300 tracking-wide">Vas {macros.calories} de {targets.calories || 2100}</p>
+      </div>
+
+      {/* ═══ MACRO ARCS (half-circle) ═══ */}
+      <div className="mb-4">
+        <MacroArcs macros={macros} targets={targets} />
+      </div>
 
       {/* ═══ 2. HABITS COMPACT (Action Center) ═══ */}
       <div className="grid grid-cols-2 gap-2 mb-4">
@@ -284,11 +270,22 @@ export default function Dashboard() {
         })}
       </div>
 
-      {/* ═══ 3. AI COMMAND LINE ═══ */}
-      <div className="bg-white/80 backdrop-blur-md rounded-[1.5rem] px-4 py-3 border border-violet-200/30 shadow-[0_0_15px_-3px_rgba(124,58,237,0.08)] mb-4">
-        <p className="text-[10px] font-black text-violet-500 uppercase tracking-widest">{mealWindow.emoji} {mealWindow.label} — Target ahora</p>
-        <p className="text-xs font-bold text-slate-700 mt-0.5 leading-snug">{getCommandLine()}</p>
-      </div>
+      {/* ═══ 3. AI COMMAND LINE (gradient card) ═══ */}
+      {(() => {
+        const avgPct = Math.round((calRemaining > 0 ? (1 - calRemaining / (targets.calories || 2100)) * 100 : 100 + activityPct + recoveryPct) / 3)
+        const isGood = completedHabits >= 2 && !calOver
+        const gradientClass = isGood
+          ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200/30'
+          : calOver ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200/30'
+          : 'bg-gradient-to-r from-violet-50 to-indigo-50 border-violet-200/30'
+        const textColor = isGood ? 'text-emerald-600' : calOver ? 'text-red-500' : 'text-violet-500'
+        return (
+          <div className={`backdrop-blur-xl rounded-[2rem] px-5 py-4 border shadow-[0_4px_30px_-5px_rgba(0,0,0,0.04)] mb-4 ${gradientClass}`}>
+            <p className={`text-[9px] font-black uppercase tracking-[0.15em] mb-1 ${textColor}`}>{mealWindow.emoji} {mealWindow.label} — Target ahora</p>
+            <p className="text-[13px] font-bold text-slate-700 leading-snug tracking-tight">{getCommandLine()}</p>
+          </div>
+        )
+      })()}
 
       {/* Sunday check-in */}
       {isSunday && (
