@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useHabitStore } from '../../stores/habitStore'
 import { hapticLight, hapticMedium } from '../../lib/haptics'
 
@@ -18,6 +18,7 @@ const ACTIONS = [
 export default function QuickActions({ onOpenSpotlight, onOpenDamage }) {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
 
   const handleAction = async (action) => {
     hapticLight()

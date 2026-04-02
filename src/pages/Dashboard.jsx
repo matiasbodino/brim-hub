@@ -80,6 +80,7 @@ export default function Dashboard() {
   const [showDamageForm, setShowDamageForm] = useState(false)
   const [showFullPlan, setShowFullPlan] = useState(false)
   const [showJournal, setShowJournal] = useState(false)
+  const [showMore, setShowMore] = useState(false)
 
   // Background sync: rehydrate from Supabase, flush pending writes
   useSync()
@@ -243,13 +244,11 @@ export default function Dashboard() {
     return val < h.target
   })
 
-  // Vitality score for the ring
-  const vitalityPct = Math.min(100, Math.round(
-    (Math.min(100, Math.round((macros.calories / (targets.calories || 2100)) * 100)) * 0.25) +
-    (Math.min(100, Math.round(((Number(todayHabits.steps?.value || 0) / (targets.steps || 10000)) * 60 + ((Number(todayHabits.gym?.value || 0) >= 1 || Number(todayHabits.bjj?.value || 0) >= 1) ? 40 : 0)))) * 0.3) +
-    (Math.min(100, Math.round(((Number(todayHabits.water?.value || 0)) / (targets.water || 2.5)) * 100)) * 0.25) +
-    ((todayEnergy || 3) / 5 * 100 * 0.2)
-  ))
+  // Vitality score — nutrition dominant (50%)
+  const nutritionPct = macros.calories > 0 ? Math.min(100, Math.round((macros.calories / (targets.calories || 2100)) * 100)) : 0
+  const movementPct = Math.min(100, Math.round(((Number(todayHabits.steps?.value || 0) / (targets.steps || 10000)) * 60 + ((Number(todayHabits.gym?.value || 0) >= 1 || Number(todayHabits.bjj?.value || 0) >= 1) ? 40 : 0))))
+  const hydrationPct = Math.min(100, Math.round(((Number(todayHabits.water?.value || 0)) / (targets.water || 2.5)) * 100))
+  const vitalityPct = Math.min(100, Math.round(nutritionPct * 0.50 + movementPct * 0.20 + hydrationPct * 0.15 + ((todayEnergy || 3) / 5 * 100 * 0.15)))
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] pb-28 px-4 pt-6 max-w-lg mx-auto">
@@ -414,54 +413,83 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <Link to="/permitidos" className="block">
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-3 text-center">
-            <p className="text-xl font-black text-amber-400">{balance}</p>
-            <p className="text-[9px] text-gray-500 uppercase">créditos</p>
-          </div>
-        </Link>
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-3 text-center">
-          <p className="text-xl font-black text-emerald-400">{streak} 🔥</p>
-          <p className="text-[9px] text-gray-500 uppercase">{shieldsCount > 0 ? `🛡️${shieldsCount} ` : ''}racha</p>
-        </div>
-      </div>
+      {/* ═══ VER MÁS (secondary content) ═══ */}
+      <button
+        onClick={() => setShowMore(!showMore)}
+        className="w-full text-center py-3 text-[10px] font-black text-gray-500 uppercase tracking-widest active:text-gray-300 transition"
+      >
+        {showMore ? '△ Menos' : '▽ Ver más'}
+      </button>
 
-      {/* Level */}
-      {nextLevel && (
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-2 mb-4">
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="text-gray-500 font-bold">{level.badge} → {nextLevel.badge}</span>
-            <span className="font-bold text-gray-400">{totalPoints}/{nextLevel.min}</span>
+      {showMore && (
+        <div className="space-y-3 animate-fade-in">
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-2">
+            <Link to="/permitidos" className="block">
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+                <p className="text-lg font-black text-amber-400">{balance}</p>
+                <p className="text-[8px] text-gray-600 uppercase">créditos</p>
+              </div>
+            </Link>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+              <p className="text-lg font-black text-emerald-400">{streak} 🔥</p>
+              <p className="text-[8px] text-gray-600 uppercase">racha</p>
+            </div>
+            {nextLevel && (
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+                <p className="text-lg font-black text-violet-400">{totalPoints}</p>
+                <p className="text-[8px] text-gray-600 uppercase">{level.badge} pts</p>
+              </div>
+            )}
           </div>
-          <div className="h-1 bg-gray-800 rounded-full overflow-hidden mt-1">
-            <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all" style={{
-              width: Math.min(100, Math.round(((totalPoints - level.min) / (nextLevel.min - level.min)) * 100)) + '%'
-            }} />
-          </div>
+
+          {/* Level bar */}
+          {nextLevel && (
+            <div className="bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all" style={{
+                  width: Math.min(100, Math.round(((totalPoints - level.min) / (nextLevel.min - level.min)) * 100)) + '%'
+                }} />
+              </div>
+              <p className="text-[8px] text-gray-600 text-right mt-1">{nextLevel.badge} en {nextLevel.min - totalPoints} pts</p>
+            </div>
+          )}
+
+          {/* Cycle */}
+          {activeCycle && currentWeekStats && (
+            <Link to="/progress" className="block">
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex items-center justify-between">
+                <div className="flex gap-3">
+                  {HABITS.map(h => {
+                    const stat = currentWeekStats.habits[h.type]
+                    return <span key={h.type} className="text-sm">{stat ? getLight(stat.full, stat.weeklyTarget) : '·'}</span>
+                  })}
+                </div>
+                <span className="text-[10px] text-gray-600">S{currentWeekIndex + 1}/4 →</span>
+              </div>
+            </Link>
+          )}
+
+          <WeeklyDigest />
+
+          {/* Journal — night prompt */}
+          {showJournal ? (
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">📝 Journal</p>
+                <button onClick={() => setShowJournal(false)} className="text-xs text-gray-600">✕</button>
+              </div>
+              <MicroJournal />
+            </div>
+          ) : new Date().getHours() >= 21 ? (
+            <button onClick={() => setShowJournal(true)}
+              className="w-full bg-white/5 border border-violet-500/20 rounded-2xl p-3 text-left active:bg-white/10 transition">
+              <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">📝 ¿Cómo fue tu día?</p>
+              <p className="text-xs text-gray-500 mt-0.5">Tocá para escribir antes de dormir</p>
+            </button>
+          ) : null}
         </div>
       )}
-
-      {/* Digest */}
-      <WeeklyDigest />
-
-      {/* Journal — night prompt or tap to open */}
-      {showJournal ? (
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">📝 Journal</p>
-            <button onClick={() => setShowJournal(false)} className="text-xs text-gray-600">✕</button>
-          </div>
-          <MicroJournal />
-        </div>
-      ) : new Date().getHours() >= 21 ? (
-        <button onClick={() => setShowJournal(true)}
-          className="w-full bg-white/5 backdrop-blur-sm border border-violet-500/20 rounded-2xl p-3 text-left active:bg-white/10 transition">
-          <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">📝 ¿Cómo fue tu día?</p>
-          <p className="text-xs text-gray-500 mt-0.5">Tocá para escribir una línea antes de dormir</p>
-        </button>
-      ) : null}
 
       {/* Coach AI floating pill */}
       {commandLine && commandLine !== 'Seguí así. Cada hábito suma.' && (

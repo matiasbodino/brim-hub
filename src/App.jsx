@@ -17,6 +17,7 @@ import Workout from './pages/Workout'
 import Breathe from './pages/Breathe'
 import Walk from './pages/Walk'
 import BJJSession from './pages/BJJSession'
+import Onboarding from './pages/Onboarding'
 
 export default function App() {
   const [commandOpen, setCommandOpen] = useState(false)
@@ -36,7 +37,8 @@ export default function App() {
       <ToastProvider>
         <div className="max-w-lg mx-auto w-full">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={localStorage.getItem('brim_onboarded') ? <Dashboard /> : <Onboarding />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/habits" element={<Habits />} />
             <Route path="/permitidos" element={<Permitidos />} />
             <Route path="/progress" element={<Progress />} />
