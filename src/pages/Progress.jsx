@@ -7,6 +7,7 @@ import { useGymPrStore } from '../stores/gymPrStore'
 import { useJournalStore } from '../stores/journalStore'
 import { useInsightsStore } from '../stores/insightsStore'
 import { useRoutineStore } from '../stores/routineStore'
+import MonthlyReport from '../components/report/MonthlyReport'
 import { WeightChart, HabitWeeklyChart, MacroChart, useTrendData } from '../components/charts/TrendCharts'
 
 function Heatmap({ data }) {
@@ -746,6 +747,9 @@ export default function Progress() {
           </div>
         )}
       </div>
+
+      {/* Monthly Report */}
+      <MonthlyReport />
 
       {/* Past Cycles */}
       {pastCycles.length > 0 && (
