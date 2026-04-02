@@ -1,6 +1,6 @@
 // Contextual suggested actions for Dashboard (max 2)
 
-export function getSuggestedActions(todayHabits, todayLogs, todayPlan, targets, routine) {
+export function getSuggestedActions(todayHabits, todayLogs, todayPlan, targets, routine, damagePlan = null) {
   const h = new Date().getHours()
   const actions = []
 
@@ -34,6 +34,11 @@ export function getSuggestedActions(todayHabits, todayLogs, todayPlan, targets, 
   // Water reminder (>3h without)
   if (waterVal < waterTarget && waterVal < waterTarget * 0.6) {
     actions.push({ id: 'water', emoji: '💧', text: `¿Tomaste agua? Llevás ${waterVal.toFixed(1)}L de ${waterTarget}L`, cta: 'Registrar', to: '/activity', color: 'blue' })
+  }
+
+  // Damage control
+  if (damagePlan) {
+    actions.push({ id: 'damage', emoji: '📉', text: `Recuperación día ${damagePlan.days_completed + 1}/${damagePlan.spread_days} · Target ${(targets.calories || 2100) - (damagePlan.daily_reduction || 0)} kcal`, cta: '', to: '/profile', color: 'amber' })
   }
 
   // Sunday checkin

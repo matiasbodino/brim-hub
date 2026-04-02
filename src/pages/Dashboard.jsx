@@ -67,7 +67,7 @@ export default function Dashboard() {
   const calPct = calTarget > 0 ? Math.min(100, Math.round((calEaten / calTarget) * 100)) : 0
   const calBarColor = calPct > 100 ? 'bg-red-500' : calPct > 80 ? 'bg-amber-500' : 'bg-emerald-500'
 
-  const suggestedActions = getSuggestedActions(todayHabits, todayLogs, todayPlan, targets, routine)
+  const suggestedActions = getSuggestedActions(todayHabits, todayLogs, todayPlan, targets, routine, damagePlan)
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] pb-28 px-4 pt-6 max-w-lg mx-auto">

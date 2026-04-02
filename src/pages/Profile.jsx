@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { MATI_ID } from '../lib/constants'
 import { usePointsStore } from '../stores/pointsStore'
 import { useTargetsStore } from '../stores/targetsStore'
+import { useDamageStore } from '../stores/damageStore'
 import { useToast } from '../components/Toast'
 
 export default function Profile() {
-  const { getLevel, totalPoints } = usePointsStore()
+  const { getLevel, totalPoints, spentPoints, streak, shieldsCount, fetchAll } = usePointsStore()
   const { current: level, next: nextLevel } = getLevel()
+  const { activePlan: damagePlan, fetchActive: fetchDamage } = useDamageStore()
+  const balance = totalPoints - spentPoints
   const { targets, fetchTargets, saveTargets } = useTargetsStore()
   const [weight, setWeight] = useState('')
   const [weightSaved, setWeightSaved] = useState(false)
@@ -22,7 +26,7 @@ export default function Profile() {
   const showToast = useToast()
 
   useEffect(() => {
-    fetchTargets()
+    fetchTargets(); fetchAll(); fetchDamage()
     // Fetch existing weight goal
     supabase.from('user_profile').select('weight_goal, weight_goal_date, weekly_weight_target').eq('id', MATI_ID).maybeSingle()
       .then(({ data }) => {
@@ -71,18 +75,18 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] px-4 py-5 pb-24 space-y-5 max-w-lg mx-auto">
-      <h1 className="text-xl font-bold text-gray-900">Perfil</h1>
+      <h1 className="text-xl font-black text-white">Perfil</h1>
 
-      {/* Avatar + Level */}
-      <div className="bg-white rounded-2xl p-5 border border-gray-100">
+      {/* Level + Badge */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-violet-100 rounded-full flex items-center justify-center">
+          <div className="w-16 h-16 bg-violet-600/20 rounded-full flex items-center justify-center">
             <span className="text-3xl">{level.badge}</span>
           </div>
           <div>
-            <div className="font-bold text-gray-900 text-lg">Mati Bodino</div>
-            <div className="text-sm text-violet-600 font-semibold">{level.name}</div>
-            <div className="text-xs text-gray-400">{totalPoints} pts acumulados</div>
+            <div className="font-bold text-white text-lg">Mati Bodino</div>
+            <div className="text-sm text-violet-400 font-semibold">{level.name}</div>
+            <div className="text-xs text-gray-500">{totalPoints} pts acumulados</div>
           </div>
         </div>
         {nextLevel && (
@@ -91,18 +95,50 @@ export default function Profile() {
               <span>Próximo: {nextLevel.badge} {nextLevel.name}</span>
               <span>{nextLevel.min - totalPoints} pts restantes</span>
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full rounded-full bg-violet-400" style={{
+            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{
                 width: Math.min(100, Math.round(((totalPoints - level.min) / (nextLevel.min - level.min)) * 100)) + '%'
               }} />
             </div>
+            <p className="text-[9px] text-gray-600 text-right mt-1">{nextLevel.badge} en {nextLevel.min - totalPoints} pts</p>
           </div>
         )}
       </div>
 
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-2">
+        <Link to="/permitidos" className="block">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+            <p className="text-lg font-black text-amber-400">{balance}</p>
+            <p className="text-[8px] text-gray-600 uppercase">créditos</p>
+          </div>
+        </Link>
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+          <p className="text-lg font-black text-emerald-400">{streak} 🔥</p>
+          <p className="text-[8px] text-gray-600 uppercase">{shieldsCount > 0 ? `🛡️${shieldsCount}` : 'racha'}</p>
+        </div>
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+          <p className="text-lg font-black text-blue-400">{totalPoints}</p>
+          <p className="text-[8px] text-gray-600 uppercase">pts total</p>
+        </div>
+      </div>
+
+      {/* Damage Control */}
+      {damagePlan && (
+        <div className="bg-white/5 border border-amber-500/20 rounded-2xl px-4 py-3">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest">🔄 Compensación activa</p>
+            <span className="text-[9px] text-gray-600">{damagePlan.days_completed}/{damagePlan.spread_days} días</span>
+          </div>
+          <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 rounded-full transition-all" style={{ width: Math.round((damagePlan.days_completed / damagePlan.spread_days) * 100) + '%' }} />
+          </div>
+        </div>
+      )}
+
       {/* Weight input */}
-      <div className="bg-white rounded-2xl p-5 border border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Registrar peso</h2>
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+        <h2 className="text-sm font-semibold text-gray-300 mb-3">Registrar peso</h2>
         <div className="flex gap-2">
           <input
             type="number"
@@ -124,8 +160,8 @@ export default function Profile() {
       </div>
 
       {/* Weight Goal */}
-      <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-3">
-        <h2 className="text-sm font-semibold text-gray-700">Objetivo de peso</h2>
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-semibold text-gray-300">Objetivo de peso</h2>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-xs text-gray-500">Peso objetivo (kg)</label>
@@ -173,9 +209,9 @@ export default function Profile() {
       </div>
 
       {/* Targets */}
-      <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-3">
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-700">Objetivos</h2>
+          <h2 className="text-sm font-semibold text-gray-300">Objetivos</h2>
           {saved && <span className="text-xs text-emerald-600 font-semibold">✓ Guardado</span>}
         </div>
 

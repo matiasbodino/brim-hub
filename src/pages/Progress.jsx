@@ -15,6 +15,7 @@ import { useRoutineStore } from '../stores/routineStore'
 import MonthlyReport from '../components/report/MonthlyReport'
 import { WeightChart, HabitWeeklyChart, MacroChart, useTrendData } from '../components/charts/TrendCharts'
 import { OneRepMaxChart, BalanceRadar } from '../components/charts/GymCharts'
+import TimeToggle from '../components/ui/TimeToggle'
 
 function Heatmap({ data }) {
   const days = []
@@ -315,6 +316,9 @@ export default function Progress() {
   const [showWeightChart, setShowWeightChart] = useState(false)
   const [showHabitChart, setShowHabitChart] = useState(false)
   const [showMacroChart, setShowMacroChart] = useState(false)
+  const [weightRange, setWeightRange] = useState('W')
+  const [habitRange, setHabitRange] = useState('W')
+  const [macroRange, setMacroRange] = useState('W')
   const { todayHabits } = useHabitStore()
   const { getTodayMacros } = useFoodStore()
   const { todayEnergy } = useEnergyStore()
@@ -528,28 +532,37 @@ export default function Progress() {
       {/* Trends */}
       {!trendsLoading && (
         <>
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setShowWeightChart(!showWeightChart)}>
-              <h2 className="text-sm font-semibold text-gray-300">{'\u2696\uFE0F'} Tendencia de peso</h2>
-              <span className="text-xs text-gray-400">{showWeightChart ? '\u25B2' : '\u25BC'}</span>
+              <h2 className="text-sm font-semibold text-gray-300">⚖️ Peso</h2>
+              <div className="flex items-center gap-2">
+                <TimeToggle value={weightRange} onChange={setWeightRange} options={['W', 'M']} />
+                <span className="text-xs text-gray-600">{showWeightChart ? '▲' : '▼'}</span>
+              </div>
             </div>
-            {showWeightChart && <div className="px-2 pb-4"><WeightChart data={trendWeights} /></div>}
+            {showWeightChart && <div className="px-2 pb-4"><WeightChart data={weightRange === 'W' ? trendWeights.slice(-7) : trendWeights} /></div>}
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setShowHabitChart(!showHabitChart)}>
-              <h2 className="text-sm font-semibold text-gray-300">{'\uD83D\uDCCA'} Habitos por semana</h2>
-              <span className="text-xs text-gray-400">{showHabitChart ? '\u25B2' : '\u25BC'}</span>
+              <h2 className="text-sm font-semibold text-gray-300">📊 Hábitos</h2>
+              <div className="flex items-center gap-2">
+                <TimeToggle value={habitRange} onChange={setHabitRange} />
+                <span className="text-xs text-gray-600">{showHabitChart ? '▲' : '▼'}</span>
+              </div>
             </div>
-            {showHabitChart && <div className="px-2 pb-4"><HabitWeeklyChart data={habitWeeklyData} /></div>}
+            {showHabitChart && <div className="px-2 pb-4"><HabitWeeklyChart data={habitRange === 'D' ? habitWeeklyData.slice(-1) : habitRange === 'W' ? habitWeeklyData.slice(-4) : habitWeeklyData} /></div>}
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => setShowMacroChart(!showMacroChart)}>
-              <h2 className="text-sm font-semibold text-gray-300">{'\uD83C\uDF7D'} Macros diarios</h2>
-              <span className="text-xs text-gray-400">{showMacroChart ? '\u25B2' : '\u25BC'}</span>
+              <h2 className="text-sm font-semibold text-gray-300">🍽 Macros</h2>
+              <div className="flex items-center gap-2">
+                <TimeToggle value={macroRange} onChange={setMacroRange} />
+                <span className="text-xs text-gray-600">{showMacroChart ? '▲' : '▼'}</span>
+              </div>
             </div>
-            {showMacroChart && <div className="px-2 pb-4"><MacroChart data={macroData} /></div>}
+            {showMacroChart && <div className="px-2 pb-4"><MacroChart data={macroRange === 'D' ? macroData.slice(-1) : macroRange === 'W' ? macroData.slice(-7) : macroData} /></div>}
           </div>
         </>
       )}

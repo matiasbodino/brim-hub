@@ -63,12 +63,6 @@ export default function App() {
           </Routes>
           <BottomNav />
 
-          {/* Quick Actions Grid + FAB */}
-          <QuickActions
-            onOpenSpotlight={() => setCommandOpen(true)}
-            onOpenDamage={() => {}}
-          />
-
           {/* Global Command Bar */}
           <CommandBar isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
 
