@@ -59,7 +59,7 @@ function HabitRow({ label, done, emoji, cue, identity }) {
 export default function Dashboard() {
   const { todayLogs, fetchToday: fetchFood, getTodayMacros, deleteLog } = useFoodStore()
   const { todayHabits, fetchToday: fetchHabits } = useHabitStore()
-  const { totalPoints, spentPoints, streak, loading: pointsLoading, fetchAll, getLevel } = usePointsStore()
+  const { totalPoints, spentPoints, streak, shieldsCount, loading: pointsLoading, fetchAll, getLevel } = usePointsStore()
   const { activeCycle, weeklyStats, fetchActive } = useCycleStore()
   const { targets, fetchTargets } = useTargetsStore()
 
@@ -201,11 +201,18 @@ export default function Dashboard() {
         {/* Card de Racha */}
         <div className="bg-gradient-to-br from-emerald-400 to-teal-600 rounded-[2rem] p-5 text-white shadow-lg shadow-emerald-100">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-lg">🔥</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-lg">🔥</span>
+              {shieldsCount > 0 && (
+                <span className="text-[10px] font-black bg-white/25 px-1.5 py-0.5 rounded-full">🛡️ {shieldsCount}</span>
+              )}
+            </div>
             <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-full uppercase">Streak</span>
           </div>
           <p className="text-3xl font-black">{streak} días</p>
-          <p className="text-[10px] opacity-90 mt-1 font-medium">Never miss twice!</p>
+          <p className="text-[10px] opacity-90 mt-1 font-medium">
+            {shieldsCount > 0 ? `${shieldsCount} escudo${shieldsCount > 1 ? 's' : ''} protegiendo tu racha` : 'Never miss twice!'}
+          </p>
         </div>
       </div>
 

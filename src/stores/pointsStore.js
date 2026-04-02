@@ -10,6 +10,7 @@ export const usePointsStore = create(persist((set, get) => ({
   redeemHistory: [],
   streak: 0,
   habitStreaks: {},
+  shieldsCount: 0,
   loading: false,
 
   get balance() { return get().totalPoints - get().spentPoints },
@@ -34,7 +35,14 @@ export const usePointsStore = create(persist((set, get) => ({
     // Fetch streak
     const streak = await get().calcStreak()
 
-    set({ totalPoints: total, spentPoints: spent, redeemHistory: redeems || [], streak, loading: false })
+    // Count active shields (bought - used)
+    const shieldsBought = (redeems || []).filter(r => r.item === 'Escudo de Racha').length
+    // Used shields are tracked by checking days where streak was saved
+    // For now, shields = bought (consuming happens in calcStreak)
+    const shieldsUsed = Number(localStorage.getItem('brim_shields_used') || '0')
+    const shieldsCount = Math.max(0, shieldsBought - shieldsUsed)
+
+    set({ totalPoints: total, spentPoints: spent, redeemHistory: redeems || [], streak, shieldsCount, loading: false })
     get().calcHabitStreaks()
   },
 
@@ -57,6 +65,8 @@ export const usePointsStore = create(persist((set, get) => ({
 
     let streak = 0
     let missedDays = 0
+    let shieldsUsedCount = 0
+    const availableShields = get().shieldsCount
     const d = new Date()
     d.setHours(0, 0, 0, 0)
     for (let i = 0; i < 200; i++) {
@@ -68,10 +78,20 @@ export const usePointsStore = create(persist((set, get) => ({
         missedDays = 0
       } else {
         missedDays++
-        if (missedDays >= 2) break // Never miss twice: 2 consecutive misses end the streak
+        // Check shields: 1 miss forgiven by "Never Miss Twice", 2nd miss can use shield
+        if (missedDays >= 2) {
+          if (shieldsUsedCount < availableShields) {
+            shieldsUsedCount++
+            // Shield absorbs the break — streak doesn't grow but doesn't die
+          } else {
+            break
+          }
+        }
       }
       d.setDate(d.getDate() - 1)
     }
+    // Persist shields used for this calculation
+    localStorage.setItem('brim_shields_used', String(shieldsUsedCount))
     return streak
   },
 
@@ -238,6 +258,18 @@ export const usePointsStore = create(persist((set, get) => ({
     })
   },
 
+  // Buy a streak shield (functional permitido)
+  buyShield: async () => {
+    const shieldItem = DEFAULT_PERMITIDOS.find(p => p.id === 'streak_shield')
+    if (!shieldItem) return { success: false, msg: 'Escudo no encontrado' }
+    const balance = get().totalPoints - get().spentPoints
+    if (balance < shieldItem.cost) return { success: false, msg: `Faltan ${shieldItem.cost - balance} pts para el escudo. Seguí entrenando 🥋` }
+    await get().redeem(shieldItem)
+    set({ shieldsCount: get().shieldsCount + 1 })
+    track('shield_bought', { cost: shieldItem.cost })
+    return { success: true, msg: '🛡️ Escudo activado. Tu racha está protegida.' }
+  },
+
   // Spotlight-friendly redeem by name or ID
   processIntentRedeem: async (nameOrId) => {
     const key = (nameOrId || '').toLowerCase().trim()
@@ -258,5 +290,5 @@ export const usePointsStore = create(persist((set, get) => ({
   getLevel: () => getLevel(get().totalPoints),
 }), {
   name: 'brim-points',
-  partialize: (state) => ({ totalPoints: state.totalPoints, spentPoints: state.spentPoints, streak: state.streak }),
+  partialize: (state) => ({ totalPoints: state.totalPoints, spentPoints: state.spentPoints, streak: state.streak, shieldsCount: state.shieldsCount }),
 }))

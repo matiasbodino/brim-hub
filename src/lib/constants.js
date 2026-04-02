@@ -70,7 +70,10 @@ export const LEVELS = [
 ]
 
 // Default permitidos catalog
+export const SHIELD_COST = 100
+
 export const DEFAULT_PERMITIDOS = [
+  { id: 'streak_shield', name: 'Escudo de Racha', emoji: '🛡️', cost: SHIELD_COST, functional: true },
   { id: 'pizza', name: 'Pizza', emoji: '🍕', cost: 30 },
   { id: 'birra', name: 'Birra', emoji: '🍺', cost: 15 },
   { id: 'chocolate', name: 'Chocolate', emoji: '🍫', cost: 10 },
