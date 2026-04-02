@@ -1,4 +1,9 @@
+import { useEffect, useRef } from 'react'
 import { getTodayBurn } from '../../lib/activeBurn'
+import { useAnimatedValue } from '../../hooks/useAnimatedValue'
+import { hapticHeartbeat } from '../../lib/haptics'
+import { useBJJTheme } from '../../hooks/useBJJTheme'
+import confetti from 'canvas-confetti'
 
 // Vitality Score = Hydration 25% + Nutrition 25% + Movement 30% + Energy 20%
 
@@ -53,14 +58,36 @@ function getVitalityMessage(score) {
   return 'Día en pausa. Mañana es otro round.'
 }
 
-export default function VitalityRing({ todayHabits, macros, targets, todayEnergy }) {
+export default function VitalityRing({ todayHabits, macros, targets, todayEnergy, damageActive }) {
   const v = calculateVitality({ todayHabits, macros, targets, todayEnergy })
   const color = getVitalityColor(v.total)
   const msg = getVitalityMessage(v.total)
+  const animatedScore = useAnimatedValue(v.total)
+  const { colors: themeColors } = useBJJTheme()
+  const celebrated = useRef(false)
+
+  // Confetti at 100% vitality
+  useEffect(() => {
+    if (v.total >= 100 && !celebrated.current) {
+      celebrated.current = true
+      hapticHeartbeat()
+      // Belt-colored confetti
+      const beltHex = themeColors?.primary || '#7c3aed'
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: [beltHex, '#ffffff', '#f59e0b'],
+      })
+    }
+  }, [v.total])
 
   const radius = 58
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (v.total / 100) * circumference
+  // Damage control: show pending compensation as orange shadow
+  const dmgPct = damageActive ? Math.min(15, 100 - v.total) : 0
+  const dmgOffset = circumference - ((v.total + dmgPct) / 100) * circumference
 
   return (
     <div className="flex flex-col items-center">
@@ -68,13 +95,19 @@ export default function VitalityRing({ todayHabits, macros, targets, todayEnergy
       <div className="relative w-44 h-44 mb-3">
         <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
           <circle cx="70" cy="70" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="10" />
+          {/* Damage control pending zone (orange shadow) */}
+          {damageActive && dmgPct > 0 && (
+            <circle cx="70" cy="70" r={radius} fill="none" stroke="#fdba7440" strokeWidth="10"
+              strokeDasharray={circumference} strokeDashoffset={dmgOffset} strokeLinecap="round" />
+          )}
+          {/* Main vitality arc */}
           <circle cx="70" cy="70" r={radius} fill="none" stroke={color} strokeWidth="10"
             strokeDasharray={circumference} strokeDashoffset={offset}
             strokeLinecap="round" className="transition-all duration-1000"
             style={{ filter: v.total >= 80 ? `drop-shadow(0 0 8px ${color}60)` : 'none' }} />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-4xl font-black" style={{ color }}>{v.total}%</span>
+          <span className="text-4xl font-black" style={{ color }}>{Math.round(animatedScore)}%</span>
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vitalidad</span>
         </div>
       </div>

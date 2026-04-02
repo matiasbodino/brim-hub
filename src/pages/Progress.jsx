@@ -569,7 +569,7 @@ export default function Progress() {
                 <div className="flex gap-1.5 mt-1">
                   {[45, 60, 75, 90].map(t => (
                     <button key={t} onClick={() => setRoutineTime(t)}
-                      className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${routineTime === t ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                      className={`flex-1 min-h-[44px] py-2 text-xs font-bold rounded-full transition-all ${routineTime === t ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
                       {t}'
                     </button>
                   ))}
@@ -581,7 +581,7 @@ export default function Progress() {
               <div className="flex gap-1.5 mt-1">
                 {[{ id: 'fuerza', label: '💪 Fuerza' }, { id: 'bjj', label: '🥋 BJJ' }, { id: 'estetica', label: '🪞 Estética' }].map(f => (
                   <button key={f.id} onClick={() => setRoutineFocus(f.id)}
-                    className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${routineFocus === f.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    className={`flex-1 min-h-[44px] py-2.5 text-xs font-bold rounded-full transition-all ${routineFocus === f.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
                     {f.label}
                   </button>
                 ))}

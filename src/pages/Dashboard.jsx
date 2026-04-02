@@ -197,7 +197,7 @@ export default function Dashboard() {
               <p className="text-xs font-bold uppercase tracking-widest opacity-70">{level.badge} {level.name}</p>
               <span className="text-xs font-bold opacity-50">{completedHabits}/{HABITS.length} hábitos</span>
             </div>
-            <VitalityRing todayHabits={todayHabits} macros={macros} targets={targets} todayEnergy={todayEnergy} />
+            <VitalityRing todayHabits={todayHabits} macros={macros} targets={targets} todayEnergy={todayEnergy} damageActive={!!damagePlan} />
             {/* Active Burn */}
             {(() => {
               const burn = getTodayBurn(todayHabits)

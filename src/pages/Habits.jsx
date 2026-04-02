@@ -7,7 +7,7 @@ import { HABITS, HABIT_GROUPS, POINTS, MATI_ID, TARGETS, WATER_UNITS } from '../
 import { useEnergyStore } from '../stores/energyStore'
 import { useTargetsStore } from '../stores/targetsStore'
 import { track } from '../lib/analytics'
-import { haptic } from '../lib/haptics'
+import { hapticLight, hapticMedium, hapticHeartbeat } from '../lib/haptics'
 import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import BottomSheet from '../components/ui/BottomSheet'
@@ -264,14 +264,14 @@ function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, colla
               <div className="flex gap-2 w-full">
                 {value > 0 && (
                   <button onClick={(e) => { e.stopPropagation(); onUpdate(Math.max(0, value - WATER_UNITS.VASO)) }}
-                    className="py-2 px-3 text-sm font-semibold rounded-xl border border-red-200 text-red-400 active:bg-red-50">−</button>
+                    className="min-h-[44px] min-w-[44px] py-2 px-3 text-sm font-semibold rounded-full border border-red-200 text-red-400 active:bg-red-50">−</button>
                 )}
                 <button onClick={(e) => handleWater(e, WATER_UNITS.VASO)}
-                  className="flex-1 py-2.5 text-[11px] font-bold rounded-xl border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
+                  className="flex-1 min-h-[44px] py-2.5 text-[11px] font-bold rounded-full border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
                   💧 Vaso
                 </button>
                 <button onClick={(e) => handleWater(e, WATER_UNITS.BOTELLA)}
-                  className="flex-1 py-2.5 text-[11px] font-bold rounded-xl border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
+                  className="flex-1 min-h-[44px] py-2.5 text-[11px] font-bold rounded-full border border-blue-200 text-blue-600 active:bg-blue-50 active:scale-95 transition-all">
                   🍾 Botella
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); if (onAddMate) onAddMate() }}
@@ -301,15 +301,15 @@ function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, colla
                 Guardar
               </button>
             </div>
-            {value > 0 && <button onClick={(e) => { e.stopPropagation(); onUpdate(Math.max(0, value - 1000)) }} className="py-2 px-3 text-sm font-semibold rounded-xl border border-red-200 text-red-400 active:bg-red-50">−</button>}
-            <button onClick={(e) => { e.stopPropagation(); onUpdate(value + 1000) }} className="flex-1 py-2 text-sm font-semibold rounded-xl border border-gray-200 active:bg-gray-50">+1000</button>
-            <button onClick={(e) => { e.stopPropagation(); onUpdate(value + 5000) }} className="flex-1 py-2 text-sm font-semibold rounded-xl border border-gray-200 active:bg-gray-50">+5000</button>
+            {value > 0 && <button onClick={(e) => { e.stopPropagation(); onUpdate(Math.max(0, value - 1000)) }} className="min-h-[44px] min-w-[44px] py-2 px-3 text-sm font-semibold rounded-full border border-red-200 text-red-400 active:bg-red-50">−</button>}
+            <button onClick={(e) => { e.stopPropagation(); onUpdate(value + 1000) }} className="flex-1 min-h-[44px] py-2 text-sm font-semibold rounded-full border border-gray-200 active:bg-gray-50">+1000</button>
+            <button onClick={(e) => { e.stopPropagation(); onUpdate(value + 5000) }} className="flex-1 min-h-[44px] py-2 text-sm font-semibold rounded-full border border-gray-200 active:bg-gray-50">+5000</button>
           </>
         )}
         {type === 'bjj' && (
           <button
             onClick={(e) => { e.stopPropagation(); onUpdate(value >= 1 ? 0 : 1) }}
-            className={`flex-1 py-2 text-sm font-semibold rounded-xl transition ${
+            className={`flex-1 min-h-[44px] py-2 text-sm font-semibold rounded-full transition ${
               value >= 1 ? 'bg-violet-600 text-white' : 'border border-gray-200 text-gray-600'
             }`}
           >
@@ -319,7 +319,7 @@ function HabitTracker({ type, label, emoji, value, target, unit, onUpdate, colla
         {type === 'gym' && (
           <button
             onClick={(e) => { e.stopPropagation(); onUpdate(value >= 1 ? 0 : 1) }}
-            className={`flex-1 py-2 text-sm font-semibold rounded-xl transition ${
+            className={`flex-1 min-h-[44px] py-2 text-sm font-semibold rounded-full transition ${
               value >= 1 ? 'bg-violet-600 text-white' : 'border border-gray-200 text-gray-600'
             }`}
           >
@@ -672,6 +672,14 @@ function FoodSection({ onManualSubmit, store, targets, prefill }) {
                 <div><p className="text-2xl font-black">{adjusted.fat}g</p><p className="text-[10px] opacity-70">Fat</p></div>
               </div>
 
+              {/* Portion control warning */}
+              {adjusted.calories > 900 && (
+                <div className="bg-red-500/20 rounded-xl px-3 py-2 mb-3 flex items-start gap-2">
+                  <span className="text-sm">⚠️</span>
+                  <p className="text-[10px] text-red-100">Mati, esta porción es enorme ({adjusted.calories} kcal). ¿Seguro que querés loggear esto? Oss!</p>
+                </div>
+              )}
+
               {/* Impact summary inline */}
               {targets.calories > 0 && (() => {
                 const newTotal = macros.calories + adjusted.calories
@@ -836,12 +844,12 @@ export default function Habits() {
       await awardPoints(type, POINTS[type], 1)
       await checkPerfectDay()
       showIdentity(type)
-      haptic(10)
+      hapticMedium()
       showToast('\u2713 +' + POINTS[type] + ' pts')
       track('habit_completed', { habit_type: type, completion_type: 'full' })
     } else if (prev === 0 && val > 0 && val < runtimeTarget) {
       await awardPoints(type, POINTS[type], 0.5)
-      haptic(5)
+      hapticLight()
       track('habit_completed', { habit_type: type, completion_type: 'partial' })
     }
   }
@@ -852,7 +860,7 @@ export default function Habits() {
     await awardPoints('bjj', POINTS.bjj)
     await checkPerfectDay()
     showIdentity('bjj')
-    haptic(10)
+    hapticMedium()
     showToast('🥋 +' + POINTS.bjj + ' pts')
     track('habit_completed', { habit_type: 'bjj', completion_type: 'full' })
     setShowBJJ(false)
@@ -929,7 +937,7 @@ export default function Habits() {
                       collapsed={isCollapsed(h.type)}
                       onToggle={() => toggleExpanded(h.type)}
                       waterBreakdown={h.type === 'water' ? useHabitStore.getState().getWaterBreakdown() : null}
-                      onAddMate={h.type === 'water' ? () => { useHabitStore.getState().addMate(1, targets.water || 2.5); haptic(10) } : null}
+                      onAddMate={h.type === 'water' ? () => { useHabitStore.getState().addMate(1, targets.water || 2.5); hapticMedium() } : null}
                     />
                   ))}
                 </div>
