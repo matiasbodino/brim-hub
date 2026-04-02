@@ -431,218 +431,182 @@ function FoodSection({ onManualSubmit, store, targets }) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-3">
-        {/* Macros del día */}
-        <div className="text-xs text-gray-400">
+    <div className="space-y-4">
+      {/* Macros del día - mini banner */}
+      <div className="flex items-center justify-between px-1">
+        <p className="text-xs text-slate-400">
           Hoy: {macros.calories} kcal · {macros.protein}g prot
-          {targets.calories > 0 && macros.calories < targets.calories && (
-            <span> · Te faltan {targets.calories - macros.calories} kcal</span>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800">🍽 Registrar comida</h3>
-          {/* Segmented control AI/Manual */}
-          <div className="flex bg-gray-100 rounded-full p-0.5">
-            <button onClick={() => { setMode('ai'); setEditing(false) }}
-              className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors duration-200 ${
-                mode === 'ai' ? 'bg-violet-600 text-white' : 'text-gray-400'
-              }`}>
-              🤖 AI
-            </button>
-            <button onClick={() => setMode('manual')}
-              className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors duration-200 ${
-                mode === 'manual' ? 'bg-violet-600 text-white' : 'text-gray-400'
-              }`}>
-              ✏️ Manual
-            </button>
-          </div>
-        </div>
-
-        {/* Meal type pills */}
-        <div className="flex gap-1 flex-wrap">
-          {['desayuno', 'almuerzo', 'merienda', 'cena', 'snack'].map(t => (
-            <button key={t} onClick={() => setTipo(t)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                tipo === t ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600'
-              }`}>{t}</button>
-          ))}
-        </div>
-
-        {mode === 'ai' ? (
-          <>
-            <div className="flex gap-2">
-              <input type="text" value={aiText} onChange={e => setAiText(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAISend()}
-                placeholder="¿Qué comiste? Ej: milanesa con ensalada"
-                className="flex-1 px-3 py-3 rounded-xl border border-gray-200 text-base" />
-              <button onClick={handleAISend} disabled={!aiText.trim() || aiLoading}
-                className="px-4 py-3 bg-violet-600 text-white rounded-xl font-semibold text-sm disabled:opacity-40 active:scale-95 transition">
-                {aiLoading ? '...' : '→'}
-              </button>
-            </div>
-
-            {aiLoading && (
-              <div className="text-center py-4">
-                <div className="w-6 h-6 bg-violet-600 rounded-lg animate-pulse mx-auto mb-2" />
-                <p className="text-xs text-gray-400">Estimando macros...</p>
-              </div>
-            )}
-
-            {aiError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">
-                {aiError}
-              </div>
-            )}
-
-            {aiEstimate && !aiLoading && (
-              <FoodEstimateCardInline
-                estimate={aiEstimate}
-                onConfirm={handleConfirm}
-                onEdit={handleEdit}
-                onRetry={handleRetry}
-                onCancel={clearAIEstimate}
-                currentMacros={macros}
-                targets={targets}
-              />
-            )}
-          </>
-        ) : (
-          <>
-            <input type="text" value={desc} onChange={e => setDesc(e.target.value)}
-              placeholder="Qué comiste..."
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base" />
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-gray-500">Calorías (est.)</label>
-                <input type="number" value={kcal} onChange={e => setKcal(e.target.value)}
-                  placeholder="500"
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Proteína (g)</label>
-                <input type="number" value={prot} onChange={e => setProt(e.target.value)}
-                  placeholder="30"
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Carbos (g)</label>
-                <input type="number" value={carbs} onChange={e => setCarbs(e.target.value)}
-                  placeholder="ej: 50"
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">Grasa (g)</label>
-                <input type="number" value={fat} onChange={e => setFat(e.target.value)}
-                  placeholder="ej: 15"
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-base mt-1" />
-              </div>
-            </div>
-            <button onClick={handleManualSubmit} disabled={!desc.trim() || !kcal}
-              className="w-full py-2.5 text-sm font-semibold rounded-xl bg-violet-600 text-white disabled:opacity-40">
-              Guardar comida
-            </button>
-          </>
+        </p>
+        {targets.calories > 0 && macros.calories < targets.calories && (
+          <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">
+            Faltan {targets.calories - macros.calories} kcal
+          </span>
         )}
       </div>
 
-      {/* Today's food list */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100">
-        <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Comidas de hoy</p>
-        <TodayFoodList logs={todayLogs} onDelete={deleteLog} />
+      {/* Tabs AI / Manual */}
+      <div className="flex bg-slate-200/50 p-1 rounded-2xl">
+        <button onClick={() => { setMode('ai'); setEditing(false) }}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            mode === 'ai' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
+          }`}>
+          ✨ Carga con AI
+        </button>
+        <button onClick={() => setMode('manual')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            mode === 'manual' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
+          }`}>
+          ✏️ Manual
+        </button>
       </div>
-    </div>
-  )
-}
 
-function ImpactSummary({ estimate, currentMacros, targets }) {
-  if (!targets.calories || targets.calories <= 0) return null
-  const newTotal = currentMacros.calories + estimate.calories
-  const percentage = Math.round((newTotal / targets.calories) * 100)
+      {/* Meal type pills */}
+      <div className="flex gap-1.5 flex-wrap">
+        {['desayuno', 'almuerzo', 'merienda', 'cena', 'snack'].map(t => (
+          <button key={t} onClick={() => setTipo(t)}
+            className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all ${
+              tipo === t ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-500 border border-slate-100'
+            }`}>{MEAL_EMOJIS[t] || '🍽'} {t}</button>
+        ))}
+      </div>
 
-  return (
-    <div className="mt-3 p-3 bg-violet-50 rounded-xl border border-violet-100">
-      <div className="flex justify-between text-xs font-bold text-violet-700 uppercase mb-1">
-        <span>Impacto en tu día</span>
-        <span>{percentage}% de tu target</span>
-      </div>
-      <div className="w-full bg-violet-200 h-1.5 rounded-full overflow-hidden">
-        <div
-          className="bg-violet-600 h-full transition-all duration-1000"
-          style={{ width: `${Math.min(percentage, 100)}%` }}
-        />
-      </div>
-      <p className="text-[10px] text-violet-500 mt-2 italic">
-        Con esto quedarías en {newTotal} / {targets.calories} kcal
-      </p>
-    </div>
-  )
-}
+      {mode === 'ai' ? (
+        <div className="space-y-4">
+          {/* AI input card */}
+          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-indigo-100 rounded-xl">
+                <span className="text-base">✨</span>
+              </div>
+              <h4 className="font-bold text-slate-800">Carga con AI</h4>
+            </div>
 
-function FoodEstimateCardInline({ estimate, onConfirm, onEdit, onRetry, onCancel, currentMacros, targets }) {
-  const [showBreakdown, setShowBreakdown] = useState(false)
-  const conf = { high: '🟢', medium: '🟡', low: '🔴' }
+            <textarea
+              value={aiText}
+              onChange={e => setAiText(e.target.value)}
+              placeholder="Ej: Dos empanadas de carne y una coca zero..."
+              className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-100 min-h-[100px] transition-all resize-none"
+            />
 
-  return (
-    <div className="border border-violet-200 rounded-xl overflow-hidden">
-      <div className="bg-violet-50 px-3 py-2 flex items-center justify-between">
-        <span className="text-xs font-semibold text-violet-700">🤖 Estimación</span>
-        <span className="text-xs">{conf[estimate.confidence] || '🟡'} {estimate.confidence}</span>
-      </div>
-      <div className="px-3 py-2">
-        <p className="text-sm font-semibold text-gray-800">{estimate.description}</p>
-      </div>
-      <div className="grid grid-cols-4 gap-1 px-3 py-2">
-        <div className="text-center">
-          <div className="text-base font-bold text-violet-600">{estimate.calories}</div>
-          <div className="text-xs text-gray-400">kcal</div>
-        </div>
-        <div className="text-center">
-          <div className="text-base font-bold text-blue-600">{estimate.protein}g</div>
-          <div className="text-xs text-gray-400">prot</div>
-        </div>
-        <div className="text-center">
-          <div className="text-base font-bold text-amber-600">{estimate.carbs}g</div>
-          <div className="text-xs text-gray-400">carbs</div>
-        </div>
-        <div className="text-center">
-          <div className="text-base font-bold text-red-500">{estimate.fat}g</div>
-          <div className="text-xs text-gray-400">grasa</div>
-        </div>
-      </div>
-      {estimate.breakdown && estimate.breakdown.length > 0 && (
-        <div className="px-3 pb-2">
-          <button onClick={() => setShowBreakdown(!showBreakdown)}
-            className="text-xs text-violet-500 font-semibold">
-            {showBreakdown ? '▲ Ocultar' : '▼ Detalle'}
-          </button>
-          {showBreakdown && (
-            <div className="mt-1 space-y-1">
-              {estimate.breakdown.map((item, i) => (
-                <div key={i} className="flex justify-between text-xs bg-gray-50 rounded-lg px-2 py-1.5">
-                  <span className="text-gray-600">{item.item}</span>
-                  <span className="font-semibold">{item.calories} kcal</span>
+            <button
+              onClick={handleAISend}
+              disabled={!aiText.trim() || aiLoading}
+              className="w-full mt-4 bg-slate-900 text-white py-4 rounded-2xl font-bold active:scale-95 transition-all disabled:opacity-50"
+            >
+              {aiLoading ? 'Calculando macros...' : 'Analizar comida'}
+            </button>
+          </div>
+
+          {/* Error */}
+          {aiError && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-600">
+              {aiError}
+            </div>
+          )}
+
+          {/* AI Estimate - Premium card */}
+          {aiEstimate && !aiLoading && (
+            <div className="bg-indigo-600 rounded-[2rem] p-6 text-white shadow-xl">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-[10px] font-black bg-white/20 px-2 py-1 rounded-full uppercase tracking-widest">Resultado AI</span>
+                <span className="text-xs">{({ high: '🟢', medium: '🟡', low: '🔴' })[aiEstimate.confidence] || '🟡'} {aiEstimate.confidence}</span>
+              </div>
+              <p className="text-sm font-medium text-indigo-100 mb-4">{aiEstimate.description}</p>
+
+              <div className="grid grid-cols-4 gap-2 text-center mb-4">
+                <div><p className="text-2xl font-black">{aiEstimate.calories}</p><p className="text-[10px] opacity-70">kcal</p></div>
+                <div><p className="text-2xl font-black">{aiEstimate.protein}g</p><p className="text-[10px] opacity-70">Prot</p></div>
+                <div><p className="text-2xl font-black">{aiEstimate.carbs}g</p><p className="text-[10px] opacity-70">Carbs</p></div>
+                <div><p className="text-2xl font-black">{aiEstimate.fat}g</p><p className="text-[10px] opacity-70">Fat</p></div>
+              </div>
+
+              {/* Impact summary inline */}
+              {targets.calories > 0 && (() => {
+                const newTotal = macros.calories + aiEstimate.calories
+                const pct = Math.round((newTotal / targets.calories) * 100)
+                return (
+                  <div className="mb-4">
+                    <div className="flex justify-between text-[10px] font-bold opacity-80 mb-1">
+                      <span>Impacto en tu día</span>
+                      <span>{pct}%</span>
+                    </div>
+                    <div className="w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-white h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(pct, 100)}%` }} />
+                    </div>
+                    <p className="text-[10px] opacity-60 mt-1">{newTotal} / {targets.calories} kcal</p>
+                  </div>
+                )
+              })()}
+
+              {/* Breakdown */}
+              {aiEstimate.breakdown && aiEstimate.breakdown.length > 0 && (
+                <div className="mb-4 space-y-1">
+                  {aiEstimate.breakdown.map((item, i) => (
+                    <div key={i} className="flex justify-between text-xs bg-white/10 rounded-xl px-3 py-1.5">
+                      <span className="opacity-80">{item.item}</span>
+                      <span className="font-bold">{item.calories} kcal</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              <div className="flex gap-2">
+                <button onClick={handleConfirm}
+                  className="flex-1 bg-white text-indigo-600 py-3 rounded-xl font-bold text-sm active:scale-95 transition">
+                  Confirmar
+                </button>
+                <button onClick={handleEdit}
+                  className="p-3 bg-indigo-500 rounded-xl active:scale-95 transition text-sm">✏️</button>
+                <button onClick={handleRetry}
+                  className="p-3 bg-indigo-500 rounded-xl active:scale-95 transition text-sm">🔄</button>
+                <button onClick={clearAIEstimate}
+                  className="p-3 bg-indigo-500 rounded-xl active:scale-95 transition text-sm">🗑</button>
+              </div>
             </div>
           )}
         </div>
-      )}
-      {currentMacros && targets && (
-        <div className="px-3">
-          <ImpactSummary estimate={estimate} currentMacros={currentMacros} targets={targets} />
+      ) : (
+        <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 space-y-3">
+          <input type="text" value={desc} onChange={e => setDesc(e.target.value)}
+            placeholder="Qué comiste..."
+            className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-100 transition-all" />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Calorías</label>
+              <input type="number" value={kcal} onChange={e => setKcal(e.target.value)}
+                placeholder="500"
+                className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Proteína (g)</label>
+              <input type="number" value={prot} onChange={e => setProt(e.target.value)}
+                placeholder="30"
+                className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Carbos (g)</label>
+              <input type="number" value={carbs} onChange={e => setCarbs(e.target.value)}
+                placeholder="50"
+                className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Grasa (g)</label>
+              <input type="number" value={fat} onChange={e => setFat(e.target.value)}
+                placeholder="15"
+                className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-sm mt-1 focus:ring-2 focus:ring-indigo-100" />
+            </div>
+          </div>
+          <button onClick={handleManualSubmit} disabled={!desc.trim() || !kcal}
+            className="w-full bg-slate-900 text-white py-3.5 rounded-2xl font-bold active:scale-95 transition-all disabled:opacity-50">
+            Guardar comida
+          </button>
         </div>
       )}
-      <div className="flex gap-2 px-3 py-2 border-t border-gray-100 mt-2">
-        <button onClick={onConfirm}
-          className="flex-1 py-2 text-sm font-semibold rounded-xl bg-violet-600 text-white active:scale-95">✅ Confirmar</button>
-        <button onClick={onEdit}
-          className="py-2 px-3 text-sm rounded-xl border border-gray-200 active:scale-95">✏️</button>
-        <button onClick={onRetry}
-          className="py-2 px-3 text-sm rounded-xl border border-gray-200 active:scale-95">🔄</button>
-        <button onClick={onCancel}
-          className="py-2 px-3 text-sm rounded-xl border border-gray-200 text-gray-400 active:scale-95">✕</button>
+
+      {/* Today's food list */}
+      <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100">
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Comidas de hoy</p>
+        <TodayFoodList logs={todayLogs} onDelete={deleteLog} />
       </div>
     </div>
   )
@@ -658,6 +622,7 @@ export default function Habits() {
   const [showBJJ, setShowBJJ] = useState(false)
   const [identityMsg, setIdentityMsg] = useState(null)
   const [expanded, setExpanded] = useState({})
+  const [activeTab, setActiveTab] = useState('tracking')
   const showToast = useToast()
 
   useEffect(() => { fetchToday(); fetchEnergy(); fetchFood() }, [])
@@ -673,11 +638,8 @@ export default function Habits() {
   }
 
   const isCollapsed = (type) => {
-    // Explicitly expanded by user tap
     if (expanded[type] === true) return false
-    // Explicitly collapsed by user tap
     if (expanded[type] === false) return true
-    // Default: collapsed if done
     return isHabitDone(type)
   }
 
@@ -737,9 +699,17 @@ export default function Habits() {
   }
 
   return (
-    <div className="px-4 py-5 pb-24 space-y-4">
-      <h1 className="text-xl font-bold text-gray-900">Hábitos</h1>
+    <div className="min-h-screen bg-slate-50 pb-32 pt-6 max-w-lg mx-auto px-4 space-y-6">
+      {/* Estado Vital */}
+      <section>
+        <div className="flex justify-between items-center px-1 mb-3">
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado Vital</h3>
+          <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">HOY</span>
+        </div>
+        <EnergyPicker current={todayEnergy} onSelect={saveEnergy} />
+      </section>
 
+      {/* Progress Dots */}
       <ProgressDots
         todayHabits={todayHabits}
         todayEnergy={todayEnergy}
@@ -747,37 +717,64 @@ export default function Habits() {
         targets={targets}
       />
 
-      <EnergyPicker current={todayEnergy} onSelect={saveEnergy} />
+      {/* Tabs: Actividad / Nutrición */}
+      <div className="flex bg-slate-200/50 p-1 rounded-2xl">
+        <button
+          onClick={() => setActiveTab('tracking')}
+          className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${
+            activeTab === 'tracking' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
+          }`}
+        >
+          💪 Actividad
+        </button>
+        <button
+          onClick={() => setActiveTab('food')}
+          className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${
+            activeTab === 'food' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
+          }`}
+        >
+          🍽 Nutrición
+        </button>
+      </div>
 
-      {Object.entries(HABIT_GROUPS).map(([key, group]) => {
-        if (group.habits.length === 0) return null
-        return (
-          <div key={key}>
-            <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2 mt-4">
-              {group.emoji} {group.label}
-            </p>
-            <div className="space-y-3">
-              {key === 'morning' && <WeightCard />}
-              {group.habits.map(h => (
-                <HabitTracker
-                  key={h.type}
-                  type={h.type}
-                  label={h.label}
-                  emoji={h.emoji}
-                  value={Number(todayHabits[h.type]?.value || 0)}
-                  target={h.target}
-                  unit={h.unit}
-                  onUpdate={(val) => handleUpdate(h.type, val)}
-                  collapsed={isCollapsed(h.type)}
-                  onToggle={() => toggleExpanded(h.type)}
-                />
-              ))}
-            </div>
-          </div>
-        )
-      })}
+      {activeTab === 'tracking' ? (
+        <div className="space-y-6">
+          {/* Peso del día */}
+          <WeightCard />
 
-      <FoodSection onManualSubmit={handleFood} store={foodStore} targets={targets} />
+          {/* Bloques de Tiempo */}
+          {Object.entries(HABIT_GROUPS).map(([key, group]) => {
+            if (group.habits.length === 0) return null
+            return (
+              <div key={key}>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">
+                  {group.emoji} {group.label}
+                </p>
+                <div className="space-y-3">
+                  {group.habits.map(h => (
+                    <HabitTracker
+                      key={h.type}
+                      type={h.type}
+                      label={h.label}
+                      emoji={h.emoji}
+                      value={Number(todayHabits[h.type]?.value || 0)}
+                      target={h.target}
+                      unit={h.unit}
+                      onUpdate={(val) => handleUpdate(h.type, val)}
+                      collapsed={isCollapsed(h.type)}
+                      onToggle={() => toggleExpanded(h.type)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <FoodSection onManualSubmit={handleFood} store={foodStore} targets={targets} />
+        </div>
+      )}
 
       {/* BJJ Bottom Sheet */}
       <BottomSheet isOpen={showBJJ} onClose={() => setShowBJJ(false)} title="🥋 Sesión de BJJ">
