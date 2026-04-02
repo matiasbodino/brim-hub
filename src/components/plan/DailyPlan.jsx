@@ -31,16 +31,16 @@ function MealOption({ option, type, label, onLog }) {
 function SmartSuggestion({ remaining, onLog }) {
   const [suggestion, setSuggestion] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [showRecipe, setShowRecipe] = useState(false)
 
   const handleGenerate = async () => {
     setLoading(true)
     try {
-      const res = await fetch(EDGE_URL + '/parse-food', {
+      const res = await fetch(EDGE_URL + '/chef-suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ANON_KEY },
         body: JSON.stringify({
-          text: `Necesito una comida que tenga exactamente ${remaining.calories} kcal y ${remaining.protein}g de proteína. Sugerí algo con ingredientes comunes argentinos (pollo, carne, huevo, arroz, verduras, queso). Tiene que ser realista y fácil de hacer.`,
-          meal_type: new Date().getHours() >= 19 ? 'cena' : new Date().getHours() >= 16 ? 'merienda' : 'almuerzo',
+          remaining_macros: remaining,
         }),
       })
       const data = await res.json()
@@ -51,30 +51,74 @@ function SmartSuggestion({ remaining, onLog }) {
 
   const handleLog = () => {
     if (!suggestion) return
-    onLog(suggestion)
+    onLog({
+      meal_type: suggestion.meal_type || 'cena',
+      description: suggestion.meal_name,
+      calories: suggestion.macros?.kcal || 0,
+      protein: suggestion.macros?.protein || 0,
+      carbs: suggestion.macros?.carbs || 0,
+      fat: suggestion.macros?.fat || 0,
+    })
     setSuggestion(null)
   }
 
   if (suggestion) {
     return (
-      <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 space-y-2">
+      <div className="bg-emerald-50 rounded-[2rem] p-5 border border-emerald-100 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black text-emerald-700">🎯 Sugerencia macro-perfect</span>
+          <span className="text-xs font-black text-emerald-700">👨‍🍳 Chef Bio-Analítico</span>
           <button onClick={() => setSuggestion(null)} className="text-[10px] text-slate-400">✕</button>
         </div>
-        <p className="text-sm font-bold text-slate-800">{suggestion.description}</p>
-        <div className="flex gap-3 text-xs text-slate-500">
-          <span>{suggestion.calories} kcal</span>
-          <span>{suggestion.protein}g prot</span>
-          {suggestion.carbs > 0 && <span>{suggestion.carbs}g carbs</span>}
-          {suggestion.fat > 0 && <span>{suggestion.fat}g fat</span>}
+
+        {/* Brim says */}
+        {suggestion.brim_says && (
+          <p className="text-sm text-slate-700 italic">"{suggestion.brim_says}"</p>
+        )}
+
+        {/* Meal name */}
+        <h4 className="text-base font-black text-slate-800">{suggestion.meal_name}</h4>
+
+        {/* Macros */}
+        <div className="grid grid-cols-4 gap-2 text-center py-2 bg-white rounded-xl">
+          <div><p className="text-sm font-black text-emerald-700">{suggestion.macros?.kcal}</p><p className="text-[8px] text-slate-400">kcal</p></div>
+          <div><p className="text-sm font-black text-blue-600">{suggestion.macros?.protein}g</p><p className="text-[8px] text-slate-400">prot</p></div>
+          <div><p className="text-sm font-black text-amber-600">{suggestion.macros?.carbs}g</p><p className="text-[8px] text-slate-400">carbs</p></div>
+          <div><p className="text-sm font-black text-red-500">{suggestion.macros?.fat}g</p><p className="text-[8px] text-slate-400">fat</p></div>
         </div>
-        <p className="text-[10px] text-emerald-600 italic">Te deja clavado en el target</p>
+
+        {/* Why */}
+        {suggestion.why && (
+          <p className="text-[10px] text-emerald-600">{suggestion.why}</p>
+        )}
+
+        {/* Expandable recipe */}
+        <button onClick={() => setShowRecipe(!showRecipe)} className="text-[10px] font-bold text-emerald-700">
+          {showRecipe ? '▲ Ocultar receta' : '▼ Ver ingredientes y pasos'}
+        </button>
+        {showRecipe && (
+          <div className="space-y-2 animate-fade-in">
+            {suggestion.ingredients && (
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase">Ingredientes</p>
+                <ul className="text-xs text-slate-600 mt-1 space-y-0.5">
+                  {suggestion.ingredients.map((ing, i) => <li key={i}>• {ing}</li>)}
+                </ul>
+              </div>
+            )}
+            {suggestion.instructions && (
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase">Pasos</p>
+                <p className="text-xs text-slate-600 mt-1">{suggestion.instructions}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         <button
           onClick={handleLog}
-          className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition"
+          className="w-full bg-emerald-600 text-white py-3.5 rounded-xl font-black text-sm active:scale-95 transition"
         >
-          ✅ Loggear esto
+          ✅ Loggear esta comida
         </button>
       </div>
     )
@@ -84,9 +128,9 @@ function SmartSuggestion({ remaining, onLog }) {
     <button
       onClick={handleGenerate}
       disabled={loading}
-      className="w-full bg-emerald-50 text-emerald-700 py-3 rounded-2xl text-xs font-bold border border-emerald-100 active:bg-emerald-100 transition disabled:opacity-50"
+      className="w-full bg-emerald-50 text-emerald-700 py-3.5 rounded-2xl text-xs font-bold border border-emerald-100 active:bg-emerald-100 transition disabled:opacity-50"
     >
-      {loading ? 'Pensando receta...' : `🎯 ¿Qué como para clavar ${remaining.calories} kcal y ${remaining.protein}g prot?`}
+      {loading ? '👨‍🍳 El Chef está pensando...' : `🎯 ¿Qué como para clavar ${remaining.calories} kcal y ${remaining.protein}g prot?`}
     </button>
   )
 }
