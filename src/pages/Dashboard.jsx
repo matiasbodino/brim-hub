@@ -121,29 +121,6 @@ export default function Dashboard() {
     return '🔴'
   }
 
-  // ── "Tu jugada ahora" — AI next step based on what's missing ──
-  const getNextMove = () => {
-    const waterVal = Number(todayHabits.water?.value || 0)
-    const waterTarget = targets.water || 2.5
-    const protRemaining = Math.max(0, (targets.protein || 150) - Math.round(macros.protein))
-    const calRemaining = Math.max(0, (targets.calories || 2100) - macros.calories)
-    const gymDone = todayHabits.gym && Number(todayHabits.gym.value) >= 1
-    const bjjDone = todayHabits.bjj && Number(todayHabits.bjj.value) >= 1
-    const stepsVal = Number(todayHabits.steps?.value || 0)
-
-    if (waterVal === 0) return { emoji: '💧', text: 'Arrancá con un vaso de agua. El cuerpo te lo pide.' }
-    if (!todayEnergy) return { emoji: '⚡', text: 'Registrá tu energía de hoy para que Brim calibre el plan.' }
-    if (protRemaining > 30 && macros.calories > 0) return { emoji: '🥩', text: `Faltan ${protRemaining}g de prota. Mandate un snack de yogurt o frutos secos.` }
-    if (calRemaining > 800 && macros.calories === 0) return { emoji: '🍽', text: 'Todavía no comiste nada. Arrancá con un desayuno potente.' }
-    if (waterVal < waterTarget * 0.5) return { emoji: '💧', text: `Vas ${waterVal.toFixed(1)}L de ${waterTarget}L. Llená el vaso.` }
-    if (stepsVal < 3000 && new Date().getHours() > 14) return { emoji: '🚶', text: 'Metele una caminata post-almuerzo. Los pasos están flojos.' }
-    if (!gymDone && !bjjDone && new Date().getHours() > 16) return { emoji: '🏋️', text: '¿Hoy toca mover el cuerpo? Gym o tatami, vos elegís.' }
-    if (calRemaining > 0 && calRemaining < 500) return { emoji: '🎯', text: `Te quedan ${calRemaining} kcal. Una cena liviana y cerrás perfecto.` }
-    if (completedHabits === HABITS.length) return { emoji: '🏆', text: 'Día perfecto. Disfrutalo, Mati. Mañana seguimos.' }
-    return { emoji: '💪', text: 'Seguí así. Cada hábito suma.' }
-  }
-  const nextMove = getNextMove()
-
   // Computed values for calorie wallet
   const calRemaining = Math.max(0, (targets.calories || 2100) - macros.calories)
   const protRemaining = Math.max(0, (targets.protein || 150) - Math.round(macros.protein))
@@ -152,25 +129,68 @@ export default function Dashboard() {
   const calOver = macros.calories > (targets.calories || 2100)
   const protOver = macros.protein > (targets.protein || 150)
 
-  // Command line suggestion based on faltantes
+  // ── Intake Windows (time-aware) ──
+  const getMealWindow = () => {
+    const h = new Date().getHours()
+    if (h >= 6 && h < 10) return { slot: 'desayuno', label: 'Desayuno', maxKcal: 600, maxProt: 40, emoji: '☕' }
+    if (h >= 10 && h < 12) return { slot: 'snack_am', label: 'Snack mañana', maxKcal: 250, maxProt: 20, emoji: '🥜', nearMeal: h >= 11 }
+    if (h >= 12 && h < 15) return { slot: 'almuerzo', label: 'Almuerzo', maxKcal: 800, maxProt: 50, emoji: '🍽' }
+    if (h >= 15 && h < 19) return { slot: 'snack_pm', label: 'Snack tarde', maxKcal: 250, maxProt: 20, emoji: '🧉', nearMeal: h >= 18 }
+    if (h >= 19) return { slot: 'cena', label: 'Cena', maxKcal: 700, maxProt: 50, emoji: '🌙' }
+    return { slot: 'desayuno', label: 'Desayuno', maxKcal: 600, maxProt: 40, emoji: '☕' }
+  }
+  const mealWindow = getMealWindow()
+
+  // ── Target Ahora (unified, time + macro aware) ──
   const getCommandLine = () => {
     const waterVal = Number(todayHabits.water?.value || 0)
     const waterTarget = targets.water || 2.5
     const stepsVal = Number(todayHabits.steps?.value || 0)
     const gymDone = todayHabits.gym && Number(todayHabits.gym.value) >= 1
     const bjjDone = todayHabits.bjj && Number(todayHabits.bjj.value) >= 1
-    const parts = []
+    const h = new Date().getHours()
+    const isSnack = mealWindow.slot.startsWith('snack')
+    const protForThisMeal = Math.min(protRemaining, mealWindow.maxProt)
+    const calForThisMeal = Math.min(calRemaining, mealWindow.maxKcal)
 
-    if (waterVal < waterTarget * 0.5) parts.push(`${Math.ceil((waterTarget - waterVal) / 0.25)} vasos de agua`)
-    if (stepsVal < 5000 && new Date().getHours() > 12) parts.push('caminata de 15 min')
-    if (protRemaining > 30) parts.push(`snack con ${protRemaining}g prota`)
-    if (!gymDone && !bjjDone && new Date().getHours() > 15) parts.push('mover el cuerpo')
+    // Priority 1: Hydration if very low
+    if (waterVal === 0 && h < 12) return `Arrancá con un vaso de agua. El cuerpo te lo pide.`
 
-    if (parts.length === 0) {
-      if (completedHabits === HABITS.length && calRemaining < 300) return 'Día casi perfecto. Cerralo con una cena liviana y a dormir.'
-      return 'Seguí así. Cada hábito suma.'
+    // Priority 2: Near-meal transition
+    if (mealWindow.nearMeal && isSnack) {
+      const nextMeal = mealWindow.slot === 'snack_am' ? 'almorzar' : 'cenar'
+      return `Falta poco para ${nextMeal}. Mejor esperá y clavá ${calForThisMeal + 300} kcal en la comida principal.`
     }
-    return parts.join(' + ') + ' para quedar en verde.'
+
+    // Priority 3: Food suggestion based on window
+    if (macros.calories === 0 && h < 11) return `${mealWindow.emoji} Hora de desayuno. Mandate algo con ~${Math.min(calForThisMeal, 500)} kcal. Opción A: tostadas con huevo. Opción B: yogurt con granola.`
+
+    if (isSnack && protRemaining > 20) {
+      return `${mealWindow.emoji} Momento de snack: sumá ${protForThisMeal}g de prota ahora (ej: yogurt griego o 3 fetas de lomo) y reservá el resto para ${mealWindow.slot === 'snack_am' ? 'el almuerzo' : 'la cena'}.`
+    }
+
+    if (isSnack && protRemaining <= 20 && calRemaining > 200) {
+      return `${mealWindow.emoji} Snack liviano: fruta o un puñado de frutos secos (~${Math.min(calForThisMeal, 200)} kcal).`
+    }
+
+    if (mealWindow.slot === 'almuerzo') {
+      return `${mealWindow.emoji} Hora de almorzar. Target: ${calForThisMeal} kcal, ${protForThisMeal}g prota. Opción A: pollo con arroz. Opción B: milanesa con ensalada.`
+    }
+
+    if (mealWindow.slot === 'cena') {
+      if (calRemaining < 400) return `🌙 Cena liviana y cerrás perfecto. Te quedan ${calRemaining} kcal.`
+      return `🌙 Cena: ${calForThisMeal} kcal, ${protForThisMeal}g prota. Opción A: omelette con verduras. Opción B: ensalada con atún.`
+    }
+
+    // Priority 4: Habits
+    const parts = []
+    if (waterVal < waterTarget * 0.5) parts.push(`${Math.ceil((waterTarget - waterVal) / 0.25)} vasos de agua`)
+    if (stepsVal < 5000 && h > 13) parts.push('caminata de 15 min')
+    if (!gymDone && !bjjDone && h > 16) parts.push('mover el cuerpo')
+
+    if (parts.length > 0) return parts.join(' + ') + ' para quedar en verde.'
+    if (completedHabits === HABITS.length && calRemaining < 300) return 'Día casi perfecto. Cerralo y a dormir. Oss!'
+    return 'Seguí así. Cada hábito suma.'
   }
 
   return (
@@ -205,7 +225,8 @@ export default function Dashboard() {
             {/* Main: kcal remaining */}
             <div className="flex-shrink-0">
               <p className={`text-3xl font-black ${calOver ? 'text-red-500' : 'text-slate-800'}`}>{calOver ? '-' + (macros.calories - (targets.calories || 2100)) : calRemaining}</p>
-              <p className="text-[10px] text-slate-400 font-bold">{calOver ? 'kcal exceso' : 'kcal restantes'}</p>
+              <p className="text-[10px] text-slate-400 font-bold">{calOver ? 'kcal EXCESO' : 'kcal DISPONIBLES'}</p>
+              <p className="text-[8px] text-slate-300">Vas {macros.calories} de {targets.calories || 2100}</p>
             </div>
             {/* Mini indicators */}
             <div className="flex-1 grid grid-cols-3 gap-2">
@@ -256,7 +277,7 @@ export default function Dashboard() {
 
       {/* ═══ 3. AI COMMAND LINE ═══ */}
       <div className="bg-white/80 backdrop-blur-md rounded-[1.5rem] px-4 py-3 border border-violet-200/30 shadow-[0_0_15px_-3px_rgba(124,58,237,0.08)] mb-4">
-        <p className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Target ahora</p>
+        <p className="text-[10px] font-black text-violet-500 uppercase tracking-widest">{mealWindow.emoji} {mealWindow.label} — Target ahora</p>
         <p className="text-xs font-bold text-slate-700 mt-0.5 leading-snug">{getCommandLine()}</p>
       </div>
 
