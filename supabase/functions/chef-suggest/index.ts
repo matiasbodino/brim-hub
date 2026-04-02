@@ -56,34 +56,58 @@ Deno.serve(async (req) => {
       ? (userModel[0].model_content.split('**Alimentación**')[1]?.split('**')[0] || '').trim()
       : '';
 
-    const prompt = `Mati necesita una comida ÚNICA que encaje en estos macros restantes del día.
+    // ── HARD LIMITS: cap per-meal calories by time of day ──
+    const mealCaps: Record<string, number> = {
+      'mañana': 600,    // desayuno max
+      'mediodía': 800,  // almuerzo max
+      'merienda': 400,  // merienda max
+      'noche': 700,     // cena max
+    };
+    const maxKcal = mealCaps[timeOfDay] || 800;
+    // If remaining > maxKcal, cap it and add overflow note
+    const cappedKcal = Math.min(remaining.kcal, maxKcal);
+    const hasOverflow = remaining.kcal > maxKcal;
+    const overflowKcal = remaining.kcal - cappedKcal;
 
-MACROS RESTANTES (target ±10%):
-- Calorías: ${remaining.kcal} kcal
-- Proteína: ${remaining.protein}g
-- Carbos: ${remaining.carbs || 'flexible'}g
-- Grasa: ${remaining.fat || 'flexible'}g
+    const prompt = `Mati necesita una comida ÚNICA para ${timeOfDay}.
+
+TARGET PARA ESTA COMIDA (LÍMITE ESTRICTO):
+- Calorías: ${cappedKcal} kcal (MÁXIMO ABSOLUTO: ${maxKcal} kcal — NO PASAR)
+- Proteína: ${Math.min(remaining.protein, 50)}g (proporcional)
+- Carbos: ${remaining.carbs ? Math.round(remaining.carbs * cappedKcal / Math.max(remaining.kcal, 1)) : 'flexible'}g
+- Grasa: ${remaining.fat ? Math.round(remaining.fat * cappedKcal / Math.max(remaining.kcal, 1)) : 'flexible'}g
+${hasOverflow ? `\nNOTA: Le quedan ${remaining.kcal} kcal en el día pero esta comida es de ${cappedKcal} max. En "brim_says" mencioná: "Te sobran muchas calorías, vamos con esta comida potente pero repartí las ${overflowKcal} kcal restantes en snacks o la próxima comida."` : ''}
 
 MOMENTO: ${timeOfDay}
 ${context ? 'CONTEXTO: ' + context : ''}
 
-COMIDAS FRECUENTES DE MATI (las que realmente come):
+COMIDAS FRECUENTES DE MATI:
 ${favFoods || 'Sin datos suficientes'}
 
 ${insightPrefs ? 'PREFERENCIAS DETECTADAS:\n' + insightPrefs : ''}
 ${modelSection ? 'PERFIL ALIMENTARIO:\n' + modelSection : ''}
 
-REGLAS:
-- La comida debe encajar en un 90% de los macros restantes (±10%)
-- Usá ingredientes que Mati ya come o que son comunes en Argentina
+⚠️ REGLAS CRÍTICAS DE PORCIONES (HARD LIMITS):
+- MÁXIMO ABSOLUTO por comida: ${maxKcal} kcal. NUNCA sugerir más de esto.
+- Desayuno: 400-600 kcal máximo
+- Almuerzo: 600-800 kcal máximo
+- Merienda: 200-400 kcal máximo
+- Cena: 500-700 kcal máximo
+- Si los ingredientes no suman las kcal declaradas, AJUSTÁ los ingredientes. No inventes números.
+- VALIDACIÓN: Verificá mentalmente que las porciones sean realistas:
+  - 200g pollo ≈ 220 kcal, 100g arroz cocido ≈ 130 kcal, 1 huevo ≈ 75 kcal
+  - 1 milanesa ≈ 350 kcal, 1 tostada con queso ≈ 180 kcal
+
+OTRAS REGLAS:
+- Usá ingredientes que Mati ya come o comunes en Argentina
 - NO sugieras: quinoa, açaí, tofu, kale, smoothie bowls
 - SÍ sugerí: pollo, carne, huevo, arroz, fideos, verduras, queso, pan, yogur
-- Si es NOCHE: que sea liviana, fácil de digerir, no muy pesada
-- Si es POST-GYM/BJJ con gasto alto (>600kcal): SUBIR carbohidratos complejos para reponer glucógeno (arroz, papa, fideos). El 'why' debe mencionar: "Como hoy quemaste mucho, le subimos a los carbs para que mañana no estés detonado"
+- Si es NOCHE: que sea liviana, fácil de digerir
+- Si es POST-GYM/BJJ con gasto alto (>600kcal): SUBIR carbohidratos complejos para reponer glucógeno. Why: "Como hoy quemaste mucho, le subimos a los carbs"
 - Si es POST-GYM/BJJ con gasto normal: priorizá proteína
 - Si es MERIENDA: algo rápido y práctico
-- El nombre debe ser creativo pero argentino (nada de "Bowl de..." o "Smoothie de...")
-- Las instrucciones deben ser breves (3-5 pasos, tipo receta de WhatsApp)
+- Nombre creativo argentino (nada de "Bowl de..." o "Smoothie de...")
+- Instrucciones breves (3-5 pasos, tipo receta de WhatsApp)
 
 RESPONDÉ SOLO CON JSON:
 {
@@ -104,6 +128,21 @@ RESPONDÉ SOLO CON JSON:
 
     const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const result = JSON.parse(cleaned);
+
+    // ── Server-side validation: clamp if Claude ignored the cap ──
+    if (result.macros && result.macros.kcal > maxKcal + 50) {
+      const ratio = maxKcal / result.macros.kcal;
+      result.macros.kcal = maxKcal;
+      result.macros.protein = Math.round((result.macros.protein || 0) * ratio);
+      result.macros.carbs = Math.round((result.macros.carbs || 0) * ratio);
+      result.macros.fat = Math.round((result.macros.fat || 0) * ratio);
+      result.brim_says = (result.brim_says || '') + ' (Ajustado a ' + maxKcal + ' kcal para no pasarte)';
+    }
+
+    // Add overflow info if applicable
+    if (hasOverflow) {
+      result.overflow_note = `Te sobran ${overflowKcal} kcal más para repartir en snacks o la próxima comida.`;
+    }
 
     return new Response(
       JSON.stringify(result),

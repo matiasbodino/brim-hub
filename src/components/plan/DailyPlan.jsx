@@ -100,6 +100,9 @@ function SmartSuggestion({ remaining, onLog }) {
         {suggestion.why && (
           <p className="text-[10px] text-emerald-600">{suggestion.why}</p>
         )}
+        {suggestion.overflow_note && (
+          <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mt-1">{suggestion.overflow_note}</p>
+        )}
 
         {/* Expandable recipe */}
         <button onClick={() => setShowRecipe(!showRecipe)} className="text-[10px] font-bold text-emerald-700">
