@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     })();
 
     // ── 3a. Parallel data fetch ──
-    const [profile, weekFood, todayFood, todayHabits, todayEnergy, userModelData, foodInsights, existingPlan, yesterdayFood, recentWorkouts] = await Promise.all([
+    const [profile, weekFood, todayFood, todayHabits, todayEnergy, userModelData, foodInsights, existingPlan, yesterdayFood, recentWorkouts, recentEnergy] = await Promise.all([
       querySingle("user_profile", `select=daily_calorie_target,daily_protein_target,daily_carbs_target,daily_fat_target,daily_water_target,daily_steps_target,weight_goal,weight_goal_date,weekly_weight_target&id=eq.${enc(MATI_ID)}`),
       query("food_logs", `select=calories,protein,carbs,fat,logged_at&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(monday + "T00:00:00-03:00")}&logged_at=lte.${enc(today + "T23:59:59-03:00")}`) as Promise<{calories:number;protein:number;carbs:number;fat:number;logged_at:string}[]>,
       query("food_logs", `select=calories,protein,carbs,fat,meal_type,description,logged_at&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(today + "T00:00:00-03:00")}&logged_at=lte.${enc(today + "T23:59:59-03:00")}`) as Promise<{calories:number;protein:number;carbs:number;fat:number;meal_type:string;description:string;logged_at:string}[]>,
@@ -155,6 +155,7 @@ Deno.serve(async (req) => {
       querySingle("daily_plans", `select=*&user_id=eq.${enc(MATI_ID)}&date=eq.${enc(today)}`),
       query("food_logs", `select=description&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(yesterday + "T00:00:00-03:00")}&logged_at=lte.${enc(yesterday + "T23:59:59-03:00")}`) as Promise<{description:string}[]>,
       query("workout_logs", `select=rpe,date&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=1`) as Promise<{rpe:number;date:string}[]>,
+      query("daily_logs", `select=date,energy_level&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=3`) as Promise<{date:string;energy_level:number}[]>,
     ]);
 
     // ── 3b. Calculate adjusted targets ──
@@ -199,6 +200,19 @@ Deno.serve(async (req) => {
       if (!adjustedTargets.reason.includes('recovery')) {
         adjustedTargets.reason += ' 🧘 RPE ' + lastRpe + ' ayer — hoy bajamos pasos a ' + adjustedTargets.steps + ' para recuperar.';
       }
+    }
+
+    // ── Fatigue detection: energy <3 for 2+ consecutive days → recovery mode ──
+    const energyHistory = (recentEnergy as {date:string;energy_level:number}[]) || [];
+    const lowEnergyDays = energyHistory.filter(e => e.energy_level <= 2).length;
+    const isFatigued = lowEnergyDays >= 2;
+
+    if (isFatigued) {
+      adjustedTargets.steps = Math.min(adjustedTargets.steps, 6000);
+      adjustedTargets.water = Math.max(adjustedTargets.water, 3.0);
+      adjustedTargets.recovery_mode = true;
+      adjustedTargets.fatigue_detected = true;
+      adjustedTargets.reason = `🧘 Día de Recuperación Activa. Energía baja ${lowEnergyDays} días seguidos — bajamos pasos a ${adjustedTargets.steps}, subimos agua a ${adjustedTargets.water}L. Prioridad: descansar bien.`;
     }
 
     // ── 3f. consumed_so_far + remaining_budget ──
@@ -304,7 +318,8 @@ Agua hoy: ${adjustedTargets.water}L ${hadAlcoholYesterday ? '(+1L por alcohol de
 Energía: ${energyLevel ? energyLevel + '/5' : 'sin registrar'}
 Día: ${dayName}
 Hábitos: ${habitsStatus}
-${hadAlcoholYesterday ? 'IMPORTANTE: Ayer tomó alcohol. Enfocá el brief en recuperación: agua, comida liviana, descanso. Mencioná que si tiene que rodar/entrenar necesita tomar mucha agua.' : ''}`,
+${hadAlcoholYesterday ? 'IMPORTANTE: Ayer tomó alcohol. Enfocá el brief en recuperación: agua, comida liviana, descanso. Mencioná que si tiene que rodar/entrenar necesita tomar mucha agua.' : ''}
+${isFatigued ? 'IMPORTANTE: Energía baja ≤2 por ' + lowEnergyDays + ' días seguidos. Hoy es DÍA DE RECUPERACIÓN ACTIVA. NO empujar al gym. El brief debe decir: "Hoy es día de recuperación. Bajamos calorías, subimos agua y prioridad: 8hs de sueño. Mañana volvemos con todo." El bienestar es consistencia, no intensidad infinita.' : ''}`,
         { maxTokens: 200, temperature: 0.7 }
       );
     } else if (timeOfDay === 'midday' && recalculate) {

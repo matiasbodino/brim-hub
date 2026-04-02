@@ -117,14 +117,31 @@ export default function DailyPlan() {
   const calOk = consumed.calories <= targets.calories
   const protLow = consumed.protein < targets.protein * 0.5
 
+  const isFatigued = targets.fatigue_detected
+  const isRecovery = targets.recovery_mode
+
   return (
     <div className={`bg-white rounded-[2rem] p-5 shadow-sm border-l-4 ${
-      isEvening ? (calOk ? 'border-emerald-500' : 'border-amber-500') : 'border-violet-600'
+      isFatigued ? 'border-blue-400'
+      : isEvening ? (calOk ? 'border-emerald-500' : 'border-amber-500')
+      : 'border-violet-600'
     } border border-slate-100`}>
+
+      {/* Fatigue banner */}
+      {isFatigued && (
+        <div className="bg-blue-50 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
+          <span className="text-lg">🧘</span>
+          <div>
+            <p className="text-xs font-black text-blue-700">Día de Recuperación Activa</p>
+            <p className="text-[10px] text-blue-600 mt-0.5">Energía baja detectada. Hoy bajamos intensidad, subimos agua y prioridad: descansar bien. Mañana volvemos con todo.</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
-          {isEvening ? '📊 Resumen del día' : timeOfDay === 'midday' ? '⚡ Recálculo del día' : '🎯 Tu plan para hoy'}
+          {isFatigued ? '🧘 Recuperación' : isEvening ? '📊 Resumen del día' : timeOfDay === 'midday' ? '⚡ Recálculo del día' : '🎯 Tu plan para hoy'}
         </h3>
         <span className="text-[10px] text-slate-400">v{plan.plan_version}</span>
       </div>
