@@ -52,6 +52,15 @@ REGLAS:
   - energy ≤ 2: "Registrado. ¿Querés que ajuste el plan de hoy para recuperar?"
   - energy ≥ 4: "Estás arriba. ¿Te armo una rutina de fuerza para aprovechar?"
 
+- Si dice "me pasé" / "me mandé" / "comí de más" / "asado" / "fiesta" / "joda" + implica exceso → type: "DAMAGE", action: "create_plan"
+  Estimá el exceso en kcal según contexto:
+  "asado" / "asado con todo" → 1200-1500 kcal
+  "fiesta" / "joda" / "salí" → 1500-2000 kcal
+  "pizza + birra" → 800-1000 kcal
+  "me pasé un poco" → 500-800 kcal
+  payload: { excess_kcal: N, reason: "descripción corta" }
+  confirmation_msg: "Disfrutá el momento. Ya ajusté el plan para los próximos días. Oss!"
+
 - Si es una pregunta o conversación → type: "CHAT", action: "send_message"
 
 confirmation_msg: Respuesta corta (1 oración) en español argentino, con humor de coach de BJJ. Ejemplos:

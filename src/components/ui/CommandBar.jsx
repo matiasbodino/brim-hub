@@ -6,7 +6,7 @@ import { usePointsStore } from '../../stores/pointsStore'
 import { useTargetsStore } from '../../stores/targetsStore'
 import { useEnergyStore } from '../../stores/energyStore'
 import { usePlanStore } from '../../stores/planStore'
-import { useRoutineStore } from '../../stores/routineStore'
+import { useDamageStore } from '../../stores/damageStore'
 import { WATER_UNITS } from '../../lib/constants'
 
 const EDGE_URL = 'https://birpqzahbtfbxxtaqeth.supabase.co/functions/v1'
@@ -129,6 +129,15 @@ export default function CommandBar({ isOpen, onClose }) {
 
         if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
         setMessage(intent.confirmation_msg || `Energía ${energy}/5 registrada.`)
+        setStatus('success')
+        return
+      } else if (intent.type === 'DAMAGE') {
+        const excess = intent.payload?.excess_kcal || 1000
+        const reason = intent.payload?.reason || 'Exceso'
+        const res = await useDamageStore.getState().createPlan(excess, reason)
+        usePlanStore.getState().recalculate()
+        if (window.navigator.vibrate) window.navigator.vibrate([30, 50])
+        setMessage(intent.confirmation_msg || res.message)
         setStatus('success')
         return
       }

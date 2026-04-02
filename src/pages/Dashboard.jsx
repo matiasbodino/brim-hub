@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useFoodStore } from '../stores/foodStore'
 import { useHabitStore } from '../stores/habitStore'
@@ -19,6 +19,8 @@ import VitalityRing from '../components/plan/VitalityRing'
 import DailyPlan from '../components/plan/DailyPlan'
 import PredictiveGhost from '../components/plan/PredictiveGhost'
 import { getTodayBurn } from '../lib/activeBurn'
+import DamageControl, { DamageControlButton } from '../components/plan/DamageControl'
+import { useDamageStore } from '../stores/damageStore'
 
 function MacroRing({ label, current, target, color, textColor }) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
@@ -69,6 +71,8 @@ export default function Dashboard() {
   const { userModel, lastGenerated, fetchUserModel } = useInsightsStore()
   const { todayPlan, fetchTodayPlan, generatePlan } = usePlanStore()
   const { todayEnergy, fetchToday: fetchEnergy } = useEnergyStore()
+  const { activePlan: damagePlan, fetchActive: fetchDamage } = useDamageStore()
+  const [showDamageForm, setShowDamageForm] = useState(false)
 
   // Background sync: rehydrate from Supabase, flush pending writes
   useSync()
@@ -82,6 +86,7 @@ export default function Dashboard() {
     fetchUserModel()
     fetchTodayPlan()
     fetchEnergy()
+    fetchDamage()
     track('app_open')
   }, [])
 
@@ -161,9 +166,24 @@ export default function Dashboard() {
       )}
 
       {/* Daily Plan */}
-      <div className="mb-6">
+      <div className="mb-4">
         <DailyPlan />
       </div>
+
+      {/* Damage Control */}
+      {showDamageForm ? (
+        <div className="mb-4">
+          <DamageControl />
+        </div>
+      ) : damagePlan ? (
+        <div className="mb-4">
+          <DamageControl />
+        </div>
+      ) : (
+        <div className="flex justify-end mb-4">
+          <DamageControlButton onOpen={() => setShowDamageForm(true)} />
+        </div>
+      )}
 
       {/* Bento Grid de Stats */}
       <div className="grid grid-cols-2 gap-4 mb-8">

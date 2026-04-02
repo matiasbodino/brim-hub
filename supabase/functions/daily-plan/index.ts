@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     })();
 
     // ── 3a. Parallel data fetch ──
-    const [profile, weekFood, todayFood, todayHabits, todayEnergy, userModelData, foodInsights, existingPlan, yesterdayFood, recentWorkouts, recentEnergy, recentBJJ] = await Promise.all([
+    const [profile, weekFood, todayFood, todayHabits, todayEnergy, userModelData, foodInsights, existingPlan, yesterdayFood, recentWorkouts, recentEnergy, recentBJJ, activeDamage] = await Promise.all([
       querySingle("user_profile", `select=daily_calorie_target,daily_protein_target,daily_carbs_target,daily_fat_target,daily_water_target,daily_steps_target,weight_goal,weight_goal_date,weekly_weight_target&id=eq.${enc(MATI_ID)}`),
       query("food_logs", `select=calories,protein,carbs,fat,logged_at&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(monday + "T00:00:00-03:00")}&logged_at=lte.${enc(today + "T23:59:59-03:00")}`) as Promise<{calories:number;protein:number;carbs:number;fat:number;logged_at:string}[]>,
       query("food_logs", `select=calories,protein,carbs,fat,meal_type,description,logged_at&user_id=eq.${enc(MATI_ID)}&logged_at=gte.${enc(today + "T00:00:00-03:00")}&logged_at=lte.${enc(today + "T23:59:59-03:00")}`) as Promise<{calories:number;protein:number;carbs:number;fat:number;meal_type:string;description:string;logged_at:string}[]>,
@@ -157,6 +157,7 @@ Deno.serve(async (req) => {
       query("workout_logs", `select=rpe,date,duration_min&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=7`) as Promise<{rpe:number;date:string;duration_min:number}[]>,
       query("daily_logs", `select=date,energy_level&user_id=eq.${enc(MATI_ID)}&order=date.desc&limit=3`) as Promise<{date:string;energy_level:number}[]>,
       query("habit_logs", `select=date,metadata&user_id=eq.${enc(MATI_ID)}&habit_type=eq.bjj&completion_type=eq.full&order=date.desc&limit=7`) as Promise<{date:string;metadata:{duracion?:number;tipo?:string}}[]>,
+      query("damage_control", `select=daily_reduction,daily_extra_steps,days_completed,spread_days,excess_kcal,reason&user_id=eq.${enc(MATI_ID)}&active=eq.true&limit=1`) as Promise<{daily_reduction:number;daily_extra_steps:number;days_completed:number;spread_days:number;excess_kcal:number;reason:string}[]>,
     ]);
 
     // ── 3b. Calculate adjusted targets ──
@@ -253,6 +254,27 @@ Deno.serve(async (req) => {
       adjustedTargets.recovery_mode = true;
       adjustedTargets.fatigue_detected = true;
       adjustedTargets.reason = `🧘 Día de Recuperación Activa. Energía baja ${lowEnergyDays} días seguidos — bajamos pasos a ${adjustedTargets.steps}, subimos agua a ${adjustedTargets.water}L. Prioridad: descansar bien.`;
+    }
+
+    // ── Damage Control: active recovery plan reduces daily calories + adds steps ──
+    const damageData = (activeDamage as {daily_reduction:number;daily_extra_steps:number;days_completed:number;spread_days:number;excess_kcal:number;reason:string}[]);
+    const dmgPlan = damageData.length > 0 ? damageData[0] : null;
+    if (dmgPlan) {
+      adjustedTargets.calories = Math.max(1400, adjustedTargets.calories - dmgPlan.daily_reduction);
+      adjustedTargets.steps = Math.min(15000, adjustedTargets.steps + dmgPlan.daily_extra_steps);
+      adjustedTargets.damage_control = {
+        active: true,
+        reason: dmgPlan.reason,
+        excess: dmgPlan.excess_kcal,
+        dailyReduction: dmgPlan.daily_reduction,
+        dailyExtraSteps: dmgPlan.daily_extra_steps,
+        daysCompleted: dmgPlan.days_completed,
+        totalDays: dmgPlan.spread_days,
+        progress: Math.round((dmgPlan.days_completed / dmgPlan.spread_days) * 100),
+      };
+      if (!adjustedTargets.reason.includes('compensación')) {
+        adjustedTargets.reason += ` 🔄 Compensación activa: -${dmgPlan.daily_reduction} kcal/día +${dmgPlan.daily_extra_steps} pasos (día ${dmgPlan.days_completed + 1}/${dmgPlan.spread_days}).`;
+      }
     }
 
     // ── 3f. consumed_so_far + remaining_budget ──
